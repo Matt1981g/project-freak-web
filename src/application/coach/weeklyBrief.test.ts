@@ -138,7 +138,7 @@ describe('build_weekly_coaching_brief', () => {
     const brief = build_weekly_coaching_brief(payload)
 
     expect(brief).toContain('PROJECT FREAK — WEEKLY COACHING BRIEF')
-    expect(brief).toContain('Period: 2026-08-29 to 2026-09-04')
+    expect(brief).toContain('Scope: 2026-08-29 to 2026-09-04')
     expect(brief).toContain('Comparable volume: 990 kg')
     expect(brief).toContain('1. Biceps | 2. Quads')
     expect(brief).toContain('Nautilus Bicep Curl [exercise-1]')
