@@ -1,7 +1,11 @@
-const CACHE_NAME = 'project-freak-shell-v2'
+const CACHE_NAME = 'project-freak-shell-v3'
 
 function app_url(path = '') {
   return new URL(path, self.registration.scope).href
+}
+
+function fetch_fresh(request) {
+  return fetch(request, { cache: 'no-store' })
 }
 
 const CORE_ASSETS = [
@@ -35,6 +39,12 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+self.addEventListener('message', (event) => {
+  if (event.data === 'PROJECT_FREAK_SKIP_WAITING') {
+    void self.skipWaiting()
+  }
+})
+
 self.addEventListener('fetch', (event) => {
   const request = event.request
   if (request.method !== 'GET') return
@@ -42,23 +52,34 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
 
-  if (request.mode === 'navigate') {
+  const network_first =
+    request.mode === 'navigate' ||
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'worker' ||
+    request.destination === 'manifest'
+
+  if (network_first) {
     event.respondWith(
-      fetch(request)
+      fetch_fresh(request)
         .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+          if (response.ok) {
+            const copy = response.clone()
+            void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+          }
           return response
         })
         .catch(async () => {
           const exact = await caches.match(request)
           if (exact) return exact
 
-          const shell = await caches.match(app_url())
-          if (shell) return shell
+          if (request.mode === 'navigate') {
+            const shell = await caches.match(app_url())
+            if (shell) return shell
+          }
 
           return new Response(
-            'PROJECT FREAK is offline and the app shell is not cached yet.',
+            'PROJECT FREAK is offline and this resource is not cached yet.',
             {
               status: 503,
               headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -75,7 +96,7 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           if (response.ok) {
             const copy = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+            void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
           }
           return response
         })
