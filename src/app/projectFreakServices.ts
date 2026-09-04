@@ -22,6 +22,7 @@ import {
   save_session_recovery,
 } from '../application/workout/readiness'
 import { start_programmed_workout } from '../application/workout/startWorkout'
+import { select_previous_comparable } from '../application/workout/previousComparable'
 import {
   commit_programme_import,
   preview_programme_import,
@@ -217,20 +218,35 @@ export async function load_live_workout(completed_session_id: string) {
       await repositories.readiness.get_by_session_id(completed_session_id),
     summary: build_workout_summary(session, actual_exercises, all_sets),
     exercises: await Promise.all(
-      actual_exercises.map(async (exercise) => ({
-        exercise,
-        sets:
-          await repositories.sessions.list_sets_for_session_exercise(
-            exercise.id,
+      actual_exercises.map(async (exercise) => {
+        const [sets, metrics, history] = await Promise.all([
+          repositories.sessions.list_sets_for_session_exercise(exercise.id),
+          repositories.sessions.get_exercise_metrics(exercise.id),
+          load_exercise_history(
+            exercise.exercise_id,
+            repositories.exercises,
+            repositories.sessions,
           ),
-        metrics:
-          await repositories.sessions.get_exercise_metrics(exercise.id),
-        planned_sets:
-          exercise.programmed_session_exercise_id === null
-            ? []
-            : planned_by_id.get(exercise.programmed_session_exercise_id)?.sets ??
-              [],
-      })),
+        ])
+
+        return {
+          exercise,
+          sets,
+          metrics,
+          previous_comparable: history
+            ? select_previous_comparable(
+                history,
+                session.id,
+                session.session_date_local,
+              )
+            : null,
+          planned_sets:
+            exercise.programmed_session_exercise_id === null
+              ? []
+              : planned_by_id.get(exercise.programmed_session_exercise_id)?.sets ??
+                [],
+        }
+      }),
     ),
   }
 }
