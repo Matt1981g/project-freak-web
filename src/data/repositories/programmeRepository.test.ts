@@ -193,6 +193,27 @@ describe('DexieProgrammeRepository', () => {
     expect(await db.sync_outbox.count()).toBe(9)
   })
 
+  it('loads a programmed session with ordered exercises, sets and components', async () => {
+    const entities = import_entities()
+    await repositories.programme.commit_import(entities)
+
+    const detail = await repositories.programme.get_programmed_session_detail(
+      'programmed-session-1',
+    )
+
+    expect(detail?.session.name_snapshot).toBe('Monday')
+    expect(detail?.exercises).toHaveLength(1)
+    expect(detail?.exercises[0].exercise.exercise_name_snapshot).toBe(
+      'Nautilus Bicep Curl',
+    )
+    expect(detail?.exercises[0].sets).toHaveLength(1)
+    expect(detail?.exercises[0].sets[0].set.structure_type).toBe('rest_pause')
+    expect(detail?.exercises[0].sets[0].components).toHaveLength(1)
+    expect(
+      detail?.exercises[0].sets[0].components[0].component_type,
+    ).toBe('rest_pause')
+  })
+
   it('treats an identical source import as a no-op', async () => {
     const entities = import_entities()
 
