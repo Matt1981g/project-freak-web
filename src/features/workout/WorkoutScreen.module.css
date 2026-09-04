@@ -637,6 +637,150 @@
   font-weight: 800;
 }
 
+.correctionArea {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--pf-border);
+}
+
+.correctionToggle {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.correctionPanel {
+  padding: 12px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 12px;
+  background: var(--pf-bg);
+}
+
+.correctionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.correctionHeader div {
+  display: grid;
+  gap: 3px;
+}
+
+.correctionHeader span {
+  color: var(--pf-accent);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.correctionHeader strong {
+  color: var(--pf-text-strong);
+  font-size: 13px;
+}
+
+.correctionHeader small {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.correctionGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr minmax(90px, 0.5fr);
+  gap: 8px;
+  align-items: end;
+  margin-top: 10px;
+}
+
+.correctionGrid label,
+.correctionReason {
+  display: grid;
+  gap: 5px;
+}
+
+.correctionGrid label > span,
+.correctionReason > span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.correctionGrid input,
+.correctionReason input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.correctionGrid input:focus,
+.correctionReason input:focus {
+  border-color: var(--pf-accent-border);
+  box-shadow: 0 0 0 3px var(--pf-accent-soft);
+}
+
+.correctionGrid > button {
+  min-height: 44px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.correctionReason {
+  margin-top: 8px;
+}
+
+.correctionActions {
+  display: grid;
+  grid-template-columns: 0.35fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.correctionActions button {
+  min-height: 44px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.correctionActions .correctionSave {
+  border-color: var(--pf-accent-border);
+  color: #071006;
+  background: var(--pf-accent);
+}
+
+.correctionActions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .scoringPanel {
   margin-top: 3px;
   padding: 14px;
@@ -1050,6 +1194,26 @@
 
   .setActions {
     grid-template-columns: 0.4fr 1fr;
+  }
+
+  .correctionHeader {
+    flex-direction: column;
+  }
+
+  .correctionHeader small {
+    text-align: left;
+  }
+
+  .correctionGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .correctionGrid > button {
+    grid-column: 1 / -1;
+  }
+
+  .correctionActions {
+    grid-template-columns: 1fr;
   }
 
   .scoringHeader,
