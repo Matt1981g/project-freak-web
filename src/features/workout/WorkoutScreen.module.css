@@ -81,6 +81,114 @@
   font-size: 16px;
 }
 
+.readinessPanel {
+  margin-top: 16px;
+  border: 1px solid var(--pf-border);
+  border-radius: 16px;
+  background: var(--pf-panel);
+  overflow: hidden;
+}
+
+.readinessPanel > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.readinessPanel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.readinessPanel > summary div {
+  display: grid;
+  gap: 2px;
+}
+
+.readinessPanel > summary span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.readinessPanel > summary strong {
+  color: var(--pf-text-strong);
+  font-size: 16px;
+}
+
+.readinessPanel > summary small {
+  color: var(--pf-text-faint);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.readinessPanel[open] > summary {
+  border-bottom: 1px solid var(--pf-border);
+  background: var(--pf-accent-soft);
+}
+
+.readinessGrid,
+.readinessNotes {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.readinessGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.readinessNotes {
+  grid-template-columns: 1fr 1fr;
+  padding-top: 0;
+}
+
+.readinessGrid label,
+.readinessNotes label {
+  display: grid;
+  gap: 5px;
+}
+
+.readinessGrid label > span,
+.readinessNotes label > span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.readinessGrid input,
+.readinessGrid select,
+.readinessNotes input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-strong);
+  background: var(--pf-bg);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.readinessGrid input:focus,
+.readinessGrid select:focus,
+.readinessNotes input:focus {
+  border-color: var(--pf-accent-border);
+  box-shadow: 0 0 0 3px var(--pf-accent-soft);
+}
+
+.readinessNotesWide {
+  grid-column: 1 / -1;
+}
+
 .pairingPrompt {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -802,6 +910,15 @@
 
   .sessionMeta {
     grid-template-columns: 1fr;
+  }
+
+  .readinessGrid,
+  .readinessNotes {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .readinessNotesWide {
+    grid-column: 1 / -1;
   }
 
   .pairingPrompt {
