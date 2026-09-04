@@ -1,6 +1,7 @@
 import type { TrainingSet } from '../../domain/models'
 import type { SessionRepository } from '../../data/repositories/contracts'
 import { calculate_comparable_tonnage } from '../../domain/rules/tonnage'
+import { is_training_set_completed } from '../../domain/rules/completion'
 
 export interface CorrectCompletedSetInput {
   set: TrainingSet
@@ -34,7 +35,7 @@ function validate_non_negative(
 
 export function can_safely_correct_set(set: TrainingSet): boolean {
   return (
-    set.completed_at !== null &&
+    is_training_set_completed(set) &&
     set.rep_mode === 'total' &&
     set.structure_type === 'straight'
   )
@@ -45,7 +46,7 @@ export async function correct_completed_set(
   repository: SessionRepository,
   context: CorrectCompletedSetContext,
 ): Promise<TrainingSet> {
-  if (input.set.completed_at === null) {
+  if (!is_training_set_completed(input.set)) {
     throw new Error('Only completed sets can be corrected from history.')
   }
 
