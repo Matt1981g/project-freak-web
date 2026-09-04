@@ -340,6 +340,14 @@ function repositories(): RepositoryBundle {
       put_set_components: async () => undefined,
       put_exercise_metrics: async () => metrics.id,
     },
+    sync: {
+      get_state: async () => undefined,
+      put_state: async (state) => state.provider,
+      list_pending: async () => [],
+      mark_attempted: async () => undefined,
+      mark_synced: async () => undefined,
+      count_pending: async () => 0,
+    },
   }
 }
 
