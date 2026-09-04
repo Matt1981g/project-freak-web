@@ -182,6 +182,76 @@
   font-size: 11px;
 }
 
+.progressionIncrease,
+.progressionHold,
+.progressionReps,
+.progressionInsufficient {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin: -4px 0 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-panel);
+}
+
+.progressionIncrease,
+.progressionReps {
+  border-color: var(--pf-accent-border);
+}
+
+.progressionIncrease {
+  background:
+    linear-gradient(135deg, var(--pf-accent-soft), transparent 78%),
+    var(--pf-panel);
+}
+
+.progressionHold {
+  background: var(--pf-panel-raised);
+}
+
+.progressionInsufficient {
+  opacity: 0.82;
+}
+
+.progressionIncrease > div,
+.progressionHold > div,
+.progressionReps > div,
+.progressionInsufficient > div {
+  display: grid;
+  gap: 2px;
+}
+
+.progressionIncrease span,
+.progressionHold span,
+.progressionReps span,
+.progressionInsufficient span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.progressionIncrease strong,
+.progressionHold strong,
+.progressionReps strong,
+.progressionInsufficient strong {
+  color: var(--pf-text-strong);
+  font-size: 12px;
+}
+
+.progressionIncrease p,
+.progressionHold p,
+.progressionReps p,
+.progressionInsufficient p {
+  margin: 0;
+  color: var(--pf-text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
 .readinessPanel {
   margin-top: 16px;
   border: 1px solid var(--pf-border);
@@ -1232,6 +1302,13 @@
   }
 
   .sessionMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .progressionIncrease,
+  .progressionHold,
+  .progressionReps,
+  .progressionInsufficient {
     grid-template-columns: 1fr;
   }
 
