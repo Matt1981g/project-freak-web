@@ -9,6 +9,7 @@ import type {
   RepositoryBundle,
 } from '../../data/repositories/contracts'
 import { load_training_priorities } from '../priorities/trainingPriorities'
+import { load_coach_excluded_sessions } from './coachExclusions'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
 export const TRAINING_EXPORT_SCHEMA_VERSION = '1.0.0' as const
@@ -230,20 +231,24 @@ export async function build_last_7_days_training_export(
   context: TrainingExportContext,
 ): Promise<TrainingExport> {
   const from_date = date_minus_days(context.to_date_local, 6)
+  const [priorities, active_exercises, aliases, exclusions] = await Promise.all([
+    load_training_priorities(repositories.settings),
+    repositories.exercises.list_active(),
+    repositories.exercises.list_aliases(),
+    load_coach_excluded_sessions(repositories.settings),
+  ])
+  const excluded_ids = new Set(exclusions.session_ids)
+
   const sessions = (await repositories.sessions.list_sessions_descending())
     .filter(
       (session) =>
         session.deleted_at === null &&
+        session.status === 'completed' &&
+        !excluded_ids.has(session.id) &&
         session.session_date_local >= from_date &&
         session.session_date_local <= context.to_date_local,
     )
     .sort((a, b) => a.session_date_local.localeCompare(b.session_date_local))
-
-  const [priorities, active_exercises, aliases] = await Promise.all([
-    load_training_priorities(repositories.settings),
-    repositories.exercises.list_active(),
-    repositories.exercises.list_aliases(),
-  ])
 
   const exported_sessions = await Promise.all(
     sessions.map(async (session) => {
