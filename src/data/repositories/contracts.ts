@@ -9,6 +9,7 @@ import type {
 
 export interface ExerciseRepository {
   get_by_id(id: string): Promise<Exercise | undefined>
+  list_all(): Promise<Exercise[]>
   list_active(): Promise<Exercise[]>
   put(exercise: Exercise): Promise<string>
 }
