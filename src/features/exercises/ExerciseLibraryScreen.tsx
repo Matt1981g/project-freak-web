@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Exercise } from '../../domain/models'
+import type { ExerciseLibraryAudit } from '../../application/exercises/exerciseLibraryAudit'
 import type { ExerciseAliasCandidateGroup } from '../../domain/rules/exerciseAliases'
 import type { HistoricalImportPreview } from '../../importers/historical'
 import {
@@ -8,6 +9,7 @@ import {
   consolidate_exercise_definitions,
   load_exercise_alias_candidates,
   load_exercise_library,
+  load_exercise_library_audit,
   preview_historical_workbook,
   rename_exercise_definition,
   restore_exercise_definition,
@@ -36,6 +38,8 @@ export function ExerciseLibraryScreen() {
   const [alias_candidates, setAliasCandidates] = useState<
     ExerciseAliasCandidateGroup[]
   >([])
+  const [library_audit, setLibraryAudit] =
+    useState<ExerciseLibraryAudit | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy_id, setBusyId] = useState<string | null>(null)
   const [renaming_id, setRenamingId] = useState<string | null>(null)
@@ -53,15 +57,17 @@ export function ExerciseLibraryScreen() {
     setError(null)
 
     try {
-      const [library, candidates] = await Promise.all([
+      const [library, candidates, audit] = await Promise.all([
         load_exercise_library({
           search,
           include_archived,
         }),
         load_exercise_alias_candidates(),
+        load_exercise_library_audit(),
       ])
       setExercises(library)
       setAliasCandidates(candidates)
+      setLibraryAudit(audit)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load exercises.')
     } finally {
@@ -392,6 +398,64 @@ export function ExerciseLibraryScreen() {
           {include_archived ? 'Showing archived' : 'Active only'}
         </button>
       </section>
+
+      {library_audit && (
+        <section
+          className={
+            library_audit.status === 'clean'
+              ? styles.auditClean
+              : styles.auditWarning
+          }
+        >
+          <div className={styles.auditHeader}>
+            <div>
+              <span className={styles.kicker}>LIBRARY INTEGRITY</span>
+              <h2>
+                {library_audit.status === 'clean'
+                  ? 'Cleanup structure is sound'
+                  : 'Cleanup needs review'}
+              </h2>
+            </div>
+            <span
+              className={
+                library_audit.status === 'clean'
+                  ? styles.readyBadge
+                  : styles.reviewTag
+              }
+            >
+              {library_audit.status === 'clean' ? 'CLEAN' : 'REVIEW'}
+            </span>
+          </div>
+
+          <div className={styles.auditStats}>
+            <div>
+              <strong>{library_audit.active_definitions}</strong>
+              <span>active</span>
+            </div>
+            <div>
+              <strong>{library_audit.archived_definitions}</strong>
+              <span>archived</span>
+            </div>
+            <div>
+              <strong>{library_audit.alias_records}</strong>
+              <span>aliases</span>
+            </div>
+            <div>
+              <strong>{library_audit.unresolved_case_groups}</strong>
+              <span>case groups</span>
+            </div>
+            <div>
+              <strong>{library_audit.orphan_aliases}</strong>
+              <span>broken links</span>
+            </div>
+          </div>
+
+          <p className={styles.auditNote}>
+            Total source definitions: {library_audit.total_definitions}. Archived
+            definitions remain available for historical traceability.
+          </p>
+        </section>
+      )}
 
       {merge_selection.length > 0 && (
         <section className={styles.mergePanel}>
