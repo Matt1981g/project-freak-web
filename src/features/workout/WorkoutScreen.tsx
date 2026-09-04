@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import type { TrainingSet } from '../../domain/models'
+import type { ExerciseMetrics, TrainingSet } from '../../domain/models'
 import {
+  complete_live_session_exercise,
   load_live_workout,
+  save_live_exercise_scores,
   save_live_training_set,
 } from '../../app/projectFreakServices'
 import styles from './WorkoutScreen.module.css'
@@ -12,6 +14,7 @@ type LiveWorkout = NonNullable<
 >
 type LiveExercise = LiveWorkout['exercises'][number]
 type PlannedSet = LiveExercise['planned_sets'][number]
+type ScoreKey = 'rpe' | 'pump' | 'form'
 
 function rep_target(
   minimum: number | null,
@@ -63,7 +66,8 @@ function SetLoggerRow(props: {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const completed = saved_set?.completed_at !== null && saved_set?.completed_at !== undefined
+  const completed =
+    saved_set?.completed_at !== null && saved_set?.completed_at !== undefined
   const target = planned_set?.set
 
   async function save(complete: boolean, failed_override = failed) {
@@ -233,6 +237,192 @@ function SetLoggerRow(props: {
   )
 }
 
+function ExerciseScoringPanel(props: {
+  exercise: LiveExercise['exercise']
+  metrics: ExerciseMetrics | undefined
+  on_complete: () => Promise<void>
+}) {
+  const { exercise, metrics, on_complete } = props
+  const [rpe, setRpe] = useState(metrics?.rpe ?? 5)
+  const [pump, setPump] = useState(metrics?.pump ?? 5)
+  const [form, setForm] = useState(metrics?.form ?? 5)
+  const [rpe_touched, setRpeTouched] = useState(metrics?.rpe != null)
+  const [pump_touched, setPumpTouched] = useState(metrics?.pump != null)
+  const [form_touched, setFormTouched] = useState(metrics?.form != null)
+  const [saved_metrics, setSavedMetrics] = useState<ExerciseMetrics | null>(
+    metrics ?? null,
+  )
+  const [saving, setSaving] = useState(false)
+  const [completing, setCompleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function score_payload(
+    override_key?: ScoreKey,
+    override_value?: number,
+  ) {
+    return {
+      rpe:
+        override_key === 'rpe'
+          ? (override_value ?? rpe)
+          : rpe_touched
+            ? rpe
+            : null,
+      pump:
+        override_key === 'pump'
+          ? (override_value ?? pump)
+          : pump_touched
+            ? pump
+            : null,
+      form:
+        override_key === 'form'
+          ? (override_value ?? form)
+          : form_touched
+            ? form
+            : null,
+    }
+  }
+
+  async function persist_score(key?: ScoreKey, value?: number) {
+    const scores = score_payload(key, value)
+
+    if (
+      saved_metrics?.rpe === scores.rpe &&
+      saved_metrics?.pump === scores.pump &&
+      saved_metrics?.form === scores.form
+    ) {
+      return saved_metrics
+    }
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const saved = await save_live_exercise_scores(exercise.id, scores)
+      setSavedMetrics(saved)
+      return saved
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Unable to save exercise rating.',
+      )
+      return null
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function complete_exercise() {
+    if (saving || completing) return
+
+    setCompleting(true)
+    setError(null)
+
+    try {
+      await persist_score()
+      await complete_live_session_exercise(exercise)
+      await on_complete()
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Unable to complete exercise.',
+      )
+    } finally {
+      setCompleting(false)
+    }
+  }
+
+  function slider(
+    key: ScoreKey,
+    label: string,
+    value: number,
+    touched: boolean,
+    set_value: (value: number) => void,
+    set_touched: (value: boolean) => void,
+  ) {
+    return (
+      <div className={styles.scoreRow}>
+        <div className={styles.scoreHeading}>
+          <strong>{label}</strong>
+          <div>
+            {!touched && <span>UNRATED</span>}
+            <b>{value}</b>
+          </div>
+        </div>
+        <input
+          className={styles.scoreSlider}
+          type="range"
+          min="1"
+          max="10"
+          step="1"
+          value={value}
+          aria-label={label}
+          disabled={saving || completing}
+          onPointerDown={() => set_touched(true)}
+          onChange={(event) => {
+            set_touched(true)
+            set_value(Number(event.target.value))
+          }}
+          onPointerUp={() => void persist_score(key, value)}
+          onKeyUp={() => void persist_score(key, value)}
+          onBlur={() => {
+            if (touched) void persist_score()
+          }}
+        />
+        <div className={styles.scoreScale}>
+          <span>1</span>
+          <span>10</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <section className={styles.scoringPanel}>
+      <div className={styles.scoringHeader}>
+        <div>
+          <span>EXERCISE COMPLETE</span>
+          <h4>Rate the stimulus</h4>
+        </div>
+        <small>Untouched sliders are not recorded.</small>
+      </div>
+
+      {slider('rpe', 'RPE', rpe, rpe_touched, setRpe, setRpeTouched)}
+      {slider('pump', 'PUMP', pump, pump_touched, setPump, setPumpTouched)}
+      {slider('form', 'FORM', form, form_touched, setForm, setFormTouched)}
+
+      <button
+        type="button"
+        className={styles.completeExerciseButton}
+        disabled={saving || completing}
+        onClick={() => void complete_exercise()}
+      >
+        {completing
+          ? 'COMPLETING…'
+          : saving
+            ? 'SAVING RATINGS…'
+            : 'COMPLETE EXERCISE'}
+      </button>
+
+      {error && <div className={styles.setError}>{error}</div>}
+    </section>
+  )
+}
+
+function CompletedExerciseSummary(props: {
+  metrics: ExerciseMetrics | undefined
+}) {
+  const { metrics } = props
+
+  return (
+    <div className={styles.completedExerciseSummary}>
+      <strong>EXERCISE COMPLETE ✓</strong>
+      <div>
+        <span>RPE {metrics?.rpe ?? '—'}</span>
+        <span>PUMP {metrics?.pump ?? '—'}</span>
+        <span>FORM {metrics?.form ?? '—'}</span>
+      </div>
+    </div>
+  )
+}
+
 export function WorkoutScreen() {
   const { completed_session_id } = useParams()
   const [workout, setWorkout] = useState<LiveWorkout | undefined>()
@@ -330,11 +520,17 @@ export function WorkoutScreen() {
 
         <div className={styles.exerciseList}>
           {workout.exercises.map((entry) => {
-            const { exercise, sets, planned_sets } = entry
+            const { exercise, sets, metrics, planned_sets } = entry
             const is_open = open_exercise_id === exercise.id
-            const completed_sets = sets.filter((set) => set.completed_at !== null).length
+            const completed_sets = sets.filter(
+              (set) => set.completed_at !== null,
+            ).length
             const planned_count =
-              planned_sets.length || exercise.target_sets || Math.max(sets.length, 1)
+              planned_sets.length ||
+              exercise.target_sets ||
+              Math.max(sets.length, 1)
+            const all_sets_complete =
+              planned_count > 0 && completed_sets >= planned_count
             const set_numbers = Array.from(
               { length: planned_count },
               (_, index) => index + 1,
@@ -342,7 +538,9 @@ export function WorkoutScreen() {
 
             return (
               <article
-                className={is_open ? styles.exerciseCardOpen : styles.exerciseCard}
+                className={
+                  is_open ? styles.exerciseCardOpen : styles.exerciseCard
+                }
                 key={exercise.id}
               >
                 <button
@@ -373,9 +571,13 @@ export function WorkoutScreen() {
                     {exercise.technique_cue && <p>{exercise.technique_cue}</p>}
                   </div>
                   <span className={styles.exerciseStatus}>
-                    {completed_sets > 0
-                      ? `${completed_sets}/${planned_count} DONE`
-                      : 'LOG SETS'}
+                    {exercise.completed_at !== null
+                      ? 'COMPLETE ✓'
+                      : all_sets_complete
+                        ? 'RATE EXERCISE'
+                        : completed_sets > 0
+                          ? `${completed_sets}/${planned_count} DONE`
+                          : 'LOG SETS'}
                   </span>
                 </button>
 
@@ -400,6 +602,16 @@ export function WorkoutScreen() {
                         />
                       )
                     })}
+
+                    {exercise.completed_at !== null ? (
+                      <CompletedExerciseSummary metrics={metrics} />
+                    ) : all_sets_complete ? (
+                      <ExerciseScoringPanel
+                        exercise={exercise}
+                        metrics={metrics}
+                        on_complete={refresh_workout}
+                      />
+                    ) : null}
                   </div>
                 )}
               </article>
