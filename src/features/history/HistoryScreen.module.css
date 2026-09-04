@@ -1,0 +1,219 @@
+.screen {
+  width: min(980px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 30px 0 96px;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--pf-accent);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.heading h1 {
+  margin: 0;
+  color: var(--pf-text-strong);
+  font-size: clamp(32px, 6vw, 54px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.intro {
+  max-width: 680px;
+  margin: 10px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 13px;
+}
+
+.countCard {
+  min-width: 92px;
+  padding: 12px 14px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 14px;
+  background: var(--pf-accent-soft);
+  text-align: right;
+}
+
+.countCard strong,
+.countCard span {
+  display: block;
+}
+
+.countCard strong {
+  color: var(--pf-accent);
+  font-size: 25px;
+  line-height: 1;
+}
+
+.countCard span {
+  margin-top: 4px;
+  color: var(--pf-text-muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.card {
+  padding: 15px;
+  border: 1px solid var(--pf-border);
+  border-radius: 16px;
+  background: var(--pf-panel);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.cardHeader > div > span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.cardHeader h2 {
+  margin: 4px 0 0;
+  color: var(--pf-text-strong);
+  font-size: 18px;
+}
+
+.cardHeader small {
+  display: block;
+  margin-top: 4px;
+  color: var(--pf-text-muted);
+  font-size: 10px;
+}
+
+.statusComplete,
+.statusActive,
+.statusAbandoned {
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statusComplete,
+.statusActive {
+  border: 1px solid var(--pf-accent-border);
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+}
+
+.statusAbandoned {
+  border: 1px solid var(--pf-border);
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.metrics div {
+  padding: 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  background: var(--pf-bg);
+}
+
+.metrics span,
+.metrics strong {
+  display: block;
+}
+
+.metrics span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.metrics strong {
+  margin-top: 4px;
+  color: var(--pf-text-strong);
+  font-size: 14px;
+}
+
+.openButton {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 11px;
+  color: #071006;
+  background: var(--pf-accent);
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+}
+
+.empty,
+.error {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 14px;
+  font-size: 12px;
+}
+
+.empty {
+  border: 1px solid var(--pf-border);
+  color: var(--pf-text-muted);
+  background: var(--pf-panel);
+}
+
+.error {
+  border: 1px solid var(--pf-danger-border);
+  color: var(--pf-danger);
+  background: var(--pf-danger-soft);
+}
+
+@media (max-width: 560px) {
+  .screen {
+    width: min(100% - 24px, 980px);
+    padding-top: 20px;
+  }
+
+  .heading {
+    gap: 12px;
+  }
+
+  .countCard {
+    min-width: 74px;
+  }
+
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cardHeader {
+    gap: 10px;
+  }
+}
