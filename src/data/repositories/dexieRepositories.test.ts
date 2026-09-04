@@ -73,6 +73,15 @@ describe('Dexie repositories', () => {
     await Dexie.delete(TEST_DB_NAME)
   })
 
+  it('reuses one stable local device identity', async () => {
+    const first = await repositories.devices.ensure_local('test-platform')
+    const second = await repositories.devices.ensure_local('test-platform-2')
+
+    expect(second.id).toBe(first.id)
+    expect(second.platform).toBe('test-platform-2')
+    expect(await db.devices.count()).toBe(1)
+  })
+
   it('persists an exercise with audit and sync records in the same mutation', async () => {
     const exercise = exercise_fixture()
 
