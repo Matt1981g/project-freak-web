@@ -1,6 +1,10 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
 import {
+  build_workout_summary,
+  complete_workout_session,
+} from '../application/workout/completeWorkout'
+import {
   complete_live_exercise,
   save_exercise_scores,
 } from '../application/workout/exerciseCompletion'
@@ -167,8 +171,12 @@ export async function load_live_workout(completed_session_id: string) {
     ]) ?? [],
   )
 
+  const all_sets =
+    await repositories.sessions.list_sets_for_session(completed_session_id)
+
   return {
     session,
+    summary: build_workout_summary(session, actual_exercises, all_sets),
     exercises: await Promise.all(
       actual_exercises.map(async (exercise) => ({
         exercise,
@@ -199,6 +207,20 @@ export async function save_live_training_set(input: {
   complete: boolean
 }) {
   return save_training_set(input, repositories.sessions, {
+    device_id: await current_device_id(),
+    now_iso: new Date().toISOString(),
+  })
+}
+
+export async function complete_live_workout(
+  completed_session_id: string,
+) {
+  const session = await repositories.sessions.get_session(completed_session_id)
+  if (!session || session.deleted_at !== null) {
+    throw new Error('Workout session was not found.')
+  }
+
+  return complete_workout_session(session, repositories.sessions, {
     device_id: await current_device_id(),
     now_iso: new Date().toISOString(),
   })
