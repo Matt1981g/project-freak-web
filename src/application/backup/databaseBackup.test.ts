@@ -6,6 +6,7 @@ import {
   BACKUP_FORMAT,
   build_full_backup,
   preview_backup_json,
+  restore_validated_backup,
 } from './databaseBackup'
 
 const TEST_DB_NAME = 'project-freak-backup-test'
@@ -64,6 +65,58 @@ describe('PROJECT FREAK database backup', () => {
     expect(preview.table_counts.settings).toBe(1)
     expect(preview.total_records).toBeGreaterThanOrEqual(2)
     expect(await db.settings.count()).toBe(1)
+  })
+
+  it('restores the validated backup and returns the replaced database as a safety backup', async () => {
+    const source_backup = await build_full_backup(db, {
+      now_iso: NOW,
+      source_device_id: 'device-1',
+    })
+
+    await db.settings.put({
+      key: 'changed-after-backup',
+      scope: 'global',
+      value_json: { changed: true },
+      updated_at: '2026-09-04T20:05:00.000Z',
+      device_id: null,
+    })
+
+    const preview = await preview_backup_json(JSON.stringify(source_backup))
+    const result = await restore_validated_backup(db, preview, {
+      now_iso: '2026-09-04T20:10:00.000Z',
+      source_device_id: 'device-1',
+    })
+
+    expect(result.restored).toBe(true)
+    expect(await db.settings.get('changed-after-backup')).toBeUndefined()
+    expect(await db.settings.get('test-setting')).toBeDefined()
+    expect(result.safety_backup.database.tables.settings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'changed-after-backup' }),
+      ]),
+    )
+  })
+
+  it('revalidates the preview immediately before restore', async () => {
+    const backup = await build_full_backup(db, {
+      now_iso: NOW,
+      source_device_id: 'device-1',
+    })
+    const preview = await preview_backup_json(JSON.stringify(backup))
+
+    preview.backup.database.tables.settings[0] = {
+      ...preview.backup.database.tables.settings[0],
+      tampered: true,
+    }
+
+    await expect(
+      restore_validated_backup(db, preview, {
+        now_iso: '2026-09-04T20:10:00.000Z',
+        source_device_id: 'device-1',
+      }),
+    ).rejects.toThrow('Backup checksum failed for settings')
+
+    expect(await db.settings.get('test-setting')).toBeDefined()
   })
 
   it('rejects a damaged table checksum', async () => {
