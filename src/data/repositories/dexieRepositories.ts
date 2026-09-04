@@ -524,6 +524,7 @@ export class DexieSessionRepository implements SessionRepository {
     return this.db.exercise_metrics
       .where('session_exercise_id')
       .equals(session_exercise_id)
+      .filter((metrics) => metrics.deleted_at === null)
       .first()
   }
 
