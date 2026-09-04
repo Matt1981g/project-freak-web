@@ -3,6 +3,7 @@ import type {
   CompletedSession,
   Device,
   Exercise,
+  ExerciseAlias,
   ExerciseMetrics,
   MutableEntity,
   SessionExercise,
@@ -23,6 +24,7 @@ import {
 
 type SyncableEntity =
   | Exercise
+  | ExerciseAlias
   | CompletedSession
   | SessionExercise
   | TrainingSet
@@ -119,12 +121,112 @@ export class DexieExerciseRepository implements ExerciseRepository {
     return exercises.filter((exercise) => exercise.archived_at === null)
   }
 
+  list_aliases(): Promise<ExerciseAlias[]> {
+    return this.db.exercise_aliases.toArray()
+  }
+
   put(exercise: Exercise): Promise<string> {
     return put_with_audit_and_outbox(
       this.db,
       this.db.exercises,
       'exercise',
       exercise,
+    )
+  }
+
+  async merge_definitions(
+    source_ids: string[],
+    target_id: string,
+    device_id: string,
+    timestamp: string,
+  ): Promise<ExerciseAlias[]> {
+    const unique_source_ids = [...new Set(source_ids)].filter(
+      (id) => id !== target_id,
+    )
+
+    return this.db.transaction(
+      'rw',
+      this.db.exercises,
+      this.db.exercise_aliases,
+      this.db.audit_events,
+      this.db.sync_outbox,
+      async () => {
+        const target = await this.db.exercises.get(target_id)
+        if (!target || target.deleted_at !== null) {
+          throw new Error(`Target exercise ${target_id} was not found.`)
+        }
+
+        const created_aliases: ExerciseAlias[] = []
+
+        for (const source_id of unique_source_ids) {
+          const source = await this.db.exercises.get(source_id)
+          if (!source || source.deleted_at !== null) {
+            throw new Error(`Source exercise ${source_id} was not found.`)
+          }
+
+          const normalized_alias = source.canonical_name
+            .trim()
+            .toLocaleLowerCase('en-GB')
+
+          const existing_alias = await this.db.exercise_aliases
+            .where('[exercise_id+normalized_alias]')
+            .equals([target_id, normalized_alias])
+            .filter((alias) => alias.source_exercise_id === source_id)
+            .first()
+
+          if (existing_alias) {
+            created_aliases.push(existing_alias)
+            continue
+          }
+
+          const updated_source: Exercise = {
+            ...source,
+            archived_at: source.archived_at ?? timestamp,
+            updated_at: timestamp,
+            revision: source.revision + 1,
+            device_id,
+            source_kind: 'user',
+            source_id: null,
+          }
+
+          const alias: ExerciseAlias = {
+            id: crypto.randomUUID(),
+            exercise_id: target_id,
+            source_exercise_id: source.id,
+            alias: source.canonical_name,
+            normalized_alias,
+            created_at: timestamp,
+            updated_at: timestamp,
+            deleted_at: null,
+            revision: 1,
+            device_id,
+            source_kind: 'user',
+            source_id: null,
+          }
+
+          await this.db.exercises.put(updated_source)
+          await this.db.exercise_aliases.add(alias)
+
+          await this.db.audit_events.bulkAdd([
+            create_audit_event(
+              'exercise',
+              updated_source,
+              source,
+              'update',
+            ),
+            create_audit_event('exercise_alias', alias, null, 'create'),
+          ])
+
+          await this.db.sync_outbox.bulkAdd([
+            create_sync_outbox_entry('exercise', updated_source),
+            create_sync_outbox_entry('exercise_alias', alias),
+          ])
+
+          created_aliases.push(alias)
+        }
+
+        return created_aliases
+      },
     )
   }
 }
