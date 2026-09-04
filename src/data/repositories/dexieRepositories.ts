@@ -363,17 +363,19 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
 
     return this.db.transaction(
       'rw',
-      this.db.programme_blocks,
-      this.db.workout_templates,
-      this.db.template_exercises,
-      this.db.template_sets,
-      this.db.template_set_components,
-      this.db.programmed_sessions,
-      this.db.programmed_session_exercises,
-      this.db.programmed_session_sets,
-      this.db.programmed_set_components,
-      this.db.audit_events,
-      this.db.sync_outbox,
+      [
+        this.db.programme_blocks,
+        this.db.workout_templates,
+        this.db.template_exercises,
+        this.db.template_sets,
+        this.db.template_set_components,
+        this.db.programmed_sessions,
+        this.db.programmed_session_exercises,
+        this.db.programmed_session_sets,
+        this.db.programmed_set_components,
+        this.db.audit_events,
+        this.db.sync_outbox,
+      ],
       async () => {
         await this.db.programme_blocks.add(entities.block)
         await this.db.workout_templates.bulkAdd(entities.templates)
