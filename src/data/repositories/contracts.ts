@@ -105,6 +105,7 @@ export interface SessionRepository {
   list_sets_for_session(
     completed_session_id: string,
   ): Promise<TrainingSet[]>
+  list_set_components(set_id: string): Promise<SetComponent[]>
   get_exercise_metrics(
     session_exercise_id: string,
   ): Promise<ExerciseMetrics | undefined>
