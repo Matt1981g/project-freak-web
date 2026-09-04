@@ -428,10 +428,11 @@ function RecoveryPanel(props: {
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(
-    readiness?.session_fatigue !== null ||
-      readiness?.breathlessness !== null ||
-      readiness?.energy_stability !== null ||
-      Boolean(readiness?.post_workout_intake),
+    readiness != null &&
+      (readiness.session_fatigue !== null ||
+        readiness.breathlessness !== null ||
+        readiness.energy_stability !== null ||
+        Boolean(readiness.post_workout_intake)),
   )
   const [error, setError] = useState<string | null>(null)
 
