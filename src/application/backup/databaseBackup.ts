@@ -183,15 +183,19 @@ export async function restore_validated_backup(
   preview: BackupPreview,
   context: BackupBuildContext,
 ): Promise<RestoreResult> {
+  const validated = await preview_backup_json(JSON.stringify(preview.backup))
   const safety_backup = await build_full_backup(db, context)
 
   try {
-    await replace_database_tables(db, preview.backup)
-    const table_counts = await verify_database_against_backup(db, preview.backup)
+    await replace_database_tables(db, validated.backup)
+    const table_counts = await verify_database_against_backup(
+      db,
+      validated.backup,
+    )
 
     return {
       restored: true,
-      restored_from_created_at: preview.created_at,
+      restored_from_created_at: validated.created_at,
       total_records: Object.values(table_counts).reduce(
         (total, count) => total + count,
         0,
