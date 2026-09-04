@@ -189,6 +189,92 @@
   grid-column: 1 / -1;
 }
 
+.recoveryPanel {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, var(--pf-accent-soft), transparent 72%),
+    var(--pf-panel);
+}
+
+.recoveryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.recoveryHeader span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.recoveryHeader h2 {
+  margin: 4px 0 0;
+  color: var(--pf-text-strong);
+  font-size: 20px;
+}
+
+.recoveryHeader p {
+  margin: 5px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 10px;
+}
+
+.recoveryHeader small {
+  color: var(--pf-text-faint);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.recoveryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.recoveryGrid label {
+  display: grid;
+  gap: 5px;
+}
+
+.recoveryGrid label > span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.recoveryGrid input {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-strong);
+  background: var(--pf-bg);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.recoveryGrid input:focus {
+  border-color: var(--pf-accent-border);
+  box-shadow: 0 0 0 3px var(--pf-accent-soft);
+}
+
+.recoveryIntake {
+  grid-column: 1 / -1;
+}
+
 .pairingPrompt {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -915,6 +1001,18 @@
   .readinessGrid,
   .readinessNotes {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .recoveryHeader {
+    flex-direction: column;
+  }
+
+  .recoveryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .recoveryIntake {
+    grid-column: auto;
   }
 
   .readinessNotesWide {
