@@ -10,6 +10,7 @@ import type {
   ProgrammedSessionSet,
   ProgrammedSetComponent,
   SessionExercise,
+  Setting,
   SetComponent,
   TemplateExercise,
   TemplateSet,
@@ -20,6 +21,11 @@ import type {
 
 export interface DeviceRepository {
   ensure_local(platform: string): Promise<Device>
+}
+
+export interface SettingsRepository {
+  get(key: string): Promise<Setting | undefined>
+  put(setting: Setting): Promise<string>
 }
 
 export interface ExerciseRepository {
@@ -109,6 +115,7 @@ export interface SessionRepository {
 
 export interface RepositoryBundle {
   devices: DeviceRepository
+  settings: SettingsRepository
   exercises: ExerciseRepository
   programme: ProgrammeRepository
   sessions: SessionRepository
