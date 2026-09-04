@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router'
 import { ExerciseLibraryScreen } from './features/exercises/ExerciseLibraryScreen'
 import { PlanScreen } from './features/plan/PlanScreen'
+import { PrioritiesScreen } from './features/priorities/PrioritiesScreen'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
 import './App.css'
 
@@ -25,6 +26,14 @@ function App() {
             Plan
           </NavLink>
           <NavLink
+            to="/priorities"
+            className={({ isActive }) =>
+              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
+            }
+          >
+            Priorities
+          </NavLink>
+          <NavLink
             to="/exercises"
             className={({ isActive }) =>
               isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
@@ -40,6 +49,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/plan" replace />} />
           <Route path="/plan" element={<PlanScreen />} />
+          <Route path="/priorities" element={<PrioritiesScreen />} />
           <Route
             path="/workout/:completed_session_id"
             element={<WorkoutScreen />}
