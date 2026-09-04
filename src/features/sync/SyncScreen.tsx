@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  check_cloud_sync_backend,
   clear_cloud_sync_configuration,
   configure_cloud_sync,
   load_cloud_sync_status,
@@ -28,9 +29,16 @@ export function SyncScreen() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lastResult, setLastResult] = useState<FullCloudSyncResult | null>(null)
+  const [backendHealth, setBackendHealth] = useState<
+    Awaited<ReturnType<typeof check_cloud_sync_backend>> | null
+  >(null)
 
   const can_auth = Boolean(status?.configured)
-  const can_sync = Boolean(status?.configured && status?.signed_in)
+  const can_sync = Boolean(
+    status?.configured &&
+      status?.signed_in &&
+      backendHealth?.contract_version === '1.0.0',
+  )
 
   async function refresh() {
     setStatus(await load_cloud_sync_status())
@@ -116,6 +124,10 @@ export function SyncScreen() {
           <span>LAST PULL</span>
           <strong>{format_date(status?.sync_state?.last_pull_at)}</strong>
         </div>
+        <div>
+          <span>BACKEND VERIFIED</span>
+          <strong>{backendHealth ? 'YES' : 'NO'}</strong>
+        </div>
       </section>
 
       <section className={styles.panel}>
@@ -164,6 +176,7 @@ export function SyncScreen() {
             onClick={() =>
               void run_action('config', async () => {
                 configure_cloud_sync(projectUrl, anonKey)
+                setBackendHealth(null)
                 setAnonKey('')
                 setMessage('Supabase configuration saved on this device.')
               })
@@ -178,6 +191,7 @@ export function SyncScreen() {
             onClick={() =>
               void run_action('clear', async () => {
                 clear_cloud_sync_configuration()
+                setBackendHealth(null)
                 setProjectUrl('')
                 setAnonKey('')
                 setMessage('Cloud configuration and local auth session cleared.')
@@ -233,8 +247,9 @@ export function SyncScreen() {
             onClick={() =>
               void run_action('signin', async () => {
                 await sign_in_cloud_sync(email, password)
+                setBackendHealth(null)
                 setPassword('')
-                setMessage('Signed in. Cloud sync is ready.')
+                setMessage('Signed in. Check the backend before syncing.')
               })
             }
           >
@@ -247,6 +262,7 @@ export function SyncScreen() {
             onClick={() =>
               void run_action('signup', async () => {
                 const session = await sign_up_cloud_sync(email, password)
+                setBackendHealth(null)
                 setPassword('')
                 setMessage(
                   session
@@ -263,8 +279,25 @@ export function SyncScreen() {
             type="button"
             disabled={!status?.signed_in || busy !== null}
             onClick={() =>
+              void run_action('check', async () => {
+                const health = await check_cloud_sync_backend()
+                setBackendHealth(health)
+                setMessage(
+                  `Backend verified. Contract ${health.contract_version}, ${health.entity_count} remote entities, ${health.change_count} remote changes.`,
+                )
+              })
+            }
+          >
+            {busy === 'check' ? 'CHECKING…' : 'CHECK BACKEND'}
+          </button>
+
+          <button
+            type="button"
+            disabled={!status?.signed_in || busy !== null}
+            onClick={() =>
               void run_action('signout', async () => {
                 await sign_out_cloud_sync()
+                setBackendHealth(null)
                 setMessage('Signed out on this device.')
               })
             }
@@ -279,9 +312,9 @@ export function SyncScreen() {
           <span>MANUAL SYNC</span>
           <h2>Push local changes, then pull remote changes</h2>
           <p>
-            First sync can take longer because the historical database already
-            contains a substantial outbox. Conflicts stop the pull and preserve
-            local data.
+            CHECK BACKEND must pass before sync is enabled. First sync can take
+            longer because the historical database already contains a substantial
+            outbox. Conflicts stop the pull and preserve local data.
           </p>
         </div>
 
