@@ -2,8 +2,10 @@ import { projectFreakDb } from '../data/db/projectFreakDb'
 import { create_repositories } from '../data/repositories'
 import {
   archive_exercise,
+  consolidate_exercises,
   list_exercise_alias_candidates,
   query_exercise_library,
+  rename_exercise,
   restore_exercise,
   type ExerciseLibraryQuery,
 } from '../application/exercises/exerciseLibrary'
@@ -44,6 +46,30 @@ export async function restore_exercise_definition(exercise_id: string) {
   return restore_exercise(
     repositories.exercises,
     exercise_id,
+    await current_device_id(),
+  )
+}
+
+export async function rename_exercise_definition(
+  exercise_id: string,
+  canonical_name: string,
+) {
+  return rename_exercise(
+    repositories.exercises,
+    exercise_id,
+    canonical_name,
+    await current_device_id(),
+  )
+}
+
+export async function consolidate_exercise_definitions(
+  source_ids: string[],
+  target_id: string,
+) {
+  return consolidate_exercises(
+    repositories.exercises,
+    source_ids,
+    target_id,
     await current_device_id(),
   )
 }
