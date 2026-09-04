@@ -1,9 +1,14 @@
-const CACHE_NAME = 'project-freak-shell-v1'
+const CACHE_NAME = 'project-freak-shell-v2'
+
+function app_url(path = '') {
+  return new URL(path, self.registration.scope).href
+}
+
 const CORE_ASSETS = [
-  '/',
-  '/manifest.webmanifest',
-  '/pwa-icon.svg',
-  '/favicon.svg',
+  app_url(),
+  app_url('manifest.webmanifest'),
+  app_url('pwa-icon.svg'),
+  app_url('favicon.svg'),
 ]
 
 self.addEventListener('install', (event) => {
@@ -49,13 +54,16 @@ self.addEventListener('fetch', (event) => {
           const exact = await caches.match(request)
           if (exact) return exact
 
-          const shell = await caches.match('/')
+          const shell = await caches.match(app_url())
           if (shell) return shell
 
-          return new Response('PROJECT FREAK is offline and the app shell is not cached yet.', {
-            status: 503,
-            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-          })
+          return new Response(
+            'PROJECT FREAK is offline and the app shell is not cached yet.',
+            {
+              status: 503,
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+            },
+          )
         }),
     )
     return
