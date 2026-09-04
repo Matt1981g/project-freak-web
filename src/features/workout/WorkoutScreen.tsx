@@ -125,6 +125,7 @@ function SetLoggerRow(props: {
           <div className={styles.stepper}>
             <button
               type="button"
+              data-set-action="true"
               disabled={completed || saving}
               onClick={() => adjust_load(-2.5)}
             >
@@ -139,10 +140,19 @@ function SetLoggerRow(props: {
               value={load ?? ''}
               disabled={completed}
               onChange={(event) => setLoad(numeric_value(event.target.value))}
-              onBlur={() => void save(false)}
+              onBlur={(event) => {
+                if (
+                  event.relatedTarget instanceof HTMLElement &&
+                  event.relatedTarget.dataset.setAction === 'true'
+                ) {
+                  return
+                }
+                void save(false)
+              }}
             />
             <button
               type="button"
+              data-set-action="true"
               disabled={completed || saving}
               onClick={() => adjust_load(2.5)}
             >
@@ -156,6 +166,7 @@ function SetLoggerRow(props: {
           <div className={styles.stepper}>
             <button
               type="button"
+              data-set-action="true"
               disabled={completed || saving}
               onClick={() => adjust_reps(-1)}
             >
@@ -170,10 +181,19 @@ function SetLoggerRow(props: {
               value={reps ?? ''}
               disabled={completed}
               onChange={(event) => setReps(numeric_value(event.target.value))}
-              onBlur={() => void save(false)}
+              onBlur={(event) => {
+                if (
+                  event.relatedTarget instanceof HTMLElement &&
+                  event.relatedTarget.dataset.setAction === 'true'
+                ) {
+                  return
+                }
+                void save(false)
+              }}
             />
             <button
               type="button"
+              data-set-action="true"
               disabled={completed || saving}
               onClick={() => adjust_reps(1)}
             >
@@ -186,6 +206,7 @@ function SetLoggerRow(props: {
       <div className={styles.setActions}>
         <button
           type="button"
+          data-set-action="true"
           className={failed ? styles.failureOn : styles.failureOff}
           disabled={completed || saving || reps === null}
           onClick={() => {
@@ -198,6 +219,7 @@ function SetLoggerRow(props: {
         </button>
         <button
           type="button"
+          data-set-action="true"
           className={styles.completeSetButton}
           disabled={completed || saving || reps === null}
           onClick={() => void save(true)}
