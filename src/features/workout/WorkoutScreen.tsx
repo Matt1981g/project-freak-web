@@ -143,6 +143,59 @@ function numeric_value(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function PreviousComparablePanel(props: {
+  previous: LiveExercise['previous_comparable']
+  current_name: string
+}) {
+  const { previous, current_name } = props
+  if (!previous) {
+    return (
+      <section className={styles.previousComparableEmpty}>
+        <div>
+          <span>PREVIOUS COMPARABLE</span>
+          <strong>No comparable prior session</strong>
+        </div>
+        <small>Nothing reliable to compare yet.</small>
+      </section>
+    )
+  }
+
+  return (
+    <section className={styles.previousComparable}>
+      <div className={styles.previousComparableHeader}>
+        <div>
+          <span>PREVIOUS COMPARABLE</span>
+          <strong>{previous.session_date_local}</strong>
+          {previous.source_exercise_name !== current_name && (
+            <small>Recorded as {previous.source_exercise_name}</small>
+          )}
+        </div>
+
+        {previous.metrics && (
+          <div className={styles.previousScores}>
+            <span>RPE {previous.metrics.rpe ?? '—'}</span>
+            <span>PUMP {previous.metrics.pump ?? '—'}</span>
+            <span>FORM {previous.metrics.form ?? '—'}</span>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.previousSetStrip}>
+        {previous.sets.map((set) => (
+          <div className={styles.previousSet} key={set.set_number}>
+            <span>SET {set.set_number}</span>
+            <strong>
+              {set.load_kg === null ? '—' : `${set.load_kg} kg`} ×{' '}
+              {set.completed_reps ?? '—'}
+              {set.failure_status === 'attempted_next_rep_failed' ? 'F' : ''}
+            </strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function ReadinessPanel(props: {
   completed_session_id: string
   readiness: LiveWorkout['readiness']
@@ -1624,6 +1677,13 @@ export function WorkoutScreen() {
 
                 {is_open && (
                   <div className={styles.loggerPanel}>
+                    {workout.session.status !== 'completed' && (
+                      <PreviousComparablePanel
+                        previous={entry.previous_comparable}
+                        current_name={exercise.exercise_name_snapshot}
+                      />
+                    )}
+
                     {set_numbers.map((set_number) => {
                       const planned_set =
                         planned_sets.find(
