@@ -596,6 +596,17 @@ export class DexieSessionRepository implements SessionRepository {
       })
   }
 
+  async list_set_components(set_id: string): Promise<SetComponent[]> {
+    const components = await this.db.set_components
+      .where('set_id')
+      .equals(set_id)
+      .toArray()
+
+    return components
+      .filter((component) => component.deleted_at === null)
+      .sort((a, b) => a.sequence - b.sequence)
+  }
+
   get_exercise_metrics(
     session_exercise_id: string,
   ): Promise<ExerciseMetrics | undefined> {
