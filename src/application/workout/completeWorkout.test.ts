@@ -10,6 +10,7 @@ import type { SessionRepository } from '../../data/repositories/contracts'
 import {
   build_workout_summary,
   complete_workout_session,
+  historical_source_duration_seconds,
 } from './completeWorkout'
 
 const START = '2026-09-04T17:00:00.000Z'
@@ -199,6 +200,31 @@ describe('complete workout', () => {
       exercise_count: 1,
       duration_seconds: null,
     })
+  })
+
+  it('derives duration from imported historical start and finish clock text', () => {
+    expect(historical_source_duration_seconds('08:15', '10:15')).toBe(7200)
+    expect(historical_source_duration_seconds('23:50', '00:20')).toBe(1800)
+    expect(historical_source_duration_seconds('08:40', null)).toBeNull()
+
+    const historical_session: CompletedSession = {
+      ...session_fixture('completed'),
+      source_kind: 'historical_import',
+      source_id: 'batch-1',
+      started_at: null,
+      completed_at: null,
+      duration_seconds: null,
+      source_start_text: '08:15',
+      source_finish_text: '10:15',
+    }
+
+    const summary = build_workout_summary(
+      historical_session,
+      [exercise_fixture('a')],
+      [set_fixture('set-1', 500)],
+    )
+
+    expect(summary.duration_seconds).toBe(7200)
   })
 
   it('rejects workout completion while an exercise remains incomplete', async () => {
