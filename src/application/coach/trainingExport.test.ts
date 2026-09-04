@@ -11,6 +11,7 @@ import type {
 import type { RepositoryBundle } from '../../data/repositories/contracts'
 import {
   build_last_7_days_training_export,
+  build_training_export,
   TRAINING_EXPORT_FORMAT,
 } from './trainingExport'
 
@@ -341,6 +342,135 @@ function repositories(): RepositoryBundle {
     },
   }
 }
+
+describe('build_training_export scopes', () => {
+  it('includes in-progress work in Today scope but not older sessions', async () => {
+    const repo = repositories()
+    const current = (await repo.sessions.get_session('session-current'))!
+    const active = {
+      ...current,
+      status: 'in_progress' as const,
+      completed_at: null,
+    }
+    const older = session('older-today-test', '2026-09-03')
+
+    repo.sessions.list_sessions_descending = async () => [active, older]
+    repo.sessions.list_session_exercises = async (id) =>
+      id === active.id ? [session_exercise] : []
+
+    const payload = await build_training_export(
+      repo,
+      {
+        now_iso: NOW,
+        to_date_local: '2026-09-04',
+        db_schema_version: 1,
+      },
+      { type: 'today' },
+    )
+
+    expect(payload.scope).toMatchObject({
+      type: 'today',
+      from_date: '2026-09-04',
+      to_date: '2026-09-04',
+    })
+    expect(payload.sessions.map((item) => item.id)).toEqual([active.id])
+    expect(payload.sessions[0].status).toBe('in_progress')
+  })
+
+  it('resolves merged aliases for Exercise scope', async () => {
+    const repo = repositories()
+
+    const payload = await build_training_export(
+      repo,
+      {
+        now_iso: NOW,
+        to_date_local: '2026-09-04',
+        db_schema_version: 1,
+      },
+      { type: 'exercise', exercise_id: 'exercise-1' },
+    )
+
+    expect(payload.scope.type).toBe('exercise')
+    expect(payload.scope.exercise_ids).toEqual(
+      expect.arrayContaining(['exercise-1', 'old-exercise-1']),
+    )
+    expect(payload.sessions).toHaveLength(1)
+    expect(payload.sessions[0].exercises).toHaveLength(1)
+    expect(payload.sessions[0].exercises[0].exercise_id).toBe('exercise-1')
+  })
+
+  it('limits Mesocycle scope to the selected programme block', async () => {
+    const repo = repositories()
+    const current = (await repo.sessions.get_session('session-current'))!
+    const other = {
+      ...session('other-block', '2026-09-03'),
+      programme_block_id: 'block-2',
+    }
+
+    repo.sessions.list_sessions_descending = async () => [current, other]
+    repo.programme.list_blocks = async () => [
+      {
+        id: 'block-1',
+        created_at: NOW,
+        updated_at: NOW,
+        deleted_at: null,
+        revision: 1,
+        device_id: 'device-1',
+        source_kind: 'programme_import',
+        source_id: null,
+        name: 'Week 1',
+        block_type: 'mesocycle',
+        start_date_local: '2026-09-01',
+        end_date_local: '2026-09-07',
+        status: 'active',
+        goal: null,
+        notes: null,
+      },
+    ]
+
+    const payload = await build_training_export(
+      repo,
+      {
+        now_iso: NOW,
+        to_date_local: '2026-09-04',
+        db_schema_version: 1,
+      },
+      { type: 'programme_block', programme_block_id: 'block-1' },
+    )
+
+    expect(payload.scope).toMatchObject({
+      type: 'programme_block',
+      programme_block_id: 'block-1',
+      from_date: '2026-09-01',
+      to_date: '2026-09-07',
+    })
+    expect(payload.sessions.map((item) => item.id)).toEqual([current.id])
+  })
+
+  it('exports all completed included sessions in Full DB scope', async () => {
+    const repo = repositories()
+
+    const payload = await build_training_export(
+      repo,
+      {
+        now_iso: NOW,
+        to_date_local: '2026-09-04',
+        db_schema_version: 1,
+      },
+      { type: 'full' },
+    )
+
+    expect(payload.scope).toMatchObject({
+      type: 'full',
+      from_date: null,
+      to_date: null,
+    })
+    expect(payload.sessions).toHaveLength(2)
+    expect(payload.sessions.every((item) => item.status === 'completed')).toBe(
+      true,
+    )
+  })
+})
 
 describe('build_last_7_days_training_export', () => {
   it('excludes in-progress and explicitly Coach-excluded sessions', async () => {
