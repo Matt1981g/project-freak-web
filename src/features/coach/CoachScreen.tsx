@@ -358,18 +358,8 @@ export function CoachScreen() {
             <p>
               Training priorities, the live active exercise catalogue, alias
               mappings and versioned weekly coaching instructions are included
-              automatically. One Coach Bridge JSON is the complete handover.
+              automatically in the Coach Bridge JSON.
             </p>
-            <ol>
-              {payload.coach_context.training_priorities.current.map(
-                (priority, index) => (
-                  <li key={priority}>
-                    <span>{index + 1}</span>
-                    <strong>{priority}</strong>
-                  </li>
-                ),
-              )}
-            </ol>
           </section>
 
           <section className={styles.actions}>
