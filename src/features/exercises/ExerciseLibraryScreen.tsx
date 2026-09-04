@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import type { Exercise } from '../../domain/models'
 import type { ExerciseLibraryAudit } from '../../application/exercises/exerciseLibraryAudit'
 import type { ExerciseAliasCandidateGroup } from '../../domain/rules/exerciseAliases'
@@ -597,6 +598,12 @@ export function ExerciseLibraryScreen() {
                   </span>
                 </div>
                 <div className={styles.cardActions}>
+                  <Link
+                    className={styles.historyButton}
+                    to={`/history/exercise/${exercise.id}`}
+                  >
+                    History
+                  </Link>
                   {!archived && (
                     <button
                       type="button"
