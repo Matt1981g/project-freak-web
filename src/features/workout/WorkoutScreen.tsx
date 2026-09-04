@@ -1487,7 +1487,7 @@ export function WorkoutScreen() {
                   hour: '2-digit',
                   minute: '2-digit',
                 })
-              : 'Not recorded'}
+              : workout.session.source_start_text ?? 'Not recorded'}
           </strong>
         </div>
       </section>
