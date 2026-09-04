@@ -68,7 +68,7 @@ function stable_stringify(value: unknown): string {
       .join(',')}}`
   }
 
-  return JSON.stringify(value)
+  return JSON.stringify(value) ?? 'undefined'
 }
 
 async function sha256_text(value: string): Promise<string> {
