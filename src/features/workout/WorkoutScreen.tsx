@@ -26,6 +26,10 @@ import {
 } from '../../application/workout/pairedRotation'
 import { can_safely_correct_set } from '../../application/history/correctCompletedSet'
 import {
+  select_set_load_prefill,
+  type SetLoadPrefillSource,
+} from '../../application/workout/setLoadPrefill'
+import {
   is_session_exercise_completed,
   is_training_set_completed,
 } from '../../domain/rules/completion'
@@ -773,6 +777,8 @@ function SetLoggerRow(props: {
   set_number: number
   planned_set: PlannedSet | null
   actual_set: TrainingSet | null
+  initial_load_kg: number | null
+  load_prefill_source: SetLoadPrefillSource
   allow_correction?: boolean
   on_complete: () => Promise<void>
   on_corrected?: () => Promise<void>
@@ -782,14 +788,14 @@ function SetLoggerRow(props: {
     set_number,
     planned_set,
     actual_set,
+    initial_load_kg,
+    load_prefill_source,
     allow_correction = false,
     on_complete,
     on_corrected,
   } = props
   const [saved_set, setSavedSet] = useState<TrainingSet | null>(actual_set)
-  const [load, setLoad] = useState<number | null>(
-    actual_set?.load_kg ?? planned_set?.set.target_load_kg ?? null,
-  )
+  const [load, setLoad] = useState<number | null>(initial_load_kg)
   const [reps, setReps] = useState<number | null>(
     actual_set?.completed_reps ?? null,
   )
@@ -948,7 +954,14 @@ function SetLoggerRow(props: {
 
       <div className={styles.loggerGrid}>
         <div className={styles.fieldGroup}>
-          <label htmlFor={`load-${exercise.id}-${set_number}`}>LOAD KG</label>
+          <label htmlFor={`load-${exercise.id}-${set_number}`}>
+            LOAD KG
+            {load_prefill_source === 'programme'
+              ? ' · PROGRAMME'
+              : load_prefill_source === 'previous_comparable'
+                ? ' · PREVIOUS'
+                : ''}
+          </label>
           <div className={styles.stepper}>
             <button
               type="button"
@@ -1722,6 +1735,14 @@ export function WorkoutScreen() {
                         ) ?? null
                       const actual_set =
                         sets.find((set) => set.set_number === set_number) ?? null
+                      const load_prefill = select_set_load_prefill({
+                        existing_set: actual_set,
+                        programmed_load_kg:
+                          planned_set?.set.target_load_kg ?? null,
+                        previous: entry.previous_comparable,
+                        progression: entry.progression_suggestion,
+                        set_number,
+                      })
 
                       return (
                         <SetLoggerRow
@@ -1730,6 +1751,8 @@ export function WorkoutScreen() {
                           set_number={set_number}
                           planned_set={planned_set}
                           actual_set={actual_set}
+                          initial_load_kg={load_prefill.load_kg}
+                          load_prefill_source={load_prefill.source}
                           allow_correction={
                             workout.session.status === 'completed'
                           }
