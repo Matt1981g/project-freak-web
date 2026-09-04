@@ -603,7 +603,6 @@ function CompletedSetCorrection(props: {
         failed_next_rep: failed,
       })
       await on_saved(corrected)
-      setReason('')
       setOpen(false)
     } catch (cause) {
       setError(
