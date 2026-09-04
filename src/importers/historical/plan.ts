@@ -49,7 +49,7 @@ function mutable_metadata(
   }
 }
 
-function group_rows<T>(
+function group_rows(
   rows: ParsedHistoricalSetRow[],
   key: (row: ParsedHistoricalSetRow) => string,
 ): Map<string, ParsedHistoricalSetRow[]> {
