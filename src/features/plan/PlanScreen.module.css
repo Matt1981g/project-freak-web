@@ -552,19 +552,136 @@
 }
 
 .storedSessions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  gap: 8px;
   margin-top: 12px;
 }
 
-.storedSessions span {
-  padding: 5px 7px;
-  border-radius: 8px;
-  color: var(--pf-text-muted);
-  background: var(--pf-bg);
+.storedSession {
+  overflow: hidden;
   border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-bg);
+}
+
+.storedSessionButton,
+.storedSessionButtonOpen {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border: 0;
+  color: var(--pf-text-muted);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.storedSessionButtonOpen {
+  color: var(--pf-text-strong);
+  background: var(--pf-accent-soft);
+  border-bottom: 1px solid var(--pf-accent-border);
+}
+
+.storedSessionButton span,
+.storedSessionButtonOpen span {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.storedSessionButton strong,
+.storedSessionButtonOpen strong {
+  color: var(--pf-accent);
   font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.storedSessionDetail {
+  padding: 12px;
+}
+
+.sessionDetailLoading {
+  padding: 18px;
+  color: var(--pf-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.sessionNotes {
+  margin: 0 0 12px;
+  color: var(--pf-text-muted);
+  font-size: 12px;
+}
+
+.storedExerciseList {
+  display: grid;
+  gap: 8px;
+}
+
+.storedExercise {
+  padding: 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-panel-raised);
+}
+
+.storedExerciseHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.storedExerciseHeader h4 {
+  margin: 0;
+  color: var(--pf-text-strong);
+  font-size: 14px;
+}
+
+.storedExerciseHeader span {
+  display: block;
+  margin-top: 3px;
+  color: var(--pf-text-muted);
+  font-size: 11px;
+}
+
+.storedExerciseHeader p {
+  margin: 5px 0 0;
+  color: var(--pf-text);
+  font-size: 12px;
+}
+
+.storedSetList {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.storedSetRow {
+  display: grid;
+  grid-template-columns: auto repeat(4, minmax(0, auto));
+  gap: 8px;
+  align-items: center;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: var(--pf-bg);
+  color: var(--pf-text-muted);
+  font-size: 10px;
+}
+
+.storedSetRow strong {
+  color: var(--pf-text-strong);
+}
+
+.storedSetRow small {
+  grid-column: 1 / -1;
+  color: var(--pf-warning);
+  font-size: 9px;
 }
 
 .emptyState {
@@ -633,5 +750,21 @@
 
   .setPills {
     grid-column: 1 / -1;
+  }
+
+  .storedSessionButton,
+  .storedSessionButtonOpen {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-block: 10px;
+  }
+
+  .storedSetRow {
+    grid-template-columns: auto 1fr 1fr;
+  }
+
+  .storedSetRow span:nth-of-type(3),
+  .storedSetRow span:nth-of-type(4) {
+    grid-column: span 1;
   }
 }
