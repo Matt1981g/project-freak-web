@@ -9,6 +9,7 @@ import type {
   TrainingExportScopeType,
 } from '../../application/coach/trainingExport'
 import { build_weekly_coaching_brief } from '../../application/coach/weeklyBrief'
+import { ProgrammeImportPanel } from './ProgrammeImportPanel'
 import styles from './CoachScreen.module.css'
 
 type ProgrammeBlocks = Awaited<ReturnType<typeof load_programme_blocks>>
@@ -131,15 +132,20 @@ export function CoachScreen() {
     }
   }, [])
 
+  const refresh_blocks = useCallback(async () => {
+    const result = await load_programme_blocks()
+    setBlocks(result)
+    if (result.length > 0) {
+      setProgrammeBlockId((current) => current || result[0].id)
+    }
+  }, [])
+
   useEffect(() => {
     void Promise.all([
       generate({ type: 'last_7_days' }),
-      load_programme_blocks().then((result) => {
-        setBlocks(result)
-        if (result.length > 0) setProgrammeBlockId(result[0].id)
-      }),
+      refresh_blocks(),
     ])
-  }, [generate])
+  }, [generate, refresh_blocks])
 
   const selected_request = useMemo<TrainingExportScopeRequest | null>(() => {
     switch (scopeType) {
@@ -248,9 +254,9 @@ export function CoachScreen() {
           <p className={styles.eyebrow}>COACH BRIDGE</p>
           <h1>Coaching export</h1>
           <p>
-            Structured evidence and a readable brief from the local PROJECT FREAK
-            database. Scope it to the job instead of exporting the known universe
-            every time.
+            Export the training evidence ChatGPT needs, then import the next
+            validated programme here. The handover JSON now carries the active
+            exercise catalogue and the weekly coaching instructions automatically.
           </p>
         </div>
         <span>PHASE 11</span>
@@ -350,9 +356,9 @@ export function CoachScreen() {
               <h2>Prescription-ready data</h2>
             </div>
             <p>
-              Training priorities are included in rank order. Historical aliases
-              remain mapped to canonical definitions, while original session labels
-              stay untouched.
+              Training priorities, the live active exercise catalogue, alias
+              mappings and versioned weekly coaching instructions are included
+              automatically. One Coach Bridge JSON is the complete handover.
             </p>
             <ol>
               {payload.coach_context.training_priorities.current.map(
@@ -409,8 +415,8 @@ export function CoachScreen() {
           <section className={styles.instructions}>
             <span>WORKFLOW</span>
             <strong>
-              Choose scope → export brief + JSON → review with ChatGPT → import
-              the returned programme JSON.
+              Choose scope → download Coach Bridge JSON → upload to ChatGPT →
+              type “Build next week” → import the returned programme JSON below.
             </strong>
             <p>
               For weekly programming, Last 7 Days remains the normal review scope.
@@ -422,6 +428,8 @@ export function CoachScreen() {
           {error && <div className={styles.error}>{error}</div>}
         </>
       )}
+
+      <ProgrammeImportPanel onImported={refresh_blocks} />
     </div>
   )
 }

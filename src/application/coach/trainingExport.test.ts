@@ -533,6 +533,18 @@ describe('build_last_7_days_training_export', () => {
     })
 
     expect(payload.format).toBe(TRAINING_EXPORT_FORMAT)
+    expect(payload.coach_instructions).toMatchObject({
+      instruction_version: '1.0.0',
+      user_command: 'Build next week.',
+      next_block: {
+        length_days: 7,
+        calendar_span: 'monday_to_sunday',
+      },
+      programme_output: {
+        format: 'project-freak-programme',
+        schema_version: '1.0.0',
+      },
+    })
     expect(payload.scope).toMatchObject({
       type: 'last_7_days',
       from_date: '2026-08-29',

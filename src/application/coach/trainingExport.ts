@@ -14,6 +14,7 @@ import { load_coach_excluded_sessions } from './coachExclusions'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
 export const TRAINING_EXPORT_SCHEMA_VERSION = '1.0.0' as const
+export const COACH_INSTRUCTIONS_VERSION = '1.0.0' as const
 
 export type TrainingExportScopeType =
   | 'today'
@@ -28,6 +29,95 @@ export type TrainingExportScopeRequest =
   | { type: 'exercise'; exercise_id: string }
   | { type: 'programme_block'; programme_block_id: string }
   | { type: 'full' }
+
+export interface TrainingExportCoachInstructions {
+  instruction_version: typeof COACH_INSTRUCTIONS_VERSION
+  purpose: string
+  user_command: string
+  programming_hierarchy: string[]
+  review_requirements: string[]
+  rules: string[]
+  next_block: {
+    length_days: 7
+    calendar_span: 'monday_to_sunday'
+    schedule: {
+      monday: 'train'
+      tuesday: 'train'
+      wednesday: 'recovery'
+      thursday: 'train'
+      friday: 'train'
+      saturday: 'long_training_session'
+      sunday: 'recovery'
+    }
+  }
+  required_output: string[]
+  programme_output: {
+    format: 'project-freak-programme'
+    schema_version: '1.0.0'
+    delivery: 'downloadable_json_file'
+  }
+}
+
+function build_coach_instructions(): TrainingExportCoachInstructions {
+  return {
+    instruction_version: COACH_INSTRUCTIONS_VERSION,
+    purpose:
+      'Review the supplied PROJECT FREAK training evidence and create the next 7-day hypertrophy programme.',
+    user_command: 'Build next week.',
+    programming_hierarchy: [
+      'Form',
+      'Target-muscle stimulus',
+      'Reps',
+      'Load',
+    ],
+    review_requirements: [
+      'Compare programmed targets with actual performance',
+      'Review completed working sets, reps and load',
+      'Review comparable tonnage and exercise progression',
+      'Review RPE, Pump and Form',
+      'Review failure exposure',
+      'Review readiness and recovery',
+      'Review actual rest where useful',
+      'Review weekly volume and frequency',
+      'Use historical performance supplied in this export',
+      'Respect the current PROJECT FREAK training priority order',
+    ],
+    rules: [
+      'Do not call increased load progress if execution or target-muscle stimulus deteriorated',
+      'Do not fabricate missing loads, reps, scores or historical information',
+      'Use only exercise IDs supplied in coach_context.exercise_catalogue',
+      'Use coach_context.exercise_aliases to resolve historical names without rewriting history',
+      'Do not rewrite historical actuals',
+      'Use advanced set methods only when justified by the evidence',
+      'Leave target_load_kg null when the evidence does not justify a specific load',
+      'Optimise for hypertrophy rather than strength for its own sake',
+    ],
+    next_block: {
+      length_days: 7,
+      calendar_span: 'monday_to_sunday',
+      schedule: {
+        monday: 'train',
+        tuesday: 'train',
+        wednesday: 'recovery',
+        thursday: 'train',
+        friday: 'train',
+        saturday: 'long_training_session',
+        sunday: 'recovery',
+      },
+    },
+    required_output: [
+      'Concise review of the completed week',
+      'Key programming changes and reasons',
+      'Recovery or performance concerns',
+      'A valid PROJECT FREAK programme-import JSON for the next Monday-Sunday block',
+    ],
+    programme_output: {
+      format: 'project-freak-programme',
+      schema_version: '1.0.0',
+      delivery: 'downloadable_json_file',
+    },
+  }
+}
 
 export interface TrainingExportContext {
   now_iso: string
@@ -85,6 +175,7 @@ export interface TrainingExport {
     exercise_ids: string[]
     programme_block_id: string | null
   }
+  coach_instructions: TrainingExportCoachInstructions
   coach_context: {
     training_priorities: Awaited<ReturnType<typeof load_training_priorities>>
     exercise_catalogue: Array<{
@@ -498,6 +589,7 @@ export async function build_training_export(
       context,
       resolved_exercise_ids,
     ),
+    coach_instructions: build_coach_instructions(),
     coach_context: {
       training_priorities: priorities,
       exercise_catalogue: active_exercises.map((exercise) => ({
