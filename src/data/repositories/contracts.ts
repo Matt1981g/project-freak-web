@@ -114,7 +114,7 @@ export interface SessionRepository {
   ): Promise<{ session_id: string; created: boolean }>
   put_session(session: CompletedSession): Promise<string>
   put_session_exercise(session_exercise: SessionExercise): Promise<string>
-  put_set(set: TrainingSet): Promise<string>
+  put_set(set: TrainingSet, reason?: string | null): Promise<string>
   put_set_components(components: SetComponent[]): Promise<void>
   put_exercise_metrics(metrics: ExerciseMetrics): Promise<string>
 }
