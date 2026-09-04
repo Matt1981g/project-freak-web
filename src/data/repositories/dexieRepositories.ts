@@ -504,11 +504,23 @@ export class DexieSessionRepository implements SessionRepository {
   async get_by_programmed_session_id(
     programmed_session_id: string,
   ): Promise<CompletedSession | undefined> {
-    return this.db.completed_sessions
+    const sessions = await this.db.completed_sessions
       .where('programmed_session_id')
       .equals(programmed_session_id)
       .filter((session) => session.deleted_at === null)
-      .first()
+      .toArray()
+
+    return sessions.sort((a, b) => {
+      const a_active = a.status !== 'completed' ? 1 : 0
+      const b_active = b.status !== 'completed' ? 1 : 0
+      if (a_active !== b_active) {
+        return b_active - a_active
+      }
+
+      return (b.started_at ?? b.created_at).localeCompare(
+        a.started_at ?? a.created_at,
+      )
+    })[0]
   }
 
   async list_session_exercises(
@@ -577,14 +589,18 @@ export class DexieSessionRepository implements SessionRepository {
       ],
       async () => {
         if (session.programmed_session_id) {
-          const existing = await this.db.completed_sessions
+          const existing_active = await this.db.completed_sessions
             .where('programmed_session_id')
             .equals(session.programmed_session_id)
-            .filter((candidate) => candidate.deleted_at === null)
+            .filter(
+              (candidate) =>
+                candidate.deleted_at === null &&
+                candidate.status !== 'completed',
+            )
             .first()
 
-          if (existing) {
-            return { session_id: existing.id, created: false }
+          if (existing_active) {
+            return { session_id: existing_active.id, created: false }
           }
         }
 
