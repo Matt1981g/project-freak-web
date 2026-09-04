@@ -28,7 +28,7 @@ export async function start_programmed_workout(
   const existing = await repository.get_by_programmed_session_id(
     detail.session.id,
   )
-  if (existing) {
+  if (existing && existing.status !== 'completed') {
     return { session_id: existing.id, created: false }
   }
 
