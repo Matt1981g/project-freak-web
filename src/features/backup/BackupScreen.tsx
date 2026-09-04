@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import {
   build_database_backup,
+  load_storage_diagnostics,
   preview_database_backup,
   restore_database_backup,
+  type StorageDiagnostics,
 } from '../../app/projectFreakServices'
 import type {
   BackupPreview,
@@ -40,11 +42,32 @@ export function BackupScreen() {
   const [restoring, setRestoring] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [diagnostics, setDiagnostics] = useState<StorageDiagnostics | null>(null)
+  const [diagnosing, setDiagnosing] = useState(false)
 
   const backupJson = useMemo(
     () => (backup ? JSON.stringify(backup, null, 2) : ''),
     [backup],
   )
+
+
+  async function run_storage_diagnostics() {
+    setDiagnosing(true)
+    setError(null)
+
+    try {
+      setDiagnostics(await load_storage_diagnostics())
+      setStatus('Storage diagnostics refreshed.')
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Unable to inspect local browser storage.',
+      )
+    } finally {
+      setDiagnosing(false)
+    }
+  }
 
   async function build_backup() {
     setBuilding(true)
@@ -165,6 +188,118 @@ export function BackupScreen() {
           </p>
         </div>
         <span>PHASE 12</span>
+      </section>
+
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeading}>
+          <div>
+            <span>STORAGE DIAGNOSTICS</span>
+            <h2>Identify this app container</h2>
+          </div>
+          <strong>READ ONLY</strong>
+        </div>
+
+        <p>
+          Shows the exact origin, install mode and local IndexedDB counts used by
+          this copy of PROJECT FREAK. It does not change or restore any data.
+        </p>
+
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={() => void run_storage_diagnostics()}
+            disabled={diagnosing}
+          >
+            {diagnosing ? 'CHECKING…' : 'RUN STORAGE DIAGNOSTICS'}
+          </button>
+        </div>
+
+        {diagnostics && (
+          <>
+            <div className={styles.summaryGrid}>
+              <div>
+                <span>ORIGIN</span>
+                <strong>{diagnostics.origin}</strong>
+              </div>
+              <div>
+                <span>STANDALONE</span>
+                <strong>{diagnostics.standalone ? 'YES' : 'NO'}</strong>
+              </div>
+              <div>
+                <span>DATABASE</span>
+                <strong>
+                  {diagnostics.database_name} · v{diagnostics.database_version}
+                </strong>
+              </div>
+              <div>
+                <span>TOTAL RECORDS</span>
+                <strong>{diagnostics.total_records.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span>SESSIONS</span>
+                <strong>{diagnostics.completed_sessions.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span>SETS</span>
+                <strong>{diagnostics.training_sets.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span>EXERCISES</span>
+                <strong>{diagnostics.exercises.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span>PERSISTENT STORAGE</span>
+                <strong>
+                  {diagnostics.persistent_storage === null
+                    ? 'UNKNOWN'
+                    : diagnostics.persistent_storage
+                      ? 'YES'
+                      : 'NO'}
+                </strong>
+              </div>
+            </div>
+
+            <details className={styles.tableCounts}>
+              <summary>FULL STORAGE DETAILS</summary>
+              <div>
+                <span>
+                  <strong>HREF</strong>
+                  <small>{diagnostics.href}</small>
+                </span>
+                <span>
+                  <strong>KNOWN DBs</strong>
+                  <small>
+                    {diagnostics.known_database_names.length > 0
+                      ? diagnostics.known_database_names.join(', ')
+                      : 'Unavailable'}
+                  </small>
+                </span>
+                <span>
+                  <strong>PROGRAMME BLOCKS</strong>
+                  <small>{diagnostics.programme_blocks.toLocaleString()}</small>
+                </span>
+                <span>
+                  <strong>PROGRAMMED SESSIONS</strong>
+                  <small>{diagnostics.programmed_sessions.toLocaleString()}</small>
+                </span>
+                <span>
+                  <strong>DEVICES</strong>
+                  <small>{diagnostics.devices.toLocaleString()}</small>
+                </span>
+                <span>
+                  <strong>STORAGE USAGE</strong>
+                  <small>
+                    {diagnostics.usage_bytes === null
+                      ? 'Unknown'
+                      : `${Math.round(diagnostics.usage_bytes / 1024)} KB`}
+                  </small>
+                </span>
+              </div>
+            </details>
+          </>
+        )}
       </section>
 
       <section className={styles.panel}>
