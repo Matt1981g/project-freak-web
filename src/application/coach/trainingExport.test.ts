@@ -343,6 +343,47 @@ function repositories(): RepositoryBundle {
 }
 
 describe('build_last_7_days_training_export', () => {
+  it('excludes in-progress and explicitly Coach-excluded sessions', async () => {
+    const repo = repositories()
+    const included = session('included', '2026-09-04')
+    const excluded = session('excluded', '2026-09-03')
+    const active = {
+      ...session('active', '2026-09-04'),
+      status: 'in_progress' as const,
+      completed_at: null,
+    }
+
+    repo.sessions.list_sessions_descending = async () => [
+      included,
+      excluded,
+      active,
+    ]
+    repo.sessions.list_session_exercises = async (id) =>
+      id === included.id ? [session_exercise] : []
+    repo.readiness.get_by_session_id = async () => undefined
+    repo.settings.get = async (key) =>
+      key === 'coach-excluded-sessions-v1'
+        ? {
+            key,
+            scope: 'global',
+            value_json: {
+              schema_version: '1.0.0',
+              session_ids: [excluded.id],
+            },
+            updated_at: NOW,
+            device_id: null,
+          }
+        : undefined
+
+    const payload = await build_last_7_days_training_export(repo, {
+      now_iso: NOW,
+      to_date_local: '2026-09-04',
+      db_schema_version: 1,
+    })
+
+    expect(payload.sessions.map((item) => item.id)).toEqual([included.id])
+  })
+
   it('exports the coaching evidence needed to prescribe the next week', async () => {
     const payload = await build_last_7_days_training_export(repositories(), {
       now_iso: NOW,
