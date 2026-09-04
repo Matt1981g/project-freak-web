@@ -42,6 +42,15 @@ export interface BackupBuildContext {
   app_version?: string | null
 }
 
+
+export interface RestoreResult {
+  restored: true
+  restored_from_created_at: string
+  total_records: number
+  table_counts: Record<string, number>
+  safety_backup: ProjectFreakBackup
+}
+
 function assert_object(
   value: unknown,
   label: string,
@@ -125,6 +134,86 @@ export async function build_full_backup(
       algorithm: 'sha256',
       tables: checksums,
     },
+  }
+}
+
+async function replace_database_tables(
+  db: ProjectFreakDatabase,
+  backup: ProjectFreakBackup,
+): Promise<void> {
+  await db.transaction('rw', db.tables, async () => {
+    for (const table_name of PROJECT_FREAK_STORE_NAMES) {
+      await db.table(table_name).clear()
+    }
+
+    for (const table_name of PROJECT_FREAK_STORE_NAMES) {
+      const records = backup.database.tables[table_name]
+      if (records.length > 0) {
+        await db.table(table_name).bulkAdd(records)
+      }
+    }
+  })
+}
+
+export async function verify_database_against_backup(
+  db: ProjectFreakDatabase,
+  backup: ProjectFreakBackup,
+): Promise<Record<string, number>> {
+  const counts: Record<string, number> = {}
+
+  for (const table_name of PROJECT_FREAK_STORE_NAMES) {
+    const records = (await db.table(table_name).toArray()) as Array<
+      Record<string, unknown>
+    >
+    counts[table_name] = records.length
+
+    const checksum = await table_checksum(records)
+    if (checksum !== backup.checksums.tables[table_name]) {
+      throw new Error(
+        `Restored database verification failed for ${table_name}.`,
+      )
+    }
+  }
+
+  return counts
+}
+
+export async function restore_validated_backup(
+  db: ProjectFreakDatabase,
+  preview: BackupPreview,
+  context: BackupBuildContext,
+): Promise<RestoreResult> {
+  const safety_backup = await build_full_backup(db, context)
+
+  try {
+    await replace_database_tables(db, preview.backup)
+    const table_counts = await verify_database_against_backup(db, preview.backup)
+
+    return {
+      restored: true,
+      restored_from_created_at: preview.created_at,
+      total_records: Object.values(table_counts).reduce(
+        (total, count) => total + count,
+        0,
+      ),
+      table_counts,
+      safety_backup,
+    }
+  } catch (cause) {
+    try {
+      await replace_database_tables(db, safety_backup)
+      await verify_database_against_backup(db, safety_backup)
+    } catch {
+      throw new Error(
+        'Restore failed and the automatic safety rollback could not be verified. Keep the downloaded safety backup and do not make further changes.',
+      )
+    }
+
+    throw new Error(
+      cause instanceof Error
+        ? `Restore failed. Original database was restored safely: ${cause.message}`
+        : 'Restore failed. Original database was restored safely.',
+    )
   }
 }
 
