@@ -1,0 +1,524 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-freak.local/schemas/training-export-v1.schema.json",
+  "title": "PROJECT FREAK Training Export v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schema_version",
+    "exported_at",
+    "scope",
+    "sessions"
+  ],
+  "properties": {
+    "format": {
+      "const": "project-freak-training-export"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "app_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "db_schema_version": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "active",
+            "today",
+            "last_7_days",
+            "date_range",
+            "exercise",
+            "programme_block",
+            "full"
+          ]
+        },
+        "from_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "to_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "exercise_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "programme_block_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/session"
+      }
+    },
+    "provenance": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "$defs": {
+    "failureStatus": {
+      "enum": [
+        "none",
+        "attempted_next_rep_failed",
+        "unknown_failure"
+      ]
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sequence",
+        "component_type",
+        "failure_status",
+        "counts_toward_comparable_tonnage"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "component_type": {
+          "enum": [
+            "drop",
+            "rest_pause",
+            "myo_cluster",
+            "partials",
+            "other"
+          ]
+        },
+        "load_kg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "load_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reps_completed_full": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "reps_partial": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "duration_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "failure_status": {
+          "$ref": "#/$defs/failureStatus"
+        },
+        "counts_toward_comparable_tonnage": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "set_number",
+        "set_role",
+        "structure_type",
+        "failure_status",
+        "components"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "set_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "set_role": {
+          "enum": [
+            "warmup",
+            "work"
+          ]
+        },
+        "structure_type": {
+          "enum": [
+            "straight",
+            "drop",
+            "rest_pause",
+            "myo_rep",
+            "partials",
+            "other"
+          ]
+        },
+        "load_kg": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "load_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rep_mode": {
+          "enum": [
+            "total",
+            "per_side",
+            "timed",
+            "mixed"
+          ]
+        },
+        "reps_as_recorded": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primary_reps_completed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "left_reps_completed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "right_reps_completed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "completed_reps": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "partial_reps": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "duration_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "failure_status": {
+          "$ref": "#/$defs/failureStatus"
+        },
+        "actual_rest_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "set_load_kg_reps": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "set_load_method": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "completed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rpe": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pump": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "form": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "where_felt_text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "where_felt_tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "legacy_tension": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "legacy_mmc": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "exercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_exercise_id",
+        "exercise_id",
+        "exercise_name_snapshot",
+        "actual_order",
+        "sets"
+      ],
+      "properties": {
+        "session_exercise_id": {
+          "type": "string"
+        },
+        "exercise_id": {
+          "type": "string"
+        },
+        "exercise_name_snapshot": {
+          "type": "string"
+        },
+        "planned_order": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "actual_order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rotation_group_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rotation_position": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "target": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "metrics": {
+          "$ref": "#/$defs/metrics"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/set"
+          }
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "session_name",
+        "session_date_local",
+        "status",
+        "exercises"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "legacy_workout_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_name": {
+          "type": "string"
+        },
+        "session_date_local": {
+          "type": "string",
+          "format": "date"
+        },
+        "timezone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "in_progress",
+            "completed",
+            "abandoned"
+          ]
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "readiness": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/exercise"
+          }
+        }
+      }
+    }
+  }
+}

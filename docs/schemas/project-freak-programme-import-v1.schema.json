@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-freak.local/schemas/programme-import-v1.schema.json",
+  "title": "PROJECT FREAK Programme Import v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schema_version",
+    "programme"
+  ],
+  "properties": {
+    "format": {
+      "const": "project-freak-programme"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "generated_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "programme": {
+      "$ref": "#/$defs/programme"
+    }
+  },
+  "$defs": {
+    "failureTarget": {
+      "enum": [
+        "none",
+        "allowed",
+        "target"
+      ]
+    },
+    "loadType": {
+      "enum": [
+        "normal",
+        "assistance",
+        "band_plus_machine",
+        "bodyweight",
+        "other",
+        "unknown"
+      ]
+    },
+    "setRole": {
+      "enum": [
+        "warmup",
+        "work"
+      ]
+    },
+    "structureType": {
+      "enum": [
+        "straight",
+        "drop",
+        "rest_pause",
+        "myo_rep",
+        "partials",
+        "other"
+      ]
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "component_type"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "component_type": {
+          "enum": [
+            "drop",
+            "rest_pause",
+            "myo_cluster",
+            "partials",
+            "other"
+          ]
+        },
+        "target_load_kg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "load_relation": {
+          "enum": [
+            "absolute",
+            "same_as_primary",
+            "percentage_of_primary",
+            "unknown"
+          ]
+        },
+        "target_load_percent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "target_rep_min": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_rep_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_duration_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "failure_target": {
+          "$ref": "#/$defs/failureTarget"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "set_number",
+        "set_role",
+        "structure_type",
+        "failure_target"
+      ],
+      "properties": {
+        "set_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "set_role": {
+          "$ref": "#/$defs/setRole"
+        },
+        "structure_type": {
+          "$ref": "#/$defs/structureType"
+        },
+        "target_rep_min": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_rep_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_duration_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_load_kg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_load_type": {
+          "$ref": "#/$defs/loadType"
+        },
+        "failure_target": {
+          "$ref": "#/$defs/failureTarget"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          },
+          "default": []
+        }
+      }
+    },
+    "exercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exercise_id",
+        "exercise_name",
+        "planned_order",
+        "sets"
+      ],
+      "properties": {
+        "exercise_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exercise_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "planned_order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rotation_group_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rotation_position": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "target_sets": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "target_rep_min": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_rep_max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "rest_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tempo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "technique_cue": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/set"
+          }
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "exercises"
+      ],
+      "properties": {
+        "external_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scheduled_date_local": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "day_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exercises": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/exercise"
+          }
+        }
+      }
+    },
+    "programme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "sessions"
+      ],
+      "properties": {
+        "external_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "block_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start_date_local": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "end_date_local": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "goal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sessions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/session"
+          }
+        }
+      }
+    }
+  }
+}

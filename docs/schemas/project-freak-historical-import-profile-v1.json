@@ -1,0 +1,70 @@
+{
+  "profile": "project-freak-historical-xlsx-v1",
+  "profile_version": "1.0.0",
+  "approved_on": "2026-09-04",
+  "canonical_file": {
+    "name": "Project_Freak_Browser_Import_COMPLETE_2026-09-04(1).xlsx",
+    "sha256": "76df3acfaaefb53b89b7f6e93a2ddb76c802fa5e517f908c524336cc4532d127",
+    "size_bytes": 202393
+  },
+  "required_sheets": [
+    "Set Data",
+    "Session Summary",
+    "Exercise Summary",
+    "Data Audit",
+    "README"
+  ],
+  "set_data_columns": [
+    "Workout ID",
+    "Date",
+    "Day",
+    "Start",
+    "Finish",
+    "Exercise Order",
+    "Exercise",
+    "Set",
+    "Load (kg)",
+    "Load Type",
+    "Set Type",
+    "Reps as Recorded",
+    "Primary Reps",
+    "Secondary Load (kg)",
+    "Secondary Reps",
+    "Completed Reps",
+    "Failure",
+    "RPE",
+    "Pump",
+    "Form",
+    "Legacy Tension",
+    "Legacy MMC",
+    "Set Load (kg-reps)",
+    "Set Load Method",
+    "Notes",
+    "Data Status",
+    "Source"
+  ],
+  "golden_expected_counts": {
+    "sessions": 50,
+    "session_exercise_groups": 403,
+    "sets": 1323,
+    "exact_exercise_labels": 146,
+    "case_insensitive_exercise_labels": 119,
+    "case_only_duplicate_groups": 27,
+    "duplicate_recommended_source_keys": 0
+  },
+  "recommended_source_key_fields": [
+    "Workout ID",
+    "Exercise Order",
+    "Set"
+  ],
+  "rules": {
+    "blank_means_unknown": true,
+    "failure_not_extra_rep": true,
+    "partials_excluded_from_comparable_tonnage": true,
+    "assistance_load_comparable_tonnage": false,
+    "unquantified_band_comparable_tonnage": false,
+    "preserve_legacy_tension_mmc": true,
+    "preserve_data_status_and_source": true,
+    "no_automatic_exercise_alias_merge": true
+  }
+}

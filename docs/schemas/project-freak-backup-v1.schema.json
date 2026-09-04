@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-freak.local/schemas/backup-v1.schema.json",
+  "title": "PROJECT FREAK Full Backup v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schema_version",
+    "created_at",
+    "database",
+    "checksums"
+  ],
+  "properties": {
+    "format": {
+      "const": "project-freak-backup"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "app_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_device_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "database": {
+      "type": "object",
+      "required": [
+        "db_schema_version",
+        "tables"
+      ],
+      "properties": {
+        "db_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "data_contract_version": {
+          "type": "string"
+        },
+        "tables": {
+          "type": "object",
+          "description": "Table name to complete record array. Record shape is validated by the app's matching DB schema version.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "checksums": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "tables"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "tables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
