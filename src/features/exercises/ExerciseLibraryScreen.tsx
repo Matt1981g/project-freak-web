@@ -40,6 +40,8 @@ export function ExerciseLibraryScreen() {
   const [busy_id, setBusyId] = useState<string | null>(null)
   const [renaming_id, setRenamingId] = useState<string | null>(null)
   const [rename_value, setRenameValue] = useState('')
+  const [merge_selection, setMergeSelection] = useState<Exercise[]>([])
+  const [merge_target_id, setMergeTargetId] = useState<string>('')
   const [import_preview, setImportPreview] =
     useState<HistoricalImportPreview | null>(null)
   const [import_busy, setImportBusy] = useState(false)
@@ -149,6 +151,58 @@ export function ExerciseLibraryScreen() {
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Unable to rename exercise.',
+      )
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  function toggle_merge_selection(exercise: Exercise) {
+    setMergeSelection((current) => {
+      const already_selected = current.some((item) => item.id === exercise.id)
+      const updated = already_selected
+        ? current.filter((item) => item.id !== exercise.id)
+        : [...current, exercise]
+
+      setMergeTargetId((target_id) => {
+        if (updated.length === 0) return ''
+        if (updated.some((item) => item.id === target_id)) return target_id
+        return updated[0].id
+      })
+
+      return updated
+    })
+  }
+
+  async function merge_selected_exercises() {
+    if (merge_selection.length < 2 || !merge_target_id) return
+
+    const target = merge_selection.find(
+      (exercise) => exercise.id === merge_target_id,
+    )
+    if (!target) return
+
+    const source_ids = merge_selection
+      .filter((exercise) => exercise.id !== merge_target_id)
+      .map((exercise) => exercise.id)
+
+    setBusyId(merge_target_id)
+    setNotice(null)
+    setError(null)
+
+    try {
+      await consolidate_exercise_definitions(source_ids, merge_target_id)
+      setNotice(
+        `Merged ${merge_selection.length} library definitions into "${target.canonical_name}". Original historical session labels remain unchanged.`,
+      )
+      setMergeSelection([])
+      setMergeTargetId('')
+      await refresh()
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Unable to merge the selected exercises.',
       )
     } finally {
       setBusyId(null)
@@ -339,6 +393,73 @@ export function ExerciseLibraryScreen() {
         </button>
       </section>
 
+      {merge_selection.length > 0 && (
+        <section className={styles.mergePanel}>
+          <div className={styles.mergeHeading}>
+            <div>
+              <span className={styles.kicker}>MANUAL MERGE</span>
+              <h2>{merge_selection.length} selected</h2>
+              <p>
+                Choose the one future-facing exercise to keep. Every other
+                selected definition becomes an archived alias. Historical
+                sessions remain exactly as recorded.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={styles.ghostButton}
+              onClick={() => {
+                setMergeSelection([])
+                setMergeTargetId('')
+              }}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className={styles.mergeCandidates}>
+            {merge_selection.map((exercise) => (
+              <label
+                className={
+                  merge_target_id === exercise.id
+                    ? styles.mergeCandidateActive
+                    : styles.mergeCandidate
+                }
+                key={exercise.id}
+              >
+                <input
+                  type="radio"
+                  name="merge-target"
+                  checked={merge_target_id === exercise.id}
+                  onChange={() => setMergeTargetId(exercise.id)}
+                />
+                <span>
+                  <strong>{exercise.canonical_name}</strong>
+                  <small>
+                    {merge_target_id === exercise.id
+                      ? 'KEEP AS CANONICAL'
+                      : 'BECOMES ALIAS'}
+                  </small>
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className={styles.primaryButton}
+            disabled={merge_selection.length < 2 || busy_id !== null}
+            onClick={() => void merge_selected_exercises()}
+          >
+            {busy_id !== null
+              ? 'Merging…'
+              : merge_selection.length < 2
+                ? 'Select at least 2 exercises'
+                : `Merge ${merge_selection.length} exercises`}
+          </button>
+        </section>
+      )}
+
       {alias_candidates.length > 0 && (
         <details className={styles.aliasPanel}>
           <summary>
@@ -412,6 +533,22 @@ export function ExerciseLibraryScreen() {
                   </span>
                 </div>
                 <div className={styles.cardActions}>
+                  {!archived && (
+                    <button
+                      type="button"
+                      className={
+                        merge_selection.some((item) => item.id === exercise.id)
+                          ? styles.selectButtonActive
+                          : styles.selectButton
+                      }
+                      disabled={busy_id === exercise.id}
+                      onClick={() => toggle_merge_selection(exercise)}
+                    >
+                      {merge_selection.some((item) => item.id === exercise.id)
+                        ? 'Selected'
+                        : 'Select'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={styles.renameButton}
