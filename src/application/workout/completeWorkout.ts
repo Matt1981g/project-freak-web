@@ -36,6 +36,43 @@ function duration_seconds(
   return Math.max(0, Math.round((completed - started) / 1000))
 }
 
+
+function source_clock_seconds(value: string | null): number | null {
+  if (!value) return null
+
+  const match = /^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*$/.exec(value)
+  if (!match) return null
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  const seconds = Number(match[3] ?? 0)
+
+  if (
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59 ||
+    seconds < 0 ||
+    seconds > 59
+  ) {
+    return null
+  }
+
+  return hours * 3600 + minutes * 60 + seconds
+}
+
+export function historical_source_duration_seconds(
+  start_text: string | null,
+  finish_text: string | null,
+): number | null {
+  const start = source_clock_seconds(start_text)
+  const finish = source_clock_seconds(finish_text)
+  if (start === null || finish === null) return null
+
+  const elapsed = finish - start
+  return elapsed >= 0 ? elapsed : elapsed + 24 * 3600
+}
+
 export function build_workout_summary(
   session: CompletedSession,
   exercises: SessionExercise[],
@@ -50,7 +87,12 @@ export function build_workout_summary(
     ),
     completed_sets: completed_sets.length,
     exercise_count: exercises.length,
-    duration_seconds: session.duration_seconds,
+    duration_seconds:
+      session.duration_seconds ??
+      historical_source_duration_seconds(
+        session.source_start_text,
+        session.source_finish_text,
+      ),
   }
 }
 
