@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { SyncOutbox } from '../../domain/models'
+import type { Exercise, SyncOutbox } from '../../domain/models'
 import { ProjectFreakDatabase } from '../db/projectFreakDb'
 import { DexieSyncRepository } from './dexieRepositories'
 
@@ -81,6 +81,61 @@ describe('DexieSyncRepository', () => {
     expect((await db.sync_outbox.get('outbox-1'))?.synced_at).toBe(NOW)
     expect((await db.sync_outbox.get('outbox-2'))?.synced_at).toBeNull()
     await expect(repository.count_pending()).resolves.toBe(1)
+  })
+
+  it('applies a remote entity with audit but without creating an echo outbox mutation', async () => {
+    const remote: Exercise = {
+      id: 'exercise-remote-1',
+      created_at: '2026-09-04T20:00:00.000Z',
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 3,
+      device_id: 'remote-device',
+      source_kind: 'user',
+      source_id: null,
+      canonical_name: 'Remote Lat Pulldown',
+      short_name: null,
+      category: 'lats',
+      equipment: 'Cable',
+      default_load_type: 'normal',
+      rep_mode_default: 'total',
+      archived_at: null,
+      notes: null,
+    }
+
+    await repository.apply_remote_entity('exercise', remote, NOW)
+
+    await expect(
+      repository.get_local_entity('exercise', remote.id),
+    ).resolves.toEqual(remote)
+    expect(await db.sync_outbox.count()).toBe(0)
+
+    const audit = await db.audit_events.toArray()
+    expect(audit).toHaveLength(1)
+    expect(audit[0]).toMatchObject({
+      entity_type: 'exercise',
+      entity_id: remote.id,
+      action: 'sync_apply',
+      reason: 'Remote sync applied',
+      created_at: NOW,
+    })
+  })
+
+  it('detects pending local mutations for the same entity', async () => {
+    const pending = outbox_fixture(
+      'outbox-entity',
+      '2026-09-04T20:00:00.000Z',
+    )
+    pending.entity_type = 'exercise'
+    pending.entity_id = 'exercise-1'
+    await db.sync_outbox.add(pending)
+
+    await expect(
+      repository.has_pending_entity_mutation('exercise', 'exercise-1'),
+    ).resolves.toBe(true)
+    await expect(
+      repository.has_pending_entity_mutation('exercise', 'exercise-2'),
+    ).resolves.toBe(false)
   })
 
   it('persists provider sync state independently from training data', async () => {
