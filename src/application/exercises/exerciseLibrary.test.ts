@@ -149,8 +149,8 @@ describe('exercise library application service', () => {
 
     expect(candidates).toHaveLength(1)
     expect(candidates[0].members).toEqual([
-      { exercise_id: '1', label: 'Face Pull' },
       { exercise_id: '2', label: 'FACE PULL' },
+      { exercise_id: '1', label: 'Face Pull' },
     ])
   })
 
