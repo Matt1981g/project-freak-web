@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { load_exercise_history_entries } from '../../app/projectFreakServices'
+import { format_local_date_display } from '../../utils/dateFormat'
 import styles from './ExerciseHistoryScreen.module.css'
 
 type ExerciseHistory = NonNullable<
@@ -111,7 +112,7 @@ export function ExerciseHistoryScreen() {
             <article className={styles.sessionCard} key={entry.session.id}>
               <div className={styles.sessionHeader}>
                 <div>
-                  <span>{entry.session.session_date_local}</span>
+                  <span>{format_local_date_display(entry.session.session_date_local)}</span>
                   <h2>{entry.session.session_name}</h2>
                 </div>
                 <Link to={`/workout/${entry.session.id}`}>VIEW SESSION</Link>

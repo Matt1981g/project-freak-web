@@ -11,6 +11,7 @@ import {
   preview_programme_json,
   start_programmed_session_workout,
 } from '../../app/projectFreakServices'
+import { format_local_date_display } from '../../utils/dateFormat'
 import styles from './PlanScreen.module.css'
 
 interface StoredProgrammeSummary {
@@ -44,9 +45,12 @@ function rep_target(
 
 function date_span(block: ProgrammeBlock): string {
   if (block.start_date_local && block.end_date_local) {
-    return `${block.start_date_local} → ${block.end_date_local}`
+    return `${format_local_date_display(block.start_date_local)} → ${format_local_date_display(block.end_date_local)}`
   }
-  return block.start_date_local ?? block.end_date_local ?? 'Dates not fixed'
+  return format_local_date_display(
+    block.start_date_local ?? block.end_date_local,
+    'Dates not fixed',
+  )
 }
 
 export function PlanScreen() {
@@ -423,7 +427,7 @@ export function PlanScreen() {
                         <h3>{session.name}</h3>
                       </div>
                       <strong>
-                        {session.scheduled_date_local ?? 'Unscheduled'}
+                        {format_local_date_display(session.scheduled_date_local, 'Unscheduled')}
                       </strong>
                     </div>
 

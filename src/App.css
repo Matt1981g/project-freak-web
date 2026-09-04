@@ -13,8 +13,9 @@
   grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
-  min-height: 72px;
-  padding: 0 20px;
+  min-height: calc(72px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 20px 0;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--pf-border);
   background: rgba(10, 12, 10, 0.9);
   backdrop-filter: blur(16px);
@@ -134,8 +135,8 @@
 
 @media (max-width: 560px) {
   .app-header {
-    min-height: 64px;
-    padding: 0 12px;
+    min-height: calc(64px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 12px 0;
   }
 
   .brand-copy small {
@@ -150,7 +151,7 @@
     position: fixed;
     left: 12px;
     right: 12px;
-    bottom: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
     z-index: 30;
     display: grid;
     grid-template-columns: repeat(8, 1fr);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { WeeklyTrainingAnalysis } from '../../application/analysis/analysisTypes'
 import { load_analysis_dashboard } from '../../app/analysisServices'
+import { format_local_date_display } from '../../utils/dateFormat'
 import styles from './AnalysisScreen.module.css'
 
 function format_tonnage(value: number): string {
@@ -13,7 +14,7 @@ function format_average(value: number | null): string {
 }
 
 function format_week_label(week: WeeklyTrainingAnalysis): string {
-  return `${week.week_start_local} → ${week.week_end_local}`
+  return `${format_local_date_display(week.week_start_local)} → ${format_local_date_display(week.week_end_local)}`
 }
 
 function delta(current: number, previous: number | undefined): string | null {
@@ -174,8 +175,8 @@ export function AnalysisScreen() {
               {weeks.slice(0, 12).map((week) => (
                 <article className={styles.weekRow} key={week.week_start_local}>
                   <div className={styles.weekDate}>
-                    <strong>{week.week_start_local}</strong>
-                    <span>to {week.week_end_local}</span>
+                    <strong>{format_local_date_display(week.week_start_local)}</strong>
+                    <span>to {format_local_date_display(week.week_end_local)}</span>
                   </div>
                   <div>
                     <span>SESSIONS</span>

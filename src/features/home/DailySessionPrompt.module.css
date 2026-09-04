@@ -1,0 +1,87 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding:
+    max(20px, env(safe-area-inset-top))
+    20px
+    max(20px, env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.prompt {
+  width: min(440px, 100%);
+  padding: 22px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 20px;
+  background: var(--pf-panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+}
+
+.kicker {
+  color: var(--pf-accent);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.prompt h2 {
+  margin: 8px 0 0;
+  color: var(--pf-text-strong);
+  font-size: 28px;
+  line-height: 1.02;
+}
+
+.prompt p {
+  margin: 8px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 12px;
+}
+
+.error {
+  margin-top: 14px;
+  padding: 10px;
+  border: 1px solid rgba(255, 95, 95, 0.35);
+  border-radius: 10px;
+  color: #ff9c9c;
+  background: rgba(255, 95, 95, 0.08);
+  font-size: 11px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.actions button {
+  min-height: 50px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.start {
+  border: 1px solid var(--pf-accent-border);
+  color: #071006;
+  background: var(--pf-accent);
+}
+
+.later {
+  border: 1px solid var(--pf-border);
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+}
+
+.actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

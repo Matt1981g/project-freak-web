@@ -33,6 +33,7 @@ import {
   is_session_exercise_completed,
   is_training_set_completed,
 } from '../../domain/rules/completion'
+import { format_local_date_display } from '../../utils/dateFormat'
 import styles from './WorkoutScreen.module.css'
 
 type LiveWorkout = NonNullable<
@@ -169,7 +170,7 @@ function PreviousComparablePanel(props: {
       <div className={styles.previousComparableHeader}>
         <div>
           <span>PREVIOUS COMPARABLE</span>
-          <strong>{previous.session_date_local}</strong>
+          <strong>{format_local_date_display(previous.session_date_local)}</strong>
           {previous.source_exercise_name !== current_name && (
             <small>Recorded as {previous.source_exercise_name}</small>
           )}
@@ -1565,7 +1566,7 @@ export function WorkoutScreen() {
       <section className={styles.sessionMeta}>
         <div>
           <span>Training date</span>
-          <strong>{workout.session.session_date_local}</strong>
+          <strong>{format_local_date_display(workout.session.session_date_local)}</strong>
         </div>
         <div>
           <span>Exercises</span>

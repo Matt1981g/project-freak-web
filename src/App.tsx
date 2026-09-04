@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router'
 import { AnalysisScreen } from './features/analysis/AnalysisScreen'
+import { DailySessionPrompt } from './features/home/DailySessionPrompt'
 import { BackupScreen } from './features/backup/BackupScreen'
 import { CoachScreen } from './features/coach/CoachScreen'
 import { ExerciseLibraryScreen } from './features/exercises/ExerciseLibraryScreen'
@@ -92,6 +93,8 @@ function App() {
         <PwaInstallControl />
         <div className="phase-chip">PHASE 15</div>
       </header>
+
+      <DailySessionPrompt />
 
       <main>
         <Routes>

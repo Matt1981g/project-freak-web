@@ -501,6 +501,52 @@ export function load_programme_sessions(programme_block_id: string) {
   )
 }
 
+export interface TodayProgrammedSession {
+  programmed_session: import('../domain/models').ProgrammedSession
+  existing_session_id: string | null
+  resume: boolean
+}
+
+export async function load_today_programmed_sessions(): Promise<
+  TodayProgrammedSession[]
+> {
+  const today = current_local_date()
+  const blocks = await repositories.programme.list_blocks()
+  const sessions = (
+    await Promise.all(
+      blocks.map((block) =>
+        repositories.programme.list_programmed_sessions_for_block(block.id),
+      ),
+    )
+  )
+    .flat()
+    .filter(
+      (session) =>
+        session.deleted_at === null &&
+        session.scheduled_date_local === today &&
+        (session.status === 'planned' || session.status === 'started'),
+    )
+
+  const result: TodayProgrammedSession[] = []
+
+  for (const programmed_session of sessions) {
+    const existing_session =
+      await repositories.sessions.get_by_programmed_session_id(
+        programmed_session.id,
+      )
+
+    if (existing_session?.status === 'completed') continue
+
+    result.push({
+      programmed_session,
+      existing_session_id: existing_session?.id ?? null,
+      resume: Boolean(existing_session),
+    })
+  }
+
+  return result
+}
+
 export function load_programmed_session_detail(
   programmed_session_id: string,
 ) {

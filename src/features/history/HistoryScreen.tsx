@@ -5,6 +5,7 @@ import {
   load_history_entries,
   set_coach_session_excluded,
 } from '../../app/projectFreakServices'
+import { format_local_date_display } from '../../utils/dateFormat'
 import styles from './HistoryScreen.module.css'
 
 type HistoryEntry = Awaited<ReturnType<typeof load_history_entries>>[number]
@@ -106,7 +107,7 @@ export function HistoryScreen() {
                 <div>
                   <span>{session_source(entry)}</span>
                   <h2>{entry.session.session_name}</h2>
-                  <small>{entry.session.session_date_local}</small>
+                  <small>{format_local_date_display(entry.session.session_date_local)}</small>
                 </div>
                 <div className={styles.statusGroup}>
                   {coach_excluded && (
