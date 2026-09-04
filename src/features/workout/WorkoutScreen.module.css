@@ -524,6 +524,108 @@
   font-weight: 800;
 }
 
+.finishPanel,
+.workoutSummary {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, var(--pf-accent-soft), transparent 72%),
+    var(--pf-panel);
+}
+
+.finishPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.32fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.finishPanel span,
+.summaryHeader span,
+.summaryGrid span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.finishPanel h2,
+.summaryHeader h2 {
+  margin: 4px 0 0;
+  color: var(--pf-text-strong);
+  font-size: 22px;
+}
+
+.finishPanel p {
+  margin: 7px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 11px;
+}
+
+.finishPanel button {
+  min-height: 58px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 13px;
+  color: #071006;
+  background: var(--pf-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.finishPanel button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.summaryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.summaryHeader > strong {
+  color: var(--pf-accent);
+  font-size: 30px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.summaryGrid > div {
+  padding: 13px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-bg);
+}
+
+.summaryGrid strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--pf-text-strong);
+  font-size: 18px;
+}
+
+.summaryGrid small {
+  display: block;
+  margin-top: 4px;
+  color: var(--pf-text-faint);
+  font-size: 9px;
+}
+
+.volumeSummary strong {
+  color: var(--pf-accent);
+  font-size: 25px;
+}
+
 .state {
   min-height: 50vh;
   display: grid;
@@ -581,5 +683,17 @@
   .scoringHeader small {
     max-width: none;
     text-align: left;
+  }
+
+  .finishPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .volumeSummary {
+    grid-column: 1 / -1;
   }
 }
