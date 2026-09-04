@@ -72,6 +72,105 @@ async function current_device_id(): Promise<string> {
   return device.id
 }
 
+
+export interface StorageDiagnostics {
+  origin: string
+  href: string
+  standalone: boolean
+  database_name: string
+  database_version: number
+  known_database_names: string[]
+  persistent_storage: boolean | null
+  usage_bytes: number | null
+  quota_bytes: number | null
+  total_records: number
+  completed_sessions: number
+  training_sets: number
+  exercises: number
+  programme_blocks: number
+  programmed_sessions: number
+  devices: number
+}
+
+export async function load_storage_diagnostics(): Promise<StorageDiagnostics> {
+  await projectFreakDb.open()
+
+  const standalone =
+    (typeof window !== 'undefined' &&
+      window.matchMedia('(display-mode: standalone)').matches) ||
+    Boolean(
+      (navigator as Navigator & { standalone?: boolean }).standalone,
+    )
+
+  let persistent_storage: boolean | null = null
+  let usage_bytes: number | null = null
+  let quota_bytes: number | null = null
+
+  if (typeof navigator.storage?.persisted === 'function') {
+    try {
+      persistent_storage = await navigator.storage.persisted()
+    } catch {
+      persistent_storage = null
+    }
+  }
+
+  if (typeof navigator.storage?.estimate === 'function') {
+    try {
+      const estimate = await navigator.storage.estimate()
+      usage_bytes = estimate.usage ?? null
+      quota_bytes = estimate.quota ?? null
+    } catch {
+      usage_bytes = null
+      quota_bytes = null
+    }
+  }
+
+  let known_database_names: string[] = []
+  const indexed_db_factory = indexedDB as IDBFactory & {
+    databases?: () => Promise<Array<{ name?: string; version?: number }>>
+  }
+
+  if (typeof indexed_db_factory.databases === 'function') {
+    try {
+      known_database_names = (await indexed_db_factory.databases())
+        .map((database) => database.name)
+        .filter((name): name is string => Boolean(name))
+        .sort()
+    } catch {
+      known_database_names = []
+    }
+  }
+
+  const table_counts = await Promise.all(
+    projectFreakDb.tables.map(async (table) => ({
+      name: table.name,
+      count: await table.count(),
+    })),
+  )
+  const count_by_name = new Map(
+    table_counts.map((entry) => [entry.name, entry.count]),
+  )
+
+  return {
+    origin: typeof location === 'undefined' ? 'unknown' : location.origin,
+    href: typeof location === 'undefined' ? 'unknown' : location.href,
+    standalone,
+    database_name: projectFreakDb.name,
+    database_version: projectFreakDb.verno,
+    known_database_names,
+    persistent_storage,
+    usage_bytes,
+    quota_bytes,
+    total_records: table_counts.reduce((total, entry) => total + entry.count, 0),
+    completed_sessions: count_by_name.get('completed_sessions') ?? 0,
+    training_sets: count_by_name.get('sets') ?? 0,
+    exercises: count_by_name.get('exercises') ?? 0,
+    programme_blocks: count_by_name.get('programme_blocks') ?? 0,
+    programmed_sessions: count_by_name.get('programmed_sessions') ?? 0,
+    devices: count_by_name.get('devices') ?? 0,
+  }
+}
+
 export async function build_database_backup() {
   return build_full_backup(projectFreakDb, {
     now_iso: new Date().toISOString(),
