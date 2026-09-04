@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import type { ExerciseMetrics, TrainingSet } from '../../domain/models'
 import {
   complete_live_session_exercise,
+  complete_live_workout,
   load_live_workout,
   save_live_exercise_scores,
   save_live_training_set,
@@ -37,6 +38,28 @@ function exercise_label(exercise: LiveExercise['exercise']): string {
     return `${exercise.rotation_group_key}${exercise.rotation_position ?? ''}`
   }
   return String(exercise.actual_order)
+}
+
+function format_duration(seconds: number | null): string {
+  if (seconds === null) return 'Not recorded'
+
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remaining_seconds = seconds % 60
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${remaining_seconds}s`
+  }
+  return `${remaining_seconds}s`
+}
+
+function format_volume(value: number): string {
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: 1,
+  })
 }
 
 function numeric_value(value: string): number | null {
@@ -431,6 +454,7 @@ export function WorkoutScreen() {
   const [workout, setWorkout] = useState<LiveWorkout | undefined>()
   const [open_exercise_id, setOpenExerciseId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const refresh_workout = useCallback(async () => {
@@ -458,6 +482,25 @@ export function WorkoutScreen() {
     }
   }, [completed_session_id])
 
+  async function finish_workout() {
+    if (!completed_session_id || finishing) return
+
+    setFinishing(true)
+    setError(null)
+
+    try {
+      await complete_live_workout(completed_session_id)
+      setOpenExerciseId(null)
+      await refresh_workout()
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Unable to finish workout.',
+      )
+    } finally {
+      setFinishing(false)
+    }
+  }
+
   useEffect(() => {
     void refresh_workout()
   }, [refresh_workout])
@@ -474,6 +517,12 @@ export function WorkoutScreen() {
       </div>
     )
   }
+
+  const all_exercises_complete =
+    workout.exercises.length > 0 &&
+    workout.exercises.every(
+      ({ exercise }) => exercise.completed_at !== null,
+    )
 
   return (
     <div className={styles.screen}>
@@ -622,6 +671,56 @@ export function WorkoutScreen() {
           })}
         </div>
       </section>
+
+      {workout.session.status === 'completed' ? (
+        <section className={styles.workoutSummary}>
+          <div className={styles.summaryHeader}>
+            <div>
+              <span>WORKOUT COMPLETE</span>
+              <h2>Session summary</h2>
+            </div>
+            <strong>✓</strong>
+          </div>
+
+          <div className={styles.summaryGrid}>
+            <div className={styles.volumeSummary}>
+              <span>TOTAL VOLUME</span>
+              <strong>{format_volume(workout.summary.total_volume_kg)} kg</strong>
+              <small>Comparable completed resistance work</small>
+            </div>
+            <div>
+              <span>DURATION</span>
+              <strong>{format_duration(workout.summary.duration_seconds)}</strong>
+            </div>
+            <div>
+              <span>COMPLETED SETS</span>
+              <strong>{workout.summary.completed_sets}</strong>
+            </div>
+            <div>
+              <span>EXERCISES</span>
+              <strong>{workout.summary.exercise_count}</strong>
+            </div>
+          </div>
+        </section>
+      ) : all_exercises_complete ? (
+        <section className={styles.finishPanel}>
+          <div>
+            <span>ALL EXERCISES COMPLETE</span>
+            <h2>Finish this workout</h2>
+            <p>
+              This locks the session finish time and calculates the final
+              comparable training volume.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={finishing}
+            onClick={() => void finish_workout()}
+          >
+            {finishing ? 'FINISHING…' : 'FINISH WORKOUT'}
+          </button>
+        </section>
+      ) : null}
     </div>
   )
 }
