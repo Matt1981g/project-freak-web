@@ -1,3 +1,4 @@
+import { create_uuid } from '../../domain/ids/uuid'
 import type {
   Exercise,
   ProgrammeBlock,
@@ -524,7 +525,7 @@ function template_family_id(
       : `session:${session.external_id}`
   }
 
-  return crypto.randomUUID()
+  return create_uuid()
 }
 
 function resolution_map(preview: ProgrammeImportPreview) {
@@ -578,7 +579,7 @@ export async function build_programme_import_entities(
 
   const document = preview.document
   const resolutions = resolution_map(preview)
-  const block_id = crypto.randomUUID()
+  const block_id = create_uuid()
 
   const block: ProgrammeBlock = {
     ...metadata(block_id, timestamp, device_id, preview.source_id),
@@ -601,8 +602,8 @@ export async function build_programme_import_entities(
   const programmed_set_components: ProgrammedSetComponent[] = []
 
   for (const [session_index, session] of document.programme.sessions.entries()) {
-    const template_id = crypto.randomUUID()
-    const programmed_session_id = crypto.randomUUID()
+    const template_id = create_uuid()
+    const programmed_session_id = create_uuid()
     const family_id = template_family_id(document, session_index)
     const previous_version =
       await programme_repository.get_latest_template_version(family_id)
@@ -642,8 +643,8 @@ export async function build_programme_import_entities(
         )
       }
 
-      const template_exercise_id = crypto.randomUUID()
-      const programmed_exercise_id = crypto.randomUUID()
+      const template_exercise_id = create_uuid()
+      const programmed_exercise_id = create_uuid()
       const target_sets = exercise.target_sets ?? exercise.sets.length
 
       template_exercises.push({
@@ -690,8 +691,8 @@ export async function build_programme_import_entities(
       })
 
       for (const set of exercise.sets) {
-        const template_set_id = crypto.randomUUID()
-        const programmed_set_id = crypto.randomUUID()
+        const template_set_id = create_uuid()
+        const programmed_set_id = create_uuid()
 
         template_sets.push({
           ...metadata(
@@ -718,7 +719,7 @@ export async function build_programme_import_entities(
         for (const component of set.components) {
           template_set_components.push({
             ...metadata(
-              crypto.randomUUID(),
+              create_uuid(),
               timestamp,
               device_id,
               preview.source_id,
@@ -729,7 +730,7 @@ export async function build_programme_import_entities(
 
           programmed_set_components.push({
             ...metadata(
-              crypto.randomUUID(),
+              create_uuid(),
               timestamp,
               device_id,
               preview.source_id,
