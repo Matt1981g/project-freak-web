@@ -1,3 +1,4 @@
+import { create_uuid } from '../../domain/ids/uuid'
 import type {
   CompletedSession,
   SessionExercise,
@@ -32,7 +33,7 @@ export async function start_programmed_workout(
     return { session_id: existing.id, created: false }
   }
 
-  const make_id = context.id_factory ?? (() => crypto.randomUUID())
+  const make_id = context.id_factory ?? (() => create_uuid())
   const session_id = make_id()
 
   const session: CompletedSession = {
