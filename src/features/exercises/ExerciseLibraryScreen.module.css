@@ -98,6 +98,8 @@
 .ghostButton,
 .archiveButton,
 .restoreButton,
+.renameButton,
+.aliasChoice,
 .filterButton,
 .filterActive {
   min-height: 46px;
@@ -118,6 +120,8 @@
 .ghostButton:active,
 .archiveButton:active,
 .restoreButton:active,
+.renameButton:active,
+.aliasChoice:active,
 .filterButton:active,
 .filterActive:active {
   transform: translateY(1px);
@@ -126,7 +130,9 @@
 .primaryButton:disabled,
 .secondaryButton:disabled,
 .archiveButton:disabled,
-.restoreButton:disabled {
+.restoreButton:disabled,
+.renameButton:disabled,
+.aliasChoice:disabled {
   cursor: progress;
   opacity: 0.55;
 }
@@ -335,20 +341,42 @@
 }
 
 .aliasRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
   border-radius: 12px;
   background: var(--pf-panel-raised);
 }
 
-.aliasRow span {
-  padding: 5px 8px;
-  border-radius: 8px;
+.aliasRowCopy {
+  display: grid;
+  gap: 3px;
+}
+
+.aliasRowCopy strong {
+  color: var(--pf-text-strong);
+  font-size: 13px;
+}
+
+.aliasRowCopy span {
+  color: var(--pf-text-muted);
+  font-size: 11px;
+}
+
+.aliasChoices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.aliasChoice {
+  min-height: 38px;
+  color: var(--pf-accent);
   background: var(--pf-bg);
-  color: var(--pf-text);
-  font-size: 12px;
+  border-color: var(--pf-accent-border);
 }
 
 .list {
@@ -399,6 +427,12 @@
   border: 1px solid var(--pf-border);
 }
 
+.cardActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .archiveButton {
   min-width: 92px;
   color: var(--pf-text-muted);
@@ -411,6 +445,57 @@
   color: var(--pf-accent);
   background: var(--pf-accent-soft);
   border-color: var(--pf-accent-border);
+}
+
+.renameButton {
+  min-width: 86px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  border-color: var(--pf-border);
+}
+
+.renameEditor {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding-top: 12px;
+  border-top: 1px solid var(--pf-border);
+}
+
+.renameEditor label {
+  display: grid;
+  gap: 6px;
+}
+
+.renameEditor label span {
+  color: var(--pf-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.renameEditor input {
+  min-height: 46px;
+  width: 100%;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  padding: 0 13px;
+  color: var(--pf-text-strong);
+  background: var(--pf-bg);
+  outline: none;
+}
+
+.renameEditor input:focus {
+  border-color: var(--pf-accent-border);
+  box-shadow: 0 0 0 3px var(--pf-accent-soft);
+}
+
+.renameActions {
+  display: flex;
+  gap: 8px;
 }
 
 .emptyState {
@@ -467,9 +552,36 @@
     grid-template-columns: 1fr;
   }
 
+  .cardActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
   .archiveButton,
-  .restoreButton {
+  .restoreButton,
+  .renameButton {
     width: 100%;
+  }
+
+  .renameEditor {
+    grid-template-columns: 1fr;
+  }
+
+  .renameActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .aliasRow {
+    grid-template-columns: 1fr;
+  }
+
+  .aliasChoices {
+    justify-content: stretch;
+  }
+
+  .aliasChoice {
+    flex: 1 1 100%;
   }
 
   .previewActions {
