@@ -2,6 +2,8 @@ import { projectFreakDb } from '../data/db/projectFreakDb'
 import {
   build_full_backup,
   preview_backup_json,
+  restore_validated_backup,
+  type BackupPreview,
 } from '../application/backup/databaseBackup'
 import { load_workout_history } from '../application/history/workoutHistory'
 import {
@@ -80,6 +82,15 @@ export async function build_database_backup() {
 
 export async function preview_database_backup(file: File) {
   return preview_backup_json(await file.text())
+}
+
+
+export async function restore_database_backup(preview: BackupPreview) {
+  return restore_validated_backup(projectFreakDb, preview, {
+    now_iso: new Date().toISOString(),
+    source_device_id: await current_device_id(),
+    app_version: null,
+  })
 }
 
 export function load_exercise_library(query: ExerciseLibraryQuery = {}) {
