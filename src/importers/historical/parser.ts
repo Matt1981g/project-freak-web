@@ -464,7 +464,10 @@ function reconcile_session_summaries(
       continue
     }
 
-    const exercise_count = new Set(group.map((row) => row.exercise_order)).size
+    // Session Summary counts distinct exercise labels. A session can return to
+    // the same exercise later as a separate occurrence/order block (W29 does
+    // this with Leg Extension), which must remain a separate session_exercise.
+    const exercise_count = new Set(group.map((row) => row.exercise_name)).size
     const completed_reps = group.reduce(
       (sum, row) => sum + (row.completed_reps ?? 0),
       0,
