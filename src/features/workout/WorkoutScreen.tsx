@@ -290,7 +290,7 @@ function ExerciseScoringPanel(props: {
       saved_metrics?.pump === scores.pump &&
       saved_metrics?.form === scores.form
     ) {
-      return saved_metrics
+      return true
     }
 
     setSaving(true)
@@ -299,12 +299,12 @@ function ExerciseScoringPanel(props: {
     try {
       const saved = await save_live_exercise_scores(exercise.id, scores)
       setSavedMetrics(saved)
-      return saved
+      return true
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Unable to save exercise rating.',
       )
-      return null
+      return false
     } finally {
       setSaving(false)
     }
@@ -317,7 +317,9 @@ function ExerciseScoringPanel(props: {
     setError(null)
 
     try {
-      await persist_score()
+      const scores_saved = await persist_score()
+      if (!scores_saved) return
+
       await complete_live_session_exercise(exercise)
       await on_complete()
     } catch (cause) {
@@ -360,11 +362,12 @@ function ExerciseScoringPanel(props: {
             set_touched(true)
             set_value(Number(event.target.value))
           }}
-          onPointerUp={() => void persist_score(key, value)}
-          onKeyUp={() => void persist_score(key, value)}
-          onBlur={() => {
-            if (touched) void persist_score()
-          }}
+          onPointerUp={(event) =>
+            void persist_score(key, Number(event.currentTarget.value))
+          }
+          onKeyUp={(event) =>
+            void persist_score(key, Number(event.currentTarget.value))
+          }
         />
         <div className={styles.scoreScale}>
           <span>1</span>
