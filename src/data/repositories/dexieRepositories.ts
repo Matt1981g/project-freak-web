@@ -25,6 +25,7 @@ import type {
   ExerciseRepository,
   ProgrammeImportEntities,
   ProgrammeRepository,
+  ProgrammedSessionDetail,
   RepositoryBundle,
   SessionRepository,
 } from './contracts'
@@ -297,6 +298,57 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
         const right = b.scheduled_date_local ?? '9999-12-31'
         return left.localeCompare(right)
       })
+  }
+
+  async get_programmed_session_detail(
+    programmed_session_id: string,
+  ): Promise<ProgrammedSessionDetail | undefined> {
+    const session = await this.db.programmed_sessions.get(programmed_session_id)
+    if (!session || session.deleted_at !== null) {
+      return undefined
+    }
+
+    const exercises = (
+      await this.db.programmed_session_exercises
+        .where('programmed_session_id')
+        .equals(programmed_session_id)
+        .toArray()
+    )
+      .filter((exercise) => exercise.deleted_at === null)
+      .sort((a, b) => a.planned_order - b.planned_order)
+
+    return {
+      session,
+      exercises: await Promise.all(
+        exercises.map(async (exercise) => {
+          const sets = (
+            await this.db.programmed_session_sets
+              .where('programmed_session_exercise_id')
+              .equals(exercise.id)
+              .toArray()
+          )
+            .filter((set) => set.deleted_at === null)
+            .sort((a, b) => a.set_number - b.set_number)
+
+          return {
+            exercise,
+            sets: await Promise.all(
+              sets.map(async (set) => ({
+                set,
+                components: (
+                  await this.db.programmed_set_components
+                    .where('programmed_session_set_id')
+                    .equals(set.id)
+                    .toArray()
+                )
+                  .filter((component) => component.deleted_at === null)
+                  .sort((a, b) => a.sequence - b.sequence),
+              })),
+            ),
+          }
+        }),
+      ),
+    }
   }
 
   async get_latest_template_version(
