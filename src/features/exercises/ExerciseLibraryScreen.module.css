@@ -96,6 +96,7 @@
 .primaryButton,
 .secondaryButton,
 .ghostButton,
+.historyButton,
 .archiveButton,
 .restoreButton,
 .renameButton,
@@ -120,6 +121,7 @@
 .primaryButton:active,
 .secondaryButton:active,
 .ghostButton:active,
+.historyButton:active,
 .archiveButton:active,
 .restoreButton:active,
 .renameButton:active,
@@ -623,6 +625,17 @@
   border-color: var(--pf-accent-border);
 }
 
+.historyButton {
+  min-width: 86px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  border-color: var(--pf-accent-border);
+  text-decoration: none;
+}
+
 .renameButton {
   min-width: 86px;
   color: var(--pf-text-strong);
@@ -733,6 +746,7 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .historyButton,
   .archiveButton,
   .restoreButton,
   .renameButton,
