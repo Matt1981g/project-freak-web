@@ -5,9 +5,11 @@ import type { HistoricalImportPreview } from '../../importers/historical'
 import {
   archive_exercise_definition,
   commit_historical_workbook,
+  consolidate_exercise_definitions,
   load_exercise_alias_candidates,
   load_exercise_library,
   preview_historical_workbook,
+  rename_exercise_definition,
   restore_exercise_definition,
 } from '../../app/projectFreakServices'
 import styles from './ExerciseLibraryScreen.module.css'
@@ -36,6 +38,8 @@ export function ExerciseLibraryScreen() {
   >([])
   const [loading, setLoading] = useState(true)
   const [busy_id, setBusyId] = useState<string | null>(null)
+  const [renaming_id, setRenamingId] = useState<string | null>(null)
+  const [rename_value, setRenameValue] = useState('')
   const [import_preview, setImportPreview] =
     useState<HistoricalImportPreview | null>(null)
   const [import_busy, setImportBusy] = useState(false)
@@ -87,6 +91,65 @@ export function ExerciseLibraryScreen() {
       await refresh()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to update exercise.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function consolidate_alias_group(
+    candidate: ExerciseAliasCandidateGroup,
+    target_id: string,
+  ) {
+    const target = candidate.members.find(
+      (member) => member.exercise_id === target_id,
+    )
+    if (!target) return
+
+    const source_ids = candidate.members
+      .filter((member) => member.exercise_id !== target_id)
+      .map((member) => member.exercise_id)
+
+    setBusyId(target_id)
+    setNotice(null)
+    setError(null)
+
+    try {
+      await consolidate_exercise_definitions(source_ids, target_id)
+      setNotice(
+        `Kept "${target.label}" as canonical. ${source_ids.length} duplicate label${source_ids.length === 1 ? '' : 's'} archived as aliases; historical sessions are unchanged.`,
+      )
+      await refresh()
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Unable to consolidate exercise labels.',
+      )
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function submit_rename(exercise: Exercise) {
+    setBusyId(exercise.id)
+    setNotice(null)
+    setError(null)
+
+    try {
+      const renamed = await rename_exercise_definition(
+        exercise.id,
+        rename_value,
+      )
+      setNotice(
+        `Renamed library definition to "${renamed.canonical_name}". Historical session labels are unchanged.`,
+      )
+      setRenamingId(null)
+      setRenameValue('')
+      await refresh()
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Unable to rename exercise.',
+      )
     } finally {
       setBusyId(null)
     }
@@ -291,9 +354,28 @@ export function ExerciseLibraryScreen() {
           <div className={styles.aliasGrid}>
             {alias_candidates.map((candidate) => (
               <div className={styles.aliasRow} key={candidate.normalized_name}>
-                {candidate.labels.map((label) => (
-                  <span key={label}>{label}</span>
-                ))}
+                <div className={styles.aliasRowCopy}>
+                  <strong>Choose the canonical future label</strong>
+                  <span>Every other label becomes an alias. History stays verbatim.</span>
+                </div>
+                <div className={styles.aliasChoices}>
+                  {candidate.members.map((member) => (
+                    <button
+                      type="button"
+                      className={styles.aliasChoice}
+                      disabled={busy_id !== null}
+                      key={member.exercise_id}
+                      onClick={() =>
+                        void consolidate_alias_group(
+                          candidate,
+                          member.exercise_id,
+                        )
+                      }
+                    >
+                      Keep {member.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -329,18 +411,71 @@ export function ExerciseLibraryScreen() {
                       : 'Library definition'}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className={archived ? styles.restoreButton : styles.archiveButton}
-                  disabled={busy_id === exercise.id}
-                  onClick={() => void change_archive_state(exercise)}
-                >
-                  {busy_id === exercise.id
-                    ? 'Saving…'
-                    : archived
-                      ? 'Restore'
-                      : 'Archive'}
-                </button>
+                <div className={styles.cardActions}>
+                  <button
+                    type="button"
+                    className={styles.renameButton}
+                    disabled={busy_id === exercise.id}
+                    onClick={() => {
+                      setRenamingId(exercise.id)
+                      setRenameValue(exercise.canonical_name)
+                    }}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    className={archived ? styles.restoreButton : styles.archiveButton}
+                    disabled={busy_id === exercise.id}
+                    onClick={() => void change_archive_state(exercise)}
+                  >
+                    {busy_id === exercise.id
+                      ? 'Saving…'
+                      : archived
+                        ? 'Restore'
+                        : 'Archive'}
+                  </button>
+                </div>
+
+                {renaming_id === exercise.id && (
+                  <form
+                    className={styles.renameEditor}
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      void submit_rename(exercise)
+                    }}
+                  >
+                    <label>
+                      <span>Future-facing exercise name</span>
+                      <input
+                        autoFocus
+                        value={rename_value}
+                        onChange={(event) => setRenameValue(event.target.value)}
+                      />
+                    </label>
+                    <div className={styles.renameActions}>
+                      <button
+                        type="button"
+                        className={styles.ghostButton}
+                        onClick={() => {
+                          setRenamingId(null)
+                          setRenameValue('')
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className={styles.primaryButton}
+                        disabled={
+                          busy_id === exercise.id || !rename_value.trim()
+                        }
+                      >
+                        Save name
+                      </button>
+                    </div>
+                  </form>
+                )}
               </article>
             )
           })
