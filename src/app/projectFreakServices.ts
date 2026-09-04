@@ -1,5 +1,6 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { create_repositories } from '../data/repositories'
+import { audit_exercise_library } from '../application/exercises/exerciseLibraryAudit'
 import {
   archive_exercise,
   consolidate_exercises,
@@ -32,6 +33,10 @@ export function load_exercise_library(query: ExerciseLibraryQuery = {}) {
 
 export function load_exercise_alias_candidates() {
   return list_exercise_alias_candidates(repositories.exercises)
+}
+
+export function load_exercise_library_audit() {
+  return audit_exercise_library(repositories.exercises)
 }
 
 export async function archive_exercise_definition(exercise_id: string) {
