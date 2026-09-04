@@ -14,7 +14,10 @@ import {
   save_exercise_scores,
 } from '../application/workout/exerciseCompletion'
 import { save_training_set } from '../application/workout/logSet'
-import { save_session_readiness } from '../application/workout/readiness'
+import {
+  save_session_readiness,
+  save_session_recovery,
+} from '../application/workout/readiness'
 import { start_programmed_workout } from '../application/workout/startWorkout'
 import {
   commit_programme_import,
@@ -224,6 +227,15 @@ export async function save_live_readiness(
   > & { completed_session_id: string },
 ) {
   return save_session_readiness(input, repositories.readiness, {
+    device_id: await current_device_id(),
+    now_iso: new Date().toISOString(),
+  })
+}
+
+export async function save_live_recovery(
+  input: Parameters<typeof save_session_recovery>[0],
+) {
+  return save_session_recovery(input, repositories.readiness, {
     device_id: await current_device_id(),
     now_iso: new Date().toISOString(),
   })
