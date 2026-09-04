@@ -1,9 +1,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { initialize_pwa_runtime } from './pwaRuntime'
+import {
+  initialize_pwa_runtime,
+  resolve_pwa_registration,
+} from './pwaRuntime'
 
-describe('initialize_pwa_runtime', () => {
+describe('PWA runtime', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it('resolves service worker paths for root and hosted subpaths', () => {
+    expect(
+      resolve_pwa_registration('https://example.com/#/plan'),
+    ).toEqual({
+      script_url: 'https://example.com/sw.js',
+      scope: '/',
+    })
+
+    expect(
+      resolve_pwa_registration(
+        'https://example.com/project-freak-web/#/plan',
+      ),
+    ).toEqual({
+      script_url: 'https://example.com/project-freak-web/sw.js',
+      scope: '/project-freak-web/',
+    })
   })
 
   it('registers the service worker and requests persistence when needed', async () => {
@@ -18,7 +39,9 @@ describe('initialize_pwa_runtime', () => {
 
     const result = await initialize_pwa_runtime()
 
-    expect(register).toHaveBeenCalledWith('/sw.js', { scope: '/' })
+    expect(register).toHaveBeenCalledWith('http://localhost/sw.js', {
+      scope: '/',
+    })
     expect(persisted).toHaveBeenCalledOnce()
     expect(persist).toHaveBeenCalledOnce()
     expect(result).toEqual({
