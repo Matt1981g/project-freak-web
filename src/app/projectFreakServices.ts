@@ -1,5 +1,6 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { load_workout_history } from '../application/history/workoutHistory'
+import { correct_completed_set } from '../application/history/correctCompletedSet'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
 import {
   load_training_priorities,
@@ -223,6 +224,15 @@ export async function load_live_workout(completed_session_id: string) {
       })),
     ),
   }
+}
+
+export async function correct_history_training_set(
+  input: Parameters<typeof correct_completed_set>[0],
+) {
+  return correct_completed_set(input, repositories.sessions, {
+    device_id: await current_device_id(),
+    now_iso: new Date().toISOString(),
+  })
 }
 
 export async function save_live_readiness(
