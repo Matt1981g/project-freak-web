@@ -1366,7 +1366,7 @@ export function WorkoutScreen() {
 
     const progress = workout.exercises.map((entry) => {
       const completed_sets =
-        entry.sets.filter((set) => set.completed_at !== null).length +
+        entry.sets.filter(is_training_set_completed).length +
         (increment_current_completed_sets &&
         entry.exercise.id === current_exercise_id
           ? 1
