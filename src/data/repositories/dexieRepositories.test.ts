@@ -92,6 +92,27 @@ describe('Dexie repositories', () => {
     expect(outbox[0].revision).toBe(1)
   })
 
+  it('lists active and archived exercises without deleting either definition', async () => {
+    const active = exercise_fixture()
+    const archived: Exercise = {
+      ...exercise_fixture(),
+      id: '55555555-5555-4555-8555-555555555555',
+      canonical_name: 'LAT PULLDOWN',
+      archived_at: '2026-09-04T15:00:00.000Z',
+    }
+
+    await repositories.exercises.put(active)
+    await repositories.exercises.put(archived)
+
+    expect((await repositories.exercises.list_active()).map((exercise) => exercise.id)).toEqual([
+      active.id,
+    ])
+    expect((await repositories.exercises.list_all()).map((exercise) => exercise.id).sort()).toEqual([
+      active.id,
+      archived.id,
+    ].sort())
+  })
+
   it('records an update rather than rewriting the original audit history', async () => {
     const exercise = exercise_fixture()
     await repositories.exercises.put(exercise)
