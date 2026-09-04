@@ -103,6 +103,19 @@ export function build_progression_suggestion(
   }
 
   if (
+    comparable.every(
+      ({ target }) =>
+        target.target_rep_min === null && target.target_rep_max === null,
+    )
+  ) {
+    return suggestion(
+      'insufficient_data',
+      'INSUFFICIENT DATA',
+      'The current programme does not define a usable rep target.',
+    )
+  }
+
+  if (
     comparable.some(
       ({ set, target }) =>
         set.completed_reps === null ||
