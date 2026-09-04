@@ -47,7 +47,7 @@ function set_fixture(overrides: Partial<TrainingSet> = {}): TrainingSet {
     set_load_kg_reps: 400,
     set_load_method: 'kg_reps_full_reps_only_v1',
     notes: 'Original note',
-    completed_at: NOW,
+    completed_at: null,
     source_record_key: 'project-freak-historical:xlsx:v1:1:1:1',
     ...overrides,
   }
