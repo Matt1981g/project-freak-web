@@ -196,6 +196,32 @@ function PreviousComparablePanel(props: {
   )
 }
 
+function ProgressionSuggestionPanel(props: {
+  suggestion: LiveExercise['progression_suggestion']
+}) {
+  const { suggestion } = props
+
+  return (
+    <section
+      className={
+        suggestion.verdict === 'consider_load_increase'
+          ? styles.progressionIncrease
+          : suggestion.verdict === 'hold_load'
+            ? styles.progressionHold
+            : suggestion.verdict === 'add_reps'
+              ? styles.progressionReps
+              : styles.progressionInsufficient
+      }
+    >
+      <div>
+        <span>PROGRESSION</span>
+        <strong>{suggestion.label}</strong>
+      </div>
+      <p>{suggestion.reason}</p>
+    </section>
+  )
+}
+
 function ReadinessPanel(props: {
   completed_session_id: string
   readiness: LiveWorkout['readiness']
@@ -1678,10 +1704,15 @@ export function WorkoutScreen() {
                 {is_open && (
                   <div className={styles.loggerPanel}>
                     {workout.session.status !== 'completed' && (
-                      <PreviousComparablePanel
-                        previous={entry.previous_comparable}
-                        current_name={exercise.exercise_name_snapshot}
-                      />
+                      <>
+                        <PreviousComparablePanel
+                          previous={entry.previous_comparable}
+                          current_name={exercise.exercise_name_snapshot}
+                        />
+                        <ProgressionSuggestionPanel
+                          suggestion={entry.progression_suggestion}
+                        />
+                      </>
                     )}
 
                     {set_numbers.map((set_number) => {
