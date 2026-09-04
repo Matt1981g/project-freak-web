@@ -12,6 +12,34 @@ function format_load(value: number | null): string {
   return value === null ? '— kg' : `${format_number(value)} kg`
 }
 
+
+function scope_title(scope: TrainingExport['scope']): string {
+  switch (scope.type) {
+    case 'today':
+      return 'PROJECT FREAK — TODAY COACHING BRIEF'
+    case 'last_7_days':
+      return 'PROJECT FREAK — WEEKLY COACHING BRIEF'
+    case 'exercise':
+      return 'PROJECT FREAK — EXERCISE COACHING BRIEF'
+    case 'programme_block':
+      return 'PROJECT FREAK — MESOCYCLE COACHING BRIEF'
+    case 'full':
+      return 'PROJECT FREAK — FULL DATABASE COACHING BRIEF'
+  }
+}
+
+function scope_period(scope: TrainingExport['scope']): string {
+  if (scope.from_date && scope.to_date) {
+    return scope.from_date === scope.to_date
+      ? scope.from_date
+      : `${scope.from_date} to ${scope.to_date}`
+  }
+
+  if (scope.type === 'exercise') return 'All completed history for selected exercise'
+  if (scope.type === 'full') return 'All completed training history'
+  return 'Dates not specified'
+}
+
 function set_description(set: TrainingExportSet): string {
   const reps =
     set.reps_as_recorded ??
@@ -135,9 +163,9 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
   let missing_targets = 0
 
   const lines: string[] = [
-    'PROJECT FREAK — WEEKLY COACHING BRIEF',
-    `Period: ${payload.scope.from_date} to ${payload.scope.to_date}`,
-    `Completed sessions: ${payload.sessions.length}`,
+    scope_title(payload.scope),
+    `Scope: ${scope_period(payload.scope)}`,
+    `Sessions: ${payload.sessions.length}`,
     `Recorded sets: ${total_sets}`,
     `Comparable volume: ${format_number(total_volume)} kg`,
     '',
