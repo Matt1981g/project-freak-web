@@ -518,6 +518,15 @@ export class DexieSessionRepository implements SessionRepository {
       .sort((a, b) => a.set_number - b.set_number)
   }
 
+  get_exercise_metrics(
+    session_exercise_id: string,
+  ): Promise<ExerciseMetrics | undefined> {
+    return this.db.exercise_metrics
+      .where('session_exercise_id')
+      .equals(session_exercise_id)
+      .first()
+  }
+
   async create_session_graph(
     session: CompletedSession,
     exercises: SessionExercise[],
