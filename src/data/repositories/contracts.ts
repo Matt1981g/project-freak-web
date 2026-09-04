@@ -5,6 +5,7 @@ import type {
   ExerciseAlias,
   ExerciseMetrics,
   ProgrammeBlock,
+  ReadinessEntry,
   ProgrammedSession,
   ProgrammedSessionExercise,
   ProgrammedSessionSet,
@@ -84,6 +85,11 @@ export interface ProgrammeRepository {
   ): Promise<'committed' | 'duplicate_noop'>
 }
 
+export interface ReadinessRepository {
+  get_by_session_id(completed_session_id: string): Promise<ReadinessEntry | undefined>
+  put(entry: ReadinessEntry): Promise<string>
+}
+
 export interface SessionRepository {
   get_session(id: string): Promise<CompletedSession | undefined>
   get_by_programmed_session_id(
@@ -118,5 +124,6 @@ export interface RepositoryBundle {
   settings: SettingsRepository
   exercises: ExerciseRepository
   programme: ProgrammeRepository
+  readiness: ReadinessRepository
   sessions: SessionRepository
 }
