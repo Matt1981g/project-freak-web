@@ -1,4 +1,5 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router'
+import { AnalysisScreen } from './features/analysis/AnalysisScreen'
 import { BackupScreen } from './features/backup/BackupScreen'
 import { CoachScreen } from './features/coach/CoachScreen'
 import { ExerciseLibraryScreen } from './features/exercises/ExerciseLibraryScreen'
@@ -38,6 +39,14 @@ function App() {
             }
           >
             History
+          </NavLink>
+          <NavLink
+            to="/analysis"
+            className={({ isActive }) =>
+              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
+            }
+          >
+            Analysis
           </NavLink>
           <NavLink
             to="/priorities"
@@ -81,7 +90,7 @@ function App() {
           </NavLink>
         </nav>
         <PwaInstallControl />
-        <div className="phase-chip">PHASE 14</div>
+        <div className="phase-chip">PHASE 15</div>
       </header>
 
       <main>
@@ -90,6 +99,7 @@ function App() {
           <Route path="/plan" element={<PlanScreen />} />
           <Route path="/priorities" element={<PrioritiesScreen />} />
           <Route path="/history" element={<HistoryScreen />} />
+          <Route path="/analysis" element={<AnalysisScreen />} />
           <Route path="/coach" element={<CoachScreen />} />
           <Route path="/sync" element={<SyncScreen />} />
           <Route path="/backup" element={<BackupScreen />} />
