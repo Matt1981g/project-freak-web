@@ -254,6 +254,82 @@ describe('Dexie repositories', () => {
     expect(await db.sync_outbox.count()).toBe(2)
   })
 
+  it('preserves a completed attempt and allows a fresh repeat of the same programmed session', async () => {
+    const completed: CompletedSession = {
+      ...session_fixture(),
+      id: '99999999-9999-4999-8999-999999999999',
+      programmed_session_id: 'programmed-session-1',
+      status: 'completed',
+      completed_at: '2026-09-04T15:30:00.000Z',
+      duration_seconds: 3600,
+    }
+    await db.completed_sessions.add(completed)
+
+    const repeat: CompletedSession = {
+      ...session_fixture(),
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      programmed_session_id: 'programmed-session-1',
+      created_at: '2026-09-05T14:30:00.000Z',
+      updated_at: '2026-09-05T14:30:00.000Z',
+      started_at: '2026-09-05T14:30:00.000Z',
+      session_date_local: '2026-09-05',
+    }
+    const repeat_exercise: SessionExercise = {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      created_at: repeat.created_at,
+      updated_at: repeat.updated_at,
+      deleted_at: null,
+      revision: 1,
+      device_id: DEVICE_ID,
+      source_kind: 'user',
+      source_id: null,
+      completed_session_id: repeat.id,
+      programmed_session_exercise_id: 'programmed-exercise-1',
+      exercise_id: 'exercise-1',
+      exercise_name_snapshot: 'Nautilus Bicep Curl',
+      planned_order: 1,
+      actual_order: 1,
+      rotation_group_key: 'A',
+      rotation_position: 1,
+      target_sets: 4,
+      target_rep_min: 8,
+      target_rep_max: 12,
+      rest_seconds: 90,
+      tempo: '3-0-1-0',
+      technique_cue: null,
+      programme_notes: null,
+      started_at: null,
+      completed_at: null,
+      notes: null,
+    }
+
+    await expect(
+      repositories.sessions.create_session_graph(repeat, [repeat_exercise]),
+    ).resolves.toEqual({ session_id: repeat.id, created: true })
+
+    expect(await db.completed_sessions.count()).toBe(2)
+    expect((await db.completed_sessions.get(completed.id))?.status).toBe(
+      'completed',
+    )
+
+    const current =
+      await repositories.sessions.get_by_programmed_session_id(
+        'programmed-session-1',
+      )
+    expect(current?.id).toBe(repeat.id)
+    expect(current?.status).toBe('in_progress')
+
+    const blocked_repeat: CompletedSession = {
+      ...repeat,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    }
+    await expect(
+      repositories.sessions.create_session_graph(blocked_repeat, []),
+    ).resolves.toEqual({ session_id: repeat.id, created: false })
+
+    expect(await db.completed_sessions.count()).toBe(2)
+  })
+
   it('lists completed sessions newest first', async () => {
     const newer = session_fixture()
     const older: CompletedSession = {
