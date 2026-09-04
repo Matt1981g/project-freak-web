@@ -21,6 +21,13 @@ export interface SupabaseAuthSession {
   email: string | null
 }
 
+export interface SupabaseBackendHealth {
+  contract_version: string
+  authenticated_user_id: string
+  entity_count: number
+  change_count: number
+}
+
 interface SupabaseAuthResponse {
   access_token?: string
   refresh_token?: string
@@ -290,6 +297,30 @@ async function rpc<T>(
   )
 
   return parse_json_response<T>(response)
+}
+
+export async function check_supabase_backend(
+  config_input: SupabaseSyncConfig,
+): Promise<SupabaseBackendHealth> {
+  const config = validate_supabase_config(config_input)
+  const health = await rpc<SupabaseBackendHealth>(
+    config,
+    'project_freak_sync_health',
+    {},
+  )
+
+  if (
+    health.contract_version !== '1.0.0' ||
+    typeof health.authenticated_user_id !== 'string' ||
+    !Number.isInteger(health.entity_count) ||
+    health.entity_count < 0 ||
+    !Number.isInteger(health.change_count) ||
+    health.change_count < 0
+  ) {
+    throw new Error('Supabase sync backend returned an incompatible contract.')
+  }
+
+  return health
 }
 
 export class SupabaseSyncProvider implements SyncProvider {
