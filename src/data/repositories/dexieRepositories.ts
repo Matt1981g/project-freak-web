@@ -71,15 +71,17 @@ export class DexieExerciseRepository implements ExerciseRepository {
     return this.db.exercises.get(id)
   }
 
-  async list_active(): Promise<Exercise[]> {
+  async list_all(): Promise<Exercise[]> {
     const exercises = await this.db.exercises.toArray()
 
     return exercises
-      .filter(
-        (exercise) =>
-          exercise.deleted_at === null && exercise.archived_at === null,
-      )
+      .filter((exercise) => exercise.deleted_at === null)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name))
+  }
+
+  async list_active(): Promise<Exercise[]> {
+    const exercises = await this.list_all()
+    return exercises.filter((exercise) => exercise.archived_at === null)
   }
 
   put(exercise: Exercise): Promise<string> {
