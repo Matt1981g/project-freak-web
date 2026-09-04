@@ -480,9 +480,7 @@ export async function build_training_export(
       }),
     )
   ).filter(
-    (
-      session,
-    ): session is NonNullable<(typeof exported_sessions)[number]> =>
+    (session): session is TrainingExport['sessions'][number] =>
       session !== null,
   )
 
