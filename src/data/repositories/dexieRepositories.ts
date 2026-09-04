@@ -61,7 +61,11 @@ async function put_with_audit_and_outbox<T extends SyncableEntity>(
 }
 
 export class DexieExerciseRepository implements ExerciseRepository {
-  constructor(private readonly db: ProjectFreakDatabase) {}
+  private readonly db: ProjectFreakDatabase
+
+  constructor(db: ProjectFreakDatabase) {
+    this.db = db
+  }
 
   get_by_id(id: string): Promise<Exercise | undefined> {
     return this.db.exercises.get(id)
@@ -89,7 +93,11 @@ export class DexieExerciseRepository implements ExerciseRepository {
 }
 
 export class DexieSessionRepository implements SessionRepository {
-  constructor(private readonly db: ProjectFreakDatabase) {}
+  private readonly db: ProjectFreakDatabase
+
+  constructor(db: ProjectFreakDatabase) {
+    this.db = db
+  }
 
   get_session(id: string): Promise<CompletedSession | undefined> {
     return this.db.completed_sessions.get(id)
