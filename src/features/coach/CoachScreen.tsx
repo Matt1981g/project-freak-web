@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { build_last_7_days_coach_export } from '../../app/projectFreakServices'
 import type { TrainingExport } from '../../application/coach/trainingExport'
+import { build_weekly_coaching_brief } from '../../application/coach/weeklyBrief'
 import styles from './CoachScreen.module.css'
 
 function export_filename(payload: TrainingExport): string {
   return `PROJECT_FREAK_Coach_Bridge_${payload.scope.from_date}_to_${payload.scope.to_date}.json`
+}
+
+function brief_filename(payload: TrainingExport): string {
+  return `PROJECT_FREAK_Weekly_Coaching_Brief_${payload.scope.from_date}_to_${payload.scope.to_date}.txt`
 }
 
 function count_sets(payload: TrainingExport): number {
@@ -51,6 +56,39 @@ export function CoachScreen() {
     () => (payload ? JSON.stringify(payload, null, 2) : ''),
     [payload],
   )
+
+  const brief = useMemo(
+    () => (payload ? build_weekly_coaching_brief(payload) : ''),
+    [payload],
+  )
+
+  async function copy_brief() {
+    if (!brief) return
+
+    try {
+      await navigator.clipboard.writeText(brief)
+      setStatus('Weekly coaching brief copied to clipboard.')
+      setError(null)
+    } catch {
+      setError('Clipboard copy failed. Use Download Brief instead.')
+    }
+  }
+
+  function download_brief() {
+    if (!payload || !brief) return
+
+    const blob = new Blob([brief], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = brief_filename(payload)
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+    setStatus('Weekly coaching brief downloaded.')
+    setError(null)
+  }
 
   async function copy_json() {
     if (!json) return
@@ -156,14 +194,20 @@ export function CoachScreen() {
           </section>
 
           <section className={styles.actions}>
-            <button type="button" onClick={() => void copy_json()}>
-              COPY JSON
+            <button type="button" onClick={() => void copy_brief()}>
+              COPY BRIEF
             </button>
             <button
               type="button"
               className={styles.primary}
-              onClick={download_json}
+              onClick={download_brief}
             >
+              DOWNLOAD BRIEF
+            </button>
+            <button type="button" onClick={() => void copy_json()}>
+              COPY JSON
+            </button>
+            <button type="button" onClick={download_json}>
               DOWNLOAD JSON
             </button>
             <button
@@ -175,11 +219,23 @@ export function CoachScreen() {
             </button>
           </section>
 
+          <section className={styles.briefPreview}>
+            <div>
+              <span>WEEKLY BRIEF</span>
+              <h2>Human-readable coaching handoff</h2>
+              <p>
+                Deterministic summary only. The JSON remains the exact source of
+                truth for programme generation.
+              </p>
+            </div>
+            <pre>{brief}</pre>
+          </section>
+
           <section className={styles.instructions}>
             <span>WORKFLOW</span>
             <strong>
-              Finish the training week → export → give JSON to ChatGPT → import
-              the returned programme JSON.
+              Finish the training week → export brief + JSON → review with
+              ChatGPT → import the returned programme JSON.
             </strong>
             <p>
               The exported file is evidence. The programme JSON returned after
