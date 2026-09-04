@@ -70,7 +70,7 @@ function App() {
             Exercises
           </NavLink>
         </nav>
-        <div className="phase-chip">PHASE 12</div>
+        <div className="phase-chip">PHASE 13</div>
       </header>
 
       <main>
