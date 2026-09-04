@@ -28,7 +28,11 @@ describe('PWA runtime', () => {
   })
 
   it('registers the service worker and requests persistence when needed', async () => {
-    const register = vi.fn().mockResolvedValue({})
+    const update = vi.fn().mockResolvedValue(undefined)
+    const register = vi.fn().mockResolvedValue({
+      waiting: null,
+      update,
+    })
     const persisted = vi.fn().mockResolvedValue(false)
     const persist = vi.fn().mockResolvedValue(true)
 
@@ -41,12 +45,15 @@ describe('PWA runtime', () => {
 
     expect(register).toHaveBeenCalledWith('http://localhost/sw.js', {
       scope: '/',
+      updateViaCache: 'none',
     })
+    expect(update).toHaveBeenCalledOnce()
     expect(persisted).toHaveBeenCalledOnce()
     expect(persist).toHaveBeenCalledOnce()
     expect(result).toEqual({
       service_worker_supported: true,
       service_worker_registered: true,
+      service_worker_update_requested: true,
       storage_persistence_supported: true,
       storage_persisted_before: false,
       storage_persist_requested: true,
@@ -68,6 +75,7 @@ describe('PWA runtime', () => {
 
     expect(persist).not.toHaveBeenCalled()
     expect(result.service_worker_supported).toBe(false)
+    expect(result.service_worker_update_requested).toBe(false)
     expect(result.storage_persisted_before).toBe(true)
     expect(result.storage_persisted_after).toBe(true)
   })
@@ -80,6 +88,7 @@ describe('PWA runtime', () => {
     expect(result).toEqual({
       service_worker_supported: false,
       service_worker_registered: false,
+      service_worker_update_requested: false,
       storage_persistence_supported: false,
       storage_persisted_before: null,
       storage_persist_requested: false,
