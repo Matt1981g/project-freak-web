@@ -587,11 +587,6 @@ function CompletedSetCorrection(props: {
   async function save_correction() {
     if (saving) return
 
-    const confirmed = window.confirm(
-      'Correct this completed set? The original provenance remains linked and the change will be recorded in the audit trail.',
-    )
-    if (!confirmed) return
-
     setSaving(true)
     setError(null)
 
