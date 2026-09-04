@@ -4,6 +4,7 @@ import type {
   CompletedSession,
   Exercise,
   SessionExercise,
+  TrainingSet,
 } from '../../domain/models'
 import { ProjectFreakDatabase } from '../db/projectFreakDb'
 import { create_repositories } from './dexieRepositories'
