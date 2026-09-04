@@ -62,6 +62,7 @@ async function put_with_audit_and_outbox<T extends SyncableEntity>(
   table: Table<T, string>,
   entity_type: string,
   entity: T,
+  reason: string | null = null,
 ): Promise<string> {
   return db.transaction(
     'rw',
@@ -72,14 +73,14 @@ async function put_with_audit_and_outbox<T extends SyncableEntity>(
       const before = await table.get(entity.id)
       await table.put(entity)
 
-      await db.audit_events.add(
-        create_audit_event(
-          entity_type,
-          entity as MutableEntity,
-          before ?? null,
-          before ? 'update' : 'create',
-        ),
+      const audit_event = create_audit_event(
+        entity_type,
+        entity as MutableEntity,
+        before ?? null,
+        before ? 'update' : 'create',
       )
+      audit_event.reason = reason
+      await db.audit_events.add(audit_event)
 
       await db.sync_outbox.add(
         create_sync_outbox_entry(entity_type, entity as MutableEntity),
@@ -696,8 +697,14 @@ export class DexieSessionRepository implements SessionRepository {
     )
   }
 
-  put_set(set: TrainingSet): Promise<string> {
-    return put_with_audit_and_outbox(this.db, this.db.sets, 'set', set)
+  put_set(set: TrainingSet, reason: string | null = null): Promise<string> {
+    return put_with_audit_and_outbox(
+      this.db,
+      this.db.sets,
+      'set',
+      set,
+      reason,
+    )
   }
 
   async put_set_components(components: SetComponent[]): Promise<void> {
