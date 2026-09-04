@@ -94,6 +94,84 @@
       "items": {
         "type": "object"
       }
+    },
+    "coach_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "training_priorities",
+        "exercise_catalogue",
+        "exercise_aliases"
+      ],
+      "properties": {
+        "training_priorities": {
+          "type": "object"
+        },
+        "exercise_catalogue": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "canonical_name",
+              "category",
+              "equipment",
+              "default_load_type",
+              "rep_mode_default"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "canonical_name": {
+                "type": "string"
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "equipment": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "default_load_type": {
+                "type": "string"
+              },
+              "rep_mode_default": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "exercise_aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_exercise_id",
+              "exercise_id",
+              "alias"
+            ],
+            "properties": {
+              "source_exercise_id": {
+                "type": "string"
+              },
+              "exercise_id": {
+                "type": "string"
+              },
+              "alias": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {
