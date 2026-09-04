@@ -191,8 +191,44 @@ begin
 end;
 $$;
 
+create or replace function public.project_freak_sync_health()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_user uuid := auth.uid();
+  v_entity_count bigint;
+  v_change_count bigint;
+begin
+  if v_user is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select count(*)
+    into v_entity_count
+    from public.project_freak_sync_entities
+   where user_id = v_user;
+
+  select count(*)
+    into v_change_count
+    from public.project_freak_sync_changes
+   where user_id = v_user;
+
+  return jsonb_build_object(
+    'contract_version', '1.0.0',
+    'authenticated_user_id', v_user::text,
+    'entity_count', v_entity_count,
+    'change_count', v_change_count
+  );
+end;
+$;
+
 revoke all on function public.project_freak_push_mutations(jsonb) from public;
 revoke all on function public.project_freak_pull_changes(text, integer) from public;
+revoke all on function public.project_freak_sync_health() from public;
 
 grant execute on function public.project_freak_push_mutations(jsonb) to authenticated;
 grant execute on function public.project_freak_pull_changes(text, integer) to authenticated;
+grant execute on function public.project_freak_sync_health() to authenticated;
