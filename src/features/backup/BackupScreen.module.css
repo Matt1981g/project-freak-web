@@ -1,0 +1,316 @@
+.screen {
+  width: min(980px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 30px 0 96px;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--pf-accent);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.heading h1 {
+  margin: 0;
+  color: var(--pf-text-strong);
+  font-size: clamp(32px, 6vw, 54px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.heading p:not(.eyebrow) {
+  max-width: 700px;
+  margin: 10px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.heading > span {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 999px;
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.panel {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--pf-border);
+  border-radius: 18px;
+  background: var(--pf-panel);
+}
+
+.panelHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.panelHeading > div > span,
+.warning > span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.panelHeading h2 {
+  margin: 4px 0 0;
+  color: var(--pf-text-strong);
+  font-size: 21px;
+}
+
+.panelHeading > strong {
+  padding: 6px 8px;
+  border: 1px solid var(--pf-border);
+  border-radius: 999px;
+  color: var(--pf-text-faint);
+  background: var(--pf-panel-raised);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.panel > p,
+.warning p {
+  margin: 10px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.actions button,
+.filePicker {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 15px;
+  border: 1px solid var(--pf-border);
+  border-radius: 11px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.actions .primary {
+  color: #071006;
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent);
+}
+
+.actions button:disabled,
+.filePicker:has(input:disabled) {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.filePicker {
+  margin-top: 14px;
+  position: relative;
+  overflow: hidden;
+  color: #071006;
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent);
+}
+
+.filePicker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.summaryGrid > div {
+  padding: 11px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  background: var(--pf-bg);
+}
+
+.summaryGrid span,
+.summaryGrid strong {
+  display: block;
+}
+
+.summaryGrid span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.summaryGrid strong {
+  margin-top: 4px;
+  color: var(--pf-text-strong);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.validBanner {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 11px 12px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 11px;
+  background: var(--pf-accent-soft);
+}
+
+.validBanner strong {
+  color: var(--pf-accent);
+  font-size: 11px;
+}
+
+.validBanner span {
+  color: var(--pf-text-muted);
+  font-size: 10px;
+}
+
+.tableCounts {
+  margin-top: 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-bg);
+}
+
+.tableCounts summary {
+  padding: 12px;
+  color: var(--pf-text-strong);
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tableCounts > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+
+.tableCounts span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--pf-border);
+  border-radius: 8px;
+  background: var(--pf-panel);
+}
+
+.tableCounts strong {
+  min-width: 0;
+  color: var(--pf-text-muted);
+  font-size: 8px;
+  overflow-wrap: anywhere;
+}
+
+.tableCounts small {
+  color: var(--pf-accent);
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.warning {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px dashed var(--pf-border);
+  border-radius: 14px;
+  background: var(--pf-panel);
+}
+
+.warning strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--pf-text-strong);
+  font-size: 12px;
+}
+
+.status,
+.error {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 11px;
+  background: var(--pf-panel);
+  font-size: 10px;
+}
+
+.status {
+  color: var(--pf-accent);
+}
+
+.error {
+  color: var(--pf-danger);
+  border-color: var(--pf-danger-border);
+  background: var(--pf-danger-soft);
+}
+
+@media (max-width: 700px) {
+  .screen {
+    width: min(100% - 20px, 980px);
+    padding-top: 18px;
+  }
+
+  .heading,
+  .panelHeading,
+  .validBanner {
+    flex-direction: column;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tableCounts > div {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    display: grid;
+  }
+
+  .actions button,
+  .filePicker {
+    width: 100%;
+  }
+}
