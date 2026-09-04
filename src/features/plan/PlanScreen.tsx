@@ -6,6 +6,7 @@ import {
   export_programme_exercise_catalogue,
   load_programme_blocks,
   load_programme_sessions,
+  load_programmed_session_detail,
   preview_programme_json,
 } from '../../app/projectFreakServices'
 import styles from './PlanScreen.module.css'
@@ -55,6 +56,11 @@ export function PlanScreen() {
   const [previewing, setPreviewing] = useState(false)
   const [committing, setCommitting] = useState(false)
   const [copying, setCopying] = useState(false)
+  const [open_session_id, setOpenSessionId] = useState<string | null>(null)
+  const [session_detail, setSessionDetail] = useState<
+    Awaited<ReturnType<typeof load_programmed_session_detail>>
+  >(undefined)
+  const [session_detail_loading, setSessionDetailLoading] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -97,6 +103,31 @@ export function PlanScreen() {
       ),
     [preview],
   )
+
+  async function toggle_stored_session(session_id: string) {
+    if (open_session_id === session_id) {
+      setOpenSessionId(null)
+      setSessionDetail(undefined)
+      return
+    }
+
+    setOpenSessionId(session_id)
+    setSessionDetail(undefined)
+    setSessionDetailLoading(true)
+    setError(null)
+
+    try {
+      setSessionDetail(await load_programmed_session_detail(session_id))
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Unable to load programmed session detail.',
+      )
+    } finally {
+      setSessionDetailLoading(false)
+    }
+  }
 
   async function copy_catalogue() {
     setCopying(true)
@@ -504,12 +535,132 @@ export function PlanScreen() {
                 </div>
                 {sessions.length > 0 && (
                   <div className={styles.storedSessions}>
-                    {sessions.map((session) => (
-                      <span key={session.id}>
-                        {session.scheduled_date_local ?? 'TBC'} ·{' '}
-                        {session.name_snapshot}
-                      </span>
-                    ))}
+                    {sessions.map((session) => {
+                      const is_open = open_session_id === session.id
+
+                      return (
+                        <div className={styles.storedSession} key={session.id}>
+                          <button
+                            type="button"
+                            className={
+                              is_open
+                                ? styles.storedSessionButtonOpen
+                                : styles.storedSessionButton
+                            }
+                            onClick={() => void toggle_stored_session(session.id)}
+                          >
+                            <span>
+                              {session.scheduled_date_local ?? 'TBC'} ·{' '}
+                              {session.name_snapshot}
+                            </span>
+                            <strong>{is_open ? 'Hide' : 'View session'}</strong>
+                          </button>
+
+                          {is_open && (
+                            <div className={styles.storedSessionDetail}>
+                              {session_detail_loading ? (
+                                <div className={styles.sessionDetailLoading}>
+                                  Loading prescription…
+                                </div>
+                              ) : !session_detail ? (
+                                <div className={styles.sessionDetailLoading}>
+                                  Session prescription was not found.
+                                </div>
+                              ) : (
+                                <>
+                                  {session_detail.session.notes && (
+                                    <p className={styles.sessionNotes}>
+                                      {session_detail.session.notes}
+                                    </p>
+                                  )}
+
+                                  <div className={styles.storedExerciseList}>
+                                    {session_detail.exercises.map(
+                                      ({ exercise, sets }) => (
+                                        <article
+                                          className={styles.storedExercise}
+                                          key={exercise.id}
+                                        >
+                                          <div className={styles.storedExerciseHeader}>
+                                            <div className={styles.exerciseNumber}>
+                                              {exercise.rotation_group_key
+                                                ? `${exercise.rotation_group_key}${exercise.rotation_position ?? ''}`
+                                                : exercise.planned_order}
+                                            </div>
+                                            <div>
+                                              <h4>
+                                                {exercise.exercise_name_snapshot}
+                                              </h4>
+                                              <span>
+                                                {sets.length} sets
+                                                {exercise.rest_seconds !== null
+                                                  ? ` · ${exercise.rest_seconds}s rest`
+                                                  : ''}
+                                                {exercise.tempo
+                                                  ? ` · tempo ${exercise.tempo}`
+                                                  : ''}
+                                              </span>
+                                              {exercise.technique_cue && (
+                                                <p>
+                                                  {exercise.technique_cue}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          <div className={styles.storedSetList}>
+                                            {sets.map(({ set, components }) => (
+                                              <div
+                                                className={styles.storedSetRow}
+                                                key={set.id}
+                                              >
+                                                <strong>S{set.set_number}</strong>
+                                                <span>
+                                                  {rep_target(
+                                                    set.target_rep_min,
+                                                    set.target_rep_max,
+                                                  )}
+                                                </span>
+                                                <span>
+                                                  {set.target_load_kg !== null
+                                                    ? `${set.target_load_kg} kg`
+                                                    : 'load open'}
+                                                </span>
+                                                <span>
+                                                  {set.structure_type.replaceAll(
+                                                    '_',
+                                                    ' ',
+                                                  )}
+                                                </span>
+                                                <span>
+                                                  {set.failure_target === 'none'
+                                                    ? 'no failure target'
+                                                    : `failure ${set.failure_target}`}
+                                                </span>
+                                                {components.length > 0 && (
+                                                  <small>
+                                                    {components
+                                                      .map(
+                                                        (component) =>
+                                                          `${component.sequence}. ${component.component_type.replaceAll('_', ' ')}`,
+                                                      )
+                                                      .join(' · ')}
+                                                  </small>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </article>
+                                      ),
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </article>
