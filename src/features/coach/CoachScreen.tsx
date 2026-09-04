@@ -116,9 +116,10 @@ export function CoachScreen() {
     try {
       const next = await build_coach_export(request)
       setPayload(next)
-      if (!exerciseId && next.coach_context.exercise_catalogue.length > 0) {
-        setExerciseId(next.coach_context.exercise_catalogue[0].id)
-      }
+      setExerciseId(
+        (current) =>
+          current || next.coach_context.exercise_catalogue[0]?.id || '',
+      )
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -128,7 +129,7 @@ export function CoachScreen() {
     } finally {
       setLoading(false)
     }
-  }, [exerciseId])
+  }, [])
 
   useEffect(() => {
     void Promise.all([
