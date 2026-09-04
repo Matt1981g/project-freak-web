@@ -518,6 +518,22 @@ export class DexieSessionRepository implements SessionRepository {
       .sort((a, b) => a.set_number - b.set_number)
   }
 
+  async list_sets_for_session(
+    completed_session_id: string,
+  ): Promise<TrainingSet[]> {
+    const sets = await this.db.sets
+      .where('completed_session_id')
+      .equals(completed_session_id)
+      .toArray()
+
+    return sets
+      .filter((set) => set.deleted_at === null)
+      .sort((a, b) => {
+        const by_exercise = a.exercise_order_snapshot - b.exercise_order_snapshot
+        return by_exercise !== 0 ? by_exercise : a.set_number - b.set_number
+      })
+  }
+
   get_exercise_metrics(
     session_exercise_id: string,
   ): Promise<ExerciseMetrics | undefined> {
