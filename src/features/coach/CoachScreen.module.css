@@ -49,6 +49,102 @@
   letter-spacing: 0.15em;
 }
 
+.scopePanel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--pf-border);
+  border-radius: 18px;
+  background: var(--pf-panel);
+}
+
+.scopePanel > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.scopePanel > div:first-child span,
+.scopeSelector > span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.scopePanel > div:first-child strong {
+  color: var(--pf-text-strong);
+  font-size: 15px;
+}
+
+.scopeButtons {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.scopeButtons button {
+  min-height: 44px;
+  padding: 0 9px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.scopeButtons .scopeButtonActive {
+  color: var(--pf-accent);
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent-soft);
+}
+
+.scopeSelector {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.scopeSelector select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-strong);
+  background: var(--pf-bg);
+  font: inherit;
+  font-size: 11px;
+}
+
+.scopePanel > p {
+  margin: 12px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.buildScopeButton {
+  min-height: 48px;
+  margin-top: 12px;
+  padding: 0 15px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 11px;
+  color: #071006;
+  background: var(--pf-accent);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.buildScopeButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -271,6 +367,14 @@
 
   .heading {
     flex-direction: column;
+  }
+
+  .scopeButtons {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scopeButtons button:last-child {
+    grid-column: 1 / -1;
   }
 
   .summary {
