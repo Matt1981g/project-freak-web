@@ -42,7 +42,7 @@ export const PROJECT_FREAK_SCHEMA_V1 = {
   session_exercises:
     '&id, completed_session_id, programmed_session_exercise_id, exercise_id, actual_order, [completed_session_id+exercise_id], updated_at',
   sets:
-    '&id, completed_session_id, session_exercise_id, exercise_id, [completed_session_id+exercise_id], &[source_record_key], completed_at, updated_at',
+    '&id, completed_session_id, session_exercise_id, exercise_id, [completed_session_id+exercise_id], &source_record_key, completed_at, updated_at',
   set_components:
     '&id, set_id, sequence, component_type, updated_at',
   exercise_metrics:
