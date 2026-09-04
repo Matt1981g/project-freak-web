@@ -204,7 +204,15 @@ describe('load_exercise_history', () => {
     )
     const sets_by_appearance = new Map([
       ['se-new', [set('set-new', newest.id, 'se-new', 'canonical', 45, 10)]],
-      ['se-old', [set('set-old', older.id, 'se-old', 'old-a', 40, 10)]],
+      [
+        'se-old',
+        [
+          {
+            ...set('set-old', older.id, 'se-old', 'old-a', 40, 10),
+            completed_at: null,
+          },
+        ],
+      ],
     ])
 
     const session_repository: SessionRepository = {
@@ -246,6 +254,10 @@ describe('load_exercise_history', () => {
     expect(result?.entries[0]).toMatchObject({
       completed_sets: 1,
       total_volume_kg: 450,
+    })
+    expect(result?.entries[1]).toMatchObject({
+      completed_sets: 1,
+      total_volume_kg: 400,
     })
     expect(result?.entries[1].appearances[0].session_exercise).toMatchObject({
       exercise_id: 'old-a',
