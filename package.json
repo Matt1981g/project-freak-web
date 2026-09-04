@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --pretty false",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:historical-real": "vitest run src/importers/historical/realWorkbook.test.ts --reporter=verbose"
   },
   "dependencies": {
     "dexie": "^4.4.5",
