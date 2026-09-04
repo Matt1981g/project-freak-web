@@ -24,6 +24,14 @@ export interface SaveReadinessContext {
   id_factory?: () => string
 }
 
+export interface SaveRecoveryInput {
+  completed_session_id: string
+  post_workout_intake: string | null
+  session_fatigue: number | null
+  breathlessness: number | null
+  energy_stability: number | null
+}
+
 function validate_range(
   value: number | null,
   minimum: number,
@@ -86,6 +94,54 @@ export async function save_session_readiness(
     breathlessness: existing?.breathlessness ?? null,
     energy_stability: existing?.energy_stability ?? null,
     notes: clean_text(input.notes),
+  }
+
+  await repository.put(entry)
+  return entry
+}
+
+
+export async function save_session_recovery(
+  input: SaveRecoveryInput,
+  repository: ReadinessRepository,
+  context: SaveReadinessContext,
+): Promise<ReadinessEntry> {
+  validate_range(input.session_fatigue, 1, 10, 'Session fatigue')
+  validate_range(input.breathlessness, 1, 10, 'Breathlessness')
+  validate_range(input.energy_stability, 1, 10, 'Energy stability')
+
+  const existing = await repository.get_by_session_id(
+    input.completed_session_id,
+  )
+  const make_id = context.id_factory ?? (() => crypto.randomUUID())
+
+  const entry: ReadinessEntry = {
+    id: existing?.id ?? make_id(),
+    created_at: existing?.created_at ?? context.now_iso,
+    updated_at: context.now_iso,
+    deleted_at: null,
+    revision: existing ? existing.revision + 1 : 1,
+    device_id: context.device_id,
+    source_kind: 'user',
+    source_id: null,
+    completed_session_id: input.completed_session_id,
+    bodyweight_kg: existing?.bodyweight_kg ?? null,
+    sleep_duration_minutes: existing?.sleep_duration_minutes ?? null,
+    sleep_score: existing?.sleep_score ?? null,
+    energy_pre: existing?.energy_pre ?? null,
+    motivation_pre: existing?.motivation_pre ?? null,
+    soreness_score: existing?.soreness_score ?? null,
+    soreness_notes: existing?.soreness_notes ?? null,
+    joint_issue_present: existing?.joint_issue_present ?? null,
+    joint_issue_notes: existing?.joint_issue_notes ?? null,
+    pre_workout_nutrition: existing?.pre_workout_nutrition ?? null,
+    intra_workout_nutrition: existing?.intra_workout_nutrition ?? null,
+    intra_hydration_ml: existing?.intra_hydration_ml ?? null,
+    post_workout_intake: clean_text(input.post_workout_intake),
+    session_fatigue: input.session_fatigue,
+    breathlessness: input.breathlessness,
+    energy_stability: input.energy_stability,
+    notes: existing?.notes ?? null,
   }
 
   await repository.put(entry)
