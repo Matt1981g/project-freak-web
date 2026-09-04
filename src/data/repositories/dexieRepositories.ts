@@ -482,6 +482,83 @@ export class DexieSessionRepository implements SessionRepository {
     return this.db.completed_sessions.get(id)
   }
 
+  async get_by_programmed_session_id(
+    programmed_session_id: string,
+  ): Promise<CompletedSession | undefined> {
+    return this.db.completed_sessions
+      .where('programmed_session_id')
+      .equals(programmed_session_id)
+      .filter((session) => session.deleted_at === null)
+      .first()
+  }
+
+  async list_session_exercises(
+    completed_session_id: string,
+  ): Promise<SessionExercise[]> {
+    const exercises = await this.db.session_exercises
+      .where('completed_session_id')
+      .equals(completed_session_id)
+      .toArray()
+
+    return exercises
+      .filter((exercise) => exercise.deleted_at === null)
+      .sort((a, b) => a.actual_order - b.actual_order)
+  }
+
+  async create_session_graph(
+    session: CompletedSession,
+    exercises: SessionExercise[],
+  ): Promise<{ session_id: string; created: boolean }> {
+    return this.db.transaction(
+      'rw',
+      [
+        this.db.completed_sessions,
+        this.db.session_exercises,
+        this.db.audit_events,
+        this.db.sync_outbox,
+      ],
+      async () => {
+        if (session.programmed_session_id) {
+          const existing = await this.db.completed_sessions
+            .where('programmed_session_id')
+            .equals(session.programmed_session_id)
+            .filter((candidate) => candidate.deleted_at === null)
+            .first()
+
+          if (existing) {
+            return { session_id: existing.id, created: false }
+          }
+        }
+
+        await this.db.completed_sessions.add(session)
+        if (exercises.length > 0) {
+          await this.db.session_exercises.bulkAdd(exercises)
+        }
+
+        const syncable: Array<[string, MutableEntity]> = [
+          ['completed_session', session],
+          ...exercises.map(
+            (exercise) =>
+              ['session_exercise', exercise] as [string, MutableEntity],
+          ),
+        ]
+
+        await this.db.audit_events.bulkAdd(
+          syncable.map(([entity_type, entity]) =>
+            create_audit_event(entity_type, entity, null, 'create'),
+          ),
+        )
+        await this.db.sync_outbox.bulkAdd(
+          syncable.map(([entity_type, entity]) =>
+            create_sync_outbox_entry(entity_type, entity),
+          ),
+        )
+
+        return { session_id: session.id, created: true }
+      },
+    )
+  }
+
   async list_sessions_descending(): Promise<CompletedSession[]> {
     const sessions = await this.db.completed_sessions.toArray()
 
