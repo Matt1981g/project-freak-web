@@ -609,6 +609,16 @@ export function PlanScreen() {
                                           </div>
 
                                           <div className={styles.storedSetList}>
+                                            <div
+                                              className={styles.storedSetLabels}
+                                              aria-hidden="true"
+                                            >
+                                              <span>Set</span>
+                                              <span>Reps</span>
+                                              <span>Load</span>
+                                              <span>Type</span>
+                                              <span>Failure</span>
+                                            </div>
                                             {sets.map(({ set, components }) => (
                                               <div
                                                 className={styles.storedSetRow}
