@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ReadinessEntry } from '../../domain/models'
 import type { ReadinessRepository } from '../../data/repositories/contracts'
-import { save_session_readiness } from './readiness'
+import {
+  save_session_readiness,
+  save_session_recovery,
+} from './readiness'
 
 const NOW = '2026-09-04T18:45:00.000Z'
 
@@ -122,6 +125,87 @@ describe('save_session_readiness', () => {
     expect(saved.revision).toBe(2)
     expect(saved.post_workout_intake).toBe('Whey isolate')
     expect(saved.session_fatigue).toBe(8)
+  })
+
+  it('stores post-workout recovery while preserving pre-workout readiness', async () => {
+    const existing: ReadinessEntry = {
+      id: 'readiness-1',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: 'device-1',
+      source_kind: 'user',
+      source_id: null,
+      completed_session_id: 'session-1',
+      bodyweight_kg: 108.4,
+      sleep_duration_minutes: 425,
+      sleep_score: 82,
+      energy_pre: 8,
+      motivation_pre: 9,
+      soreness_score: 3,
+      soreness_notes: 'Mild quads',
+      joint_issue_present: false,
+      joint_issue_notes: null,
+      pre_workout_nutrition: 'Carbs + pre-workout',
+      intra_workout_nutrition: 'Cyclic dextrin',
+      intra_hydration_ml: 1000,
+      post_workout_intake: null,
+      session_fatigue: null,
+      breathlessness: null,
+      energy_stability: null,
+      notes: 'Gym warm',
+    }
+    const fixture = repository_fixture(existing)
+
+    const saved = await save_session_recovery(
+      {
+        completed_session_id: 'session-1',
+        post_workout_intake: 'Whey isolate',
+        session_fatigue: 8,
+        breathlessness: 4,
+        energy_stability: 9,
+      },
+      fixture.repository,
+      {
+        device_id: 'device-1',
+        now_iso: '2026-09-04T19:00:00.000Z',
+      },
+    )
+
+    expect(saved).toMatchObject({
+      id: 'readiness-1',
+      revision: 2,
+      bodyweight_kg: 108.4,
+      sleep_score: 82,
+      energy_pre: 8,
+      post_workout_intake: 'Whey isolate',
+      session_fatigue: 8,
+      breathlessness: 4,
+      energy_stability: 9,
+      notes: 'Gym warm',
+    })
+  })
+
+  it('rejects impossible post-workout recovery scores', async () => {
+    const fixture = repository_fixture()
+
+    await expect(
+      save_session_recovery(
+        {
+          completed_session_id: 'session-1',
+          post_workout_intake: null,
+          session_fatigue: 12,
+          breathlessness: 4,
+          energy_stability: 8,
+        },
+        fixture.repository,
+        {
+          device_id: 'device-1',
+          now_iso: NOW,
+        },
+      ),
+    ).rejects.toThrow('Session fatigue must be between 1 and 10')
   })
 
   it('rejects impossible readiness scores', async () => {
