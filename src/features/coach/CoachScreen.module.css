@@ -181,6 +181,50 @@
   cursor: default;
 }
 
+.briefPreview {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--pf-border);
+  border-radius: 18px;
+  background: var(--pf-panel);
+}
+
+.briefPreview > div > span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.briefPreview h2 {
+  margin: 4px 0 0;
+  color: var(--pf-text-strong);
+  font-size: 21px;
+}
+
+.briefPreview p {
+  margin: 7px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.briefPreview pre {
+  max-height: 520px;
+  margin: 14px 0 0;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  color: var(--pf-text-muted);
+  background: var(--pf-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .instructions strong {
   display: block;
   margin-top: 5px;
