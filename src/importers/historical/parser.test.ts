@@ -253,6 +253,127 @@ describe('parse_historical_workbook', () => {
     )
   })
 
+
+  it('reconciles summary exercise count by distinct label while preserving repeated occurrence blocks', async () => {
+    const workbook = XLSX.utils.book_new()
+    const set_rows = [
+      [...REQUIRED_SET_DATA_COLUMNS],
+      [
+        'W29',
+        46234,
+        'Fri',
+        '05:15',
+        '06:30',
+        1,
+        'Leg Extension',
+        1,
+        58,
+        'normal',
+        'straight',
+        15,
+        15,
+        null,
+        null,
+        15,
+        0,
+        9,
+        9,
+        9,
+        null,
+        null,
+        870,
+        'load × primary reps',
+        'First block',
+        'Verified',
+        'Fixture',
+      ],
+      [
+        'W29',
+        46234,
+        'Fri',
+        '05:15',
+        '06:30',
+        2,
+        'Leg Extension',
+        1,
+        72,
+        'normal',
+        'straight',
+        15,
+        15,
+        null,
+        null,
+        15,
+        0,
+        9,
+        9,
+        9,
+        null,
+        null,
+        1080,
+        'load × primary reps',
+        'Second block',
+        'Verified',
+        'Fixture',
+      ],
+    ]
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet(set_rows),
+      'Set Data',
+    )
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        [
+          'Workout ID',
+          'Date',
+          'Day',
+          'Start',
+          'Finish',
+          'Exercises',
+          'Working Sets',
+          'Completed Reps',
+          'Total Recorded Load',
+          'Avg RPE',
+          'Avg Pump',
+          'Avg Form',
+          'Data Notes',
+        ],
+        ['W29', 46234, 'Fri', '05:15', '06:30', 1, 2, 30, 1950, 9, 9, 9, null],
+      ]),
+      'Session Summary',
+    )
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([['Exercise']]),
+      'Exercise Summary',
+    )
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([['Issue / rule', 'Handling in export']]),
+      'Data Audit',
+    )
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([['PROJECT FREAK', null]]),
+      'README',
+    )
+
+    const bytes = XLSX.write(workbook, {
+      type: 'array',
+      bookType: 'xlsx',
+    }) as ArrayBuffer
+    const preview = await parse_historical_workbook(bytes, 'fixture.xlsx')
+
+    expect(
+      preview.issues.filter((entry) => entry.severity === 'error'),
+    ).toEqual([])
+    expect(preview.detected.session_exercises).toBe(2)
+    expect(preview.session_summaries[0].exercises).toBe(1)
+  })
+
   it('marks a noncanonical but structurally valid workbook with a warning', async () => {
     const preview = await parse_historical_workbook(
       workbook_fixture(),
