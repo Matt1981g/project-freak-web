@@ -1,5 +1,6 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { load_workout_history } from '../application/history/workoutHistory'
+import { build_last_7_days_training_export } from '../application/coach/trainingExport'
 import { load_exercise_history } from '../application/history/exerciseHistory'
 import { correct_completed_set } from '../application/history/correctCompletedSet'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
@@ -119,6 +120,15 @@ export function save_priority_settings(
   return save_training_priorities(ordered_areas, repositories.settings, {
     local_date: current_local_date(),
     now_iso: new Date().toISOString(),
+  })
+}
+
+export function build_last_7_days_coach_export() {
+  return build_last_7_days_training_export(repositories, {
+    now_iso: new Date().toISOString(),
+    to_date_local: current_local_date(),
+    app_version: null,
+    db_schema_version: Number(projectFreakDb.verno) || null,
   })
 }
 
