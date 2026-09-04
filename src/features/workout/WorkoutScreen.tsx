@@ -17,7 +17,10 @@ import {
   start_rest_timer,
   type RestTimerState,
 } from '../../application/workout/restTimer'
-import { recommended_rotation_exercise_id } from '../../application/workout/pairedRotation'
+import {
+  is_rotation_exercise_lagging,
+  recommended_rotation_exercise_id,
+} from '../../application/workout/pairedRotation'
 import styles from './WorkoutScreen.module.css'
 
 type LiveWorkout = NonNullable<
@@ -860,6 +863,15 @@ export function WorkoutScreen() {
       ({ exercise }) => exercise.completed_at !== null,
     )
 
+  const rotation_progress = workout.exercises.map((entry) => ({
+    ...entry.exercise,
+    completed_sets: entry.sets.filter((set) => set.completed_at !== null).length,
+    target_sets:
+      entry.planned_sets.length ||
+      entry.exercise.target_sets ||
+      Math.max(entry.sets.length, 1),
+  }))
+
   return (
     <div className={styles.screen}>
       <section className={styles.heading}>
@@ -1009,9 +1021,14 @@ export function WorkoutScreen() {
                       ? 'COMPLETE ✓'
                       : all_sets_complete
                         ? 'RATE EXERCISE'
-                        : completed_sets > 0
-                          ? `${completed_sets}/${planned_count} DONE`
-                          : 'LOG SETS'}
+                        : is_rotation_exercise_lagging(
+                              rotation_progress,
+                              exercise.id,
+                            )
+                          ? `PAIR DUE · ${completed_sets}/${planned_count}`
+                          : completed_sets > 0
+                            ? `${completed_sets}/${planned_count} DONE`
+                            : 'LOG SETS'}
                   </span>
                 </button>
 
