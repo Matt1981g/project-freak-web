@@ -1,3 +1,4 @@
+import { create_uuid } from '../../domain/ids/uuid'
 import type { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
 import type { ImportBatch, ImportIssue } from '../../domain/models'
 import {
@@ -97,7 +98,7 @@ export async function commit_historical_import(
     )
   }
 
-  const batch_id = crypto.randomUUID()
+  const batch_id = create_uuid()
   const timestamp = new Date().toISOString()
   const plan = await build_historical_import_plan(
     preview,
@@ -145,7 +146,7 @@ export async function commit_historical_import(
   }
 
   const import_issues: ImportIssue[] = preview.issues.map((entry) => ({
-    id: crypto.randomUUID(),
+    id: create_uuid(),
     import_batch_id: batch_id,
     severity: entry.severity,
     code: entry.code,
