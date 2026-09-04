@@ -12,13 +12,11 @@ export interface Exercise extends MutableEntity {
   notes: string | null
 }
 
-export interface ExerciseAlias {
-  id: string
+export interface ExerciseAlias extends MutableEntity {
   exercise_id: string
+  source_exercise_id: string
   alias: string
   normalized_alias: string
-  source_id: string | null
-  created_at: string
 }
 
 export interface Muscle {
