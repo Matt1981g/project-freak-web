@@ -81,6 +81,68 @@
   font-size: 16px;
 }
 
+.pairingPrompt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, var(--pf-accent-soft), transparent 72%),
+    var(--pf-panel);
+}
+
+.pairingPromptCopy {
+  display: grid;
+  gap: 3px;
+}
+
+.pairingPromptCopy span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.pairingPromptCopy strong {
+  color: var(--pf-text-strong);
+  font-size: 16px;
+}
+
+.pairingPromptCopy small {
+  color: var(--pf-text-muted);
+  font-size: 10px;
+}
+
+.pairingPromptActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.pairingPromptActions button {
+  min-height: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.pairingPromptActions .pairingGo {
+  color: #071006;
+  background: var(--pf-accent);
+  border-color: var(--pf-accent-border);
+}
+
 .sequence {
   margin-top: 16px;
   padding: 18px;
@@ -740,6 +802,19 @@
 
   .sessionMeta {
     grid-template-columns: 1fr;
+  }
+
+  .pairingPrompt {
+    grid-template-columns: 1fr;
+  }
+
+  .pairingPromptActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .pairingPromptActions button {
+    min-height: 48px;
   }
 
   .exerciseToggle {
