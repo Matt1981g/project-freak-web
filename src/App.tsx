@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router'
 import { ExerciseLibraryScreen } from './features/exercises/ExerciseLibraryScreen'
 import { PlanScreen } from './features/plan/PlanScreen'
+import { WorkoutScreen } from './features/workout/WorkoutScreen'
 import './App.css'
 
 function App() {
@@ -32,13 +33,17 @@ function App() {
             Exercises
           </NavLink>
         </nav>
-        <div className="phase-chip">PHASE 5</div>
+        <div className="phase-chip">PHASE 6</div>
       </header>
 
       <main>
         <Routes>
           <Route path="/" element={<Navigate to="/plan" replace />} />
           <Route path="/plan" element={<PlanScreen />} />
+          <Route
+            path="/workout/:completed_session_id"
+            element={<WorkoutScreen />}
+          />
           <Route path="/exercises" element={<ExerciseLibraryScreen />} />
           <Route path="*" element={<Navigate to="/plan" replace />} />
         </Routes>
