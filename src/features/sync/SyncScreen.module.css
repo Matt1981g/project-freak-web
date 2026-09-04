@@ -1,0 +1,252 @@
+.screen {
+  width: min(980px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 30px 0 110px;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--pf-accent);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.heading h1 {
+  margin: 0;
+  color: var(--pf-text-strong);
+  font-size: clamp(32px, 6vw, 54px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.heading p:not(.eyebrow) {
+  max-width: 700px;
+  margin: 10px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.heading > span,
+.panelHeading > strong {
+  padding: 7px 10px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 999px;
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.statusGrid,
+.resultGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.statusGrid > div,
+.resultGrid > div {
+  padding: 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 11px;
+  background: var(--pf-panel);
+}
+
+.statusGrid span,
+.resultGrid span {
+  display: block;
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.statusGrid strong,
+.resultGrid strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--pf-text-strong);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.panel,
+.syncPanel {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--pf-border);
+  border-radius: 18px;
+  background: var(--pf-panel);
+}
+
+.panelHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.panelHeading > div > span,
+.syncPanel > div > span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.panelHeading h2,
+.syncPanel h2 {
+  margin: 4px 0 0;
+  color: var(--pf-text-strong);
+  font-size: 21px;
+}
+
+.panel > p,
+.syncPanel p {
+  margin: 10px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.panel label {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.panel label > span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.panel input,
+.panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: var(--pf-text-strong);
+  background: var(--pf-bg);
+  font: inherit;
+  font-size: 12px;
+}
+
+.panel textarea {
+  resize: vertical;
+}
+
+.authGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.actions button,
+.syncPanel button {
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.actions .primary,
+.syncPanel button {
+  border-color: var(--pf-accent-border);
+  color: #071006;
+  background: var(--pf-accent);
+}
+
+.actions button:disabled,
+.syncPanel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.syncPanel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent-soft);
+}
+
+.syncPanel button {
+  min-width: 140px;
+}
+
+.message,
+.error {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 11px;
+  background: var(--pf-panel);
+  font-size: 10px;
+}
+
+.message {
+  color: var(--pf-accent);
+}
+
+.error {
+  color: var(--pf-danger);
+  border-color: var(--pf-danger-border);
+  background: var(--pf-danger-soft);
+}
+
+@media (max-width: 700px) {
+  .screen {
+    width: min(100% - 20px, 980px);
+    padding-top: 18px;
+  }
+
+  .heading,
+  .panelHeading,
+  .syncPanel {
+    flex-direction: column;
+  }
+
+  .statusGrid,
+  .resultGrid,
+  .authGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .actions {
+    display: grid;
+  }
+
+  .actions button,
+  .syncPanel button {
+    width: 100%;
+  }
+}
