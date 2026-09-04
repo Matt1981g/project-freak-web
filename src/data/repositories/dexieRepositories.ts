@@ -95,6 +95,50 @@ async function put_with_audit_and_outbox<T extends SyncableEntity>(
   )
 }
 
+function sync_table_for_entity_type(
+  db: ProjectFreakDatabase,
+  entity_type: string,
+): Table<MutableEntity, string> {
+  switch (entity_type) {
+    case 'exercise':
+      return db.exercises as unknown as Table<MutableEntity, string>
+    case 'exercise_alias':
+      return db.exercise_aliases as unknown as Table<MutableEntity, string>
+    case 'programme_block':
+      return db.programme_blocks as unknown as Table<MutableEntity, string>
+    case 'workout_template':
+      return db.workout_templates as unknown as Table<MutableEntity, string>
+    case 'template_exercise':
+      return db.template_exercises as unknown as Table<MutableEntity, string>
+    case 'template_set':
+      return db.template_sets as unknown as Table<MutableEntity, string>
+    case 'template_set_component':
+      return db.template_set_components as unknown as Table<MutableEntity, string>
+    case 'programmed_session':
+      return db.programmed_sessions as unknown as Table<MutableEntity, string>
+    case 'programmed_session_exercise':
+      return db.programmed_session_exercises as unknown as Table<MutableEntity, string>
+    case 'programmed_session_set':
+      return db.programmed_session_sets as unknown as Table<MutableEntity, string>
+    case 'programmed_set_component':
+      return db.programmed_set_components as unknown as Table<MutableEntity, string>
+    case 'completed_session':
+      return db.completed_sessions as unknown as Table<MutableEntity, string>
+    case 'readiness_entry':
+      return db.readiness_entries as unknown as Table<MutableEntity, string>
+    case 'session_exercise':
+      return db.session_exercises as unknown as Table<MutableEntity, string>
+    case 'set':
+      return db.sets as unknown as Table<MutableEntity, string>
+    case 'set_component':
+      return db.set_components as unknown as Table<MutableEntity, string>
+    case 'exercise_metrics':
+      return db.exercise_metrics as unknown as Table<MutableEntity, string>
+    default:
+      throw new Error(`Unsupported sync entity type: ${entity_type}`)
+  }
+}
+
 export class DexieSyncRepository implements SyncRepository {
   private readonly db: ProjectFreakDatabase
 
@@ -164,6 +208,49 @@ export class DexieSyncRepository implements SyncRepository {
     return this.db.sync_outbox
       .filter((entry) => entry.synced_at === null)
       .count()
+  }
+
+  get_local_entity(
+    entity_type: string,
+    entity_id: string,
+  ): Promise<MutableEntity | undefined> {
+    return sync_table_for_entity_type(this.db, entity_type).get(entity_id)
+  }
+
+  async has_pending_entity_mutation(
+    entity_type: string,
+    entity_id: string,
+  ): Promise<boolean> {
+    const pending = await this.db.sync_outbox
+      .where('[entity_type+entity_id]')
+      .equals([entity_type, entity_id])
+      .filter((entry) => entry.synced_at === null)
+      .first()
+
+    return pending !== undefined
+  }
+
+  async apply_remote_entity(
+    entity_type: string,
+    entity: MutableEntity,
+    applied_at: string,
+  ): Promise<void> {
+    const table = sync_table_for_entity_type(this.db, entity_type)
+
+    await this.db.transaction('rw', table, this.db.audit_events, async () => {
+      const before = await table.get(entity.id)
+      await table.put(entity)
+
+      const audit_event = create_audit_event(
+        entity_type,
+        entity,
+        before ?? null,
+        'sync_apply',
+      )
+      audit_event.reason = 'Remote sync applied'
+      audit_event.created_at = applied_at
+      await this.db.audit_events.add(audit_event)
+    })
   }
 }
 
