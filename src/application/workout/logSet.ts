@@ -1,3 +1,4 @@
+import { create_uuid } from '../../domain/ids/uuid'
 import type {
   ProgrammedSessionSet,
   SessionExercise,
@@ -51,7 +52,7 @@ export async function save_training_set(
   }
 
   const existing = input.existing_set
-  const make_id = context.id_factory ?? (() => crypto.randomUUID())
+  const make_id = context.id_factory ?? (() => create_uuid())
   const load_type = input.programmed_set?.target_load_type ?? 'normal'
   const failure_status = input.failed_next_rep
     ? 'attempted_next_rep_failed'
