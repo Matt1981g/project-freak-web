@@ -7,12 +7,34 @@ export interface PwaStartupResult {
   storage_persisted_after: boolean | null
 }
 
+export interface PwaRegistrationTarget {
+  script_url: string
+  scope: string
+}
+
+export function resolve_pwa_registration(
+  href = 'http://localhost/',
+): PwaRegistrationTarget {
+  const scope_url = new URL('./', href)
+  return {
+    script_url: new URL('sw.js', scope_url).href,
+    scope: scope_url.pathname,
+  }
+}
+
 export async function initialize_pwa_runtime(): Promise<PwaStartupResult> {
   let service_worker_registered = false
 
   if ('serviceWorker' in navigator) {
     try {
-      await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      const href =
+        typeof globalThis.location === 'undefined'
+          ? 'http://localhost/'
+          : globalThis.location.href
+      const target = resolve_pwa_registration(href)
+      await navigator.serviceWorker.register(target.script_url, {
+        scope: target.scope,
+      })
       service_worker_registered = true
     } catch {
       service_worker_registered = false
