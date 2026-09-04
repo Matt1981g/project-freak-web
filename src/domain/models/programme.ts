@@ -62,8 +62,7 @@ export type LoadRelation =
   | 'percentage_of_primary'
   | 'unknown'
 
-export interface TemplateSetComponent {
-  id: string
+export interface TemplateSetComponent extends MutableEntity {
   template_set_id: string
   sequence: number
   component_type: SetComponentType
@@ -116,8 +115,7 @@ export interface ProgrammedSessionSet extends MutableEntity {
   notes: string | null
 }
 
-export interface ProgrammedSetComponent {
-  id: string
+export interface ProgrammedSetComponent extends MutableEntity {
   programmed_session_set_id: string
   sequence: number
   component_type: SetComponentType

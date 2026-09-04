@@ -101,7 +101,8 @@
             "same_as_primary",
             "percentage_of_primary",
             "unknown"
-          ]
+          ],
+          "default": "unknown"
         },
         "target_load_percent": {
           "type": [
@@ -132,7 +133,8 @@
           "minimum": 0
         },
         "failure_target": {
-          "$ref": "#/$defs/failureTarget"
+          "$ref": "#/$defs/failureTarget",
+          "default": "none"
         },
         "notes": {
           "type": [
@@ -191,7 +193,8 @@
           "minimum": 0
         },
         "target_load_type": {
-          "$ref": "#/$defs/loadType"
+          "$ref": "#/$defs/loadType",
+          "default": "unknown"
         },
         "failure_target": {
           "$ref": "#/$defs/failureTarget"
@@ -369,6 +372,12 @@
           "type": [
             "string",
             "null"
+          ],
+          "enum": [
+            "mesocycle",
+            "microcycle",
+            "custom",
+            null
           ]
         },
         "start_date_local": {

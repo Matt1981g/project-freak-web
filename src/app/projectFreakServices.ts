@@ -1,4 +1,10 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
+import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
+import {
+  commit_programme_import,
+  preview_programme_import,
+  type ProgrammeImportPreview,
+} from '../application/programme/programmeImport'
 import { create_repositories } from '../data/repositories'
 import { audit_exercise_library } from '../application/exercises/exerciseLibraryAudit'
 import {
@@ -75,6 +81,42 @@ export async function consolidate_exercise_definitions(
     repositories.exercises,
     source_ids,
     target_id,
+    await current_device_id(),
+  )
+}
+
+export function load_programme_blocks() {
+  return repositories.programme.list_blocks()
+}
+
+export function export_programme_exercise_catalogue() {
+  return build_programme_exercise_catalogue_json(repositories.exercises)
+}
+
+export function load_programme_sessions(programme_block_id: string) {
+  return repositories.programme.list_programmed_sessions_for_block(
+    programme_block_id,
+  )
+}
+
+export function load_programmed_session_detail(
+  programmed_session_id: string,
+) {
+  return repositories.programme.get_programmed_session_detail(
+    programmed_session_id,
+  )
+}
+
+export function preview_programme_json(json_text: string) {
+  return preview_programme_import(json_text, repositories.exercises)
+}
+
+export async function commit_programme_json(
+  preview: ProgrammeImportPreview,
+) {
+  return commit_programme_import(
+    preview,
+    repositories.programme,
     await current_device_id(),
   )
 }

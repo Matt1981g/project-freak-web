@@ -10,7 +10,7 @@
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   min-height: 72px;
@@ -51,6 +51,40 @@
   letter-spacing: 0.12em;
 }
 
+.app-nav {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.app-nav-link {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--pf-text-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.app-nav-link:hover {
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+}
+
+.app-nav-link-active {
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  border-color: var(--pf-accent-border);
+}
+
 .phase-chip {
   padding: 7px 10px;
   border: 1px solid var(--pf-accent-border);
@@ -70,6 +104,31 @@
 
   .brand-copy small {
     display: none;
+  }
+
+  .app-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .app-nav {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--pf-border);
+    border-radius: 16px;
+    background: rgba(10, 12, 10, 0.94);
+    backdrop-filter: blur(16px);
+  }
+
+  .app-nav-link {
+    justify-content: center;
+    min-height: 44px;
   }
 
   .phase-chip {
