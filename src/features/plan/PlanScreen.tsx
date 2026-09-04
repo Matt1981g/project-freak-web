@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import type { ProgrammeBlock, ProgrammedSession } from '../../domain/models'
 import type { ProgrammeImportPreview } from '../../application/programme/programmeImport'
 import {
@@ -8,6 +9,7 @@ import {
   load_programme_sessions,
   load_programmed_session_detail,
   preview_programme_json,
+  start_programmed_session_workout,
 } from '../../app/projectFreakServices'
 import styles from './PlanScreen.module.css'
 
@@ -48,6 +50,7 @@ function date_span(block: ProgrammeBlock): string {
 }
 
 export function PlanScreen() {
+  const navigate = useNavigate()
   const file_input_ref = useRef<HTMLInputElement>(null)
   const [json_text, setJsonText] = useState('')
   const [preview, setPreview] = useState<ProgrammeImportPreview | null>(null)
@@ -61,6 +64,7 @@ export function PlanScreen() {
     Awaited<ReturnType<typeof load_programmed_session_detail>>
   >(undefined)
   const [session_detail_loading, setSessionDetailLoading] = useState(false)
+  const [starting_session_id, setStartingSessionId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -126,6 +130,24 @@ export function PlanScreen() {
       )
     } finally {
       setSessionDetailLoading(false)
+    }
+  }
+
+  async function start_session(programmed_session_id: string) {
+    setStartingSessionId(programmed_session_id)
+    setError(null)
+
+    try {
+      const result = await start_programmed_session_workout(
+        programmed_session_id,
+      )
+      navigate(`/workout/${result.session_id}`)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Unable to start workout.',
+      )
+    } finally {
+      setStartingSessionId(null)
     }
   }
 
@@ -573,6 +595,25 @@ export function PlanScreen() {
                                       {session_detail.session.notes}
                                     </p>
                                   )}
+
+                                  <button
+                                    type="button"
+                                    className={styles.startWorkoutButton}
+                                    disabled={
+                                      starting_session_id ===
+                                      session_detail.session.id
+                                    }
+                                    onClick={() =>
+                                      void start_session(
+                                        session_detail.session.id,
+                                      )
+                                    }
+                                  >
+                                    {starting_session_id ===
+                                    session_detail.session.id
+                                      ? 'Starting workout…'
+                                      : 'Start workout'}
+                                  </button>
 
                                   <div className={styles.storedExerciseList}>
                                     {session_detail.exercises.map(
