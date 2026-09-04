@@ -533,6 +533,85 @@
   font-weight: 800;
 }
 
+.restTimer,
+.restTimerReady {
+  position: sticky;
+  bottom: 12px;
+  z-index: 18;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 15px;
+  background: rgba(10, 12, 10, 0.96);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+
+.restTimerReady {
+  background:
+    linear-gradient(135deg, var(--pf-accent-soft), transparent 72%),
+    rgba(10, 12, 10, 0.98);
+}
+
+.restTimerMain {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.restTimerMain div {
+  display: grid;
+  gap: 3px;
+}
+
+.restTimerMain span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.restTimerMain small {
+  color: var(--pf-text-muted);
+  font-size: 10px;
+}
+
+.restTimerMain strong {
+  color: var(--pf-text-strong);
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.restTimerReady .restTimerMain strong {
+  color: var(--pf-accent);
+}
+
+.restTimerActions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.restTimerActions button {
+  min-height: 42px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.restTimerActions button:last-child {
+  color: var(--pf-accent);
+  border-color: var(--pf-accent-border);
+}
+
 .finishPanel,
 .workoutSummary {
   margin-top: 16px;
@@ -704,5 +783,20 @@
 
   .volumeSummary {
     grid-column: 1 / -1;
+  }
+
+  .restTimer,
+  .restTimerReady {
+    bottom: 82px;
+  }
+
+  .restTimerActions {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .restTimerActions button {
+    min-height: 46px;
+    padding-inline: 4px;
+    font-size: 9px;
   }
 }
