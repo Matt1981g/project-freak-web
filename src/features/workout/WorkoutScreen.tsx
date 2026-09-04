@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import type { ExerciseMetrics, TrainingSet } from '../../domain/models'
 import {
@@ -88,48 +88,138 @@ function SetLoggerRow(props: {
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const load_ref = useRef(load)
+  const reps_ref = useRef(reps)
+  const failed_ref = useRef(failed)
+  const saved_set_ref = useRef<TrainingSet | null>(saved_set)
+  const autosave_timer_ref = useRef<number | null>(null)
+  const save_chain_ref = useRef<Promise<void>>(Promise.resolve())
+  const pending_saves_ref = useRef(0)
 
   const completed =
     saved_set?.completed_at !== null && saved_set?.completed_at !== undefined
   const target = planned_set?.set
 
-  async function save(complete: boolean, failed_override = failed) {
-    if (saving || completed) return
-
-    setSaving(true)
-    setError(null)
-
-    try {
-      const updated = await save_live_training_set({
-        session_exercise: exercise,
-        programmed_set: target ?? null,
-        existing_set: saved_set,
-        set_number,
-        load_kg: load,
-        completed_reps: reps,
-        failed_next_rep: failed_override,
-        complete,
-      })
-      setSavedSet(updated)
-
-      if (complete) {
-        await on_complete()
+  useEffect(() => {
+    return () => {
+      if (autosave_timer_ref.current !== null) {
+        window.clearTimeout(autosave_timer_ref.current)
       }
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Unable to save set.',
-      )
-    } finally {
-      setSaving(false)
+    }
+  }, [])
+
+  function clear_autosave_timer() {
+    if (autosave_timer_ref.current !== null) {
+      window.clearTimeout(autosave_timer_ref.current)
+      autosave_timer_ref.current = null
     }
   }
 
+  function queue_save(options?: {
+    complete?: boolean
+    load_kg?: number | null
+    completed_reps?: number | null
+    failed_next_rep?: boolean
+  }) {
+    if (completed) return Promise.resolve()
+
+    const complete = options?.complete ?? false
+    const load_kg =
+      options && 'load_kg' in options ? options.load_kg ?? null : load_ref.current
+    const completed_reps =
+      options && 'completed_reps' in options
+        ? options.completed_reps ?? null
+        : reps_ref.current
+    const failed_next_rep =
+      options && 'failed_next_rep' in options
+        ? options.failed_next_rep ?? false
+        : failed_ref.current
+
+    pending_saves_ref.current += 1
+    setSaving(true)
+    setError(null)
+
+    const run = async () => {
+      try {
+        const updated = await save_live_training_set({
+          session_exercise: exercise,
+          programmed_set: target ?? null,
+          existing_set: saved_set_ref.current,
+          set_number,
+          load_kg,
+          completed_reps,
+          failed_next_rep,
+          complete,
+        })
+        saved_set_ref.current = updated
+        setSavedSet(updated)
+
+        if (complete) {
+          await on_complete()
+        }
+      } catch (cause) {
+        setError(
+          cause instanceof Error ? cause.message : 'Unable to save set.',
+        )
+      } finally {
+        pending_saves_ref.current -= 1
+        if (pending_saves_ref.current === 0) {
+          setSaving(false)
+        }
+      }
+    }
+
+    save_chain_ref.current = save_chain_ref.current.then(run, run)
+    return save_chain_ref.current
+  }
+
+  function schedule_autosave() {
+    clear_autosave_timer()
+    autosave_timer_ref.current = window.setTimeout(() => {
+      autosave_timer_ref.current = null
+      void queue_save()
+    }, 300)
+  }
+
+  function change_load(value: number | null) {
+    load_ref.current = value
+    setLoad(value)
+    schedule_autosave()
+  }
+
+  function change_reps(value: number | null) {
+    reps_ref.current = value
+    setReps(value)
+    schedule_autosave()
+  }
+
   function adjust_load(delta: number) {
-    setLoad((current) => Math.max(0, (current ?? 0) + delta))
+    clear_autosave_timer()
+    const next = Math.max(0, (load_ref.current ?? 0) + delta)
+    load_ref.current = next
+    setLoad(next)
+    void queue_save({ load_kg: next })
   }
 
   function adjust_reps(delta: number) {
-    setReps((current) => Math.max(0, (current ?? 0) + delta))
+    clear_autosave_timer()
+    const next = Math.max(0, (reps_ref.current ?? 0) + delta)
+    reps_ref.current = next
+    setReps(next)
+    void queue_save({ completed_reps: next })
+  }
+
+  function toggle_failure() {
+    clear_autosave_timer()
+    const next = !failed_ref.current
+    failed_ref.current = next
+    setFailed(next)
+    void queue_save({ failed_next_rep: next })
+  }
+
+  function complete_set() {
+    clear_autosave_timer()
+    void queue_save({ complete: true })
   }
 
   return (
@@ -153,7 +243,7 @@ function SetLoggerRow(props: {
             <button
               type="button"
               data-set-action="true"
-              disabled={completed || saving}
+              disabled={completed}
               onClick={() => adjust_load(-2.5)}
             >
               −
@@ -166,21 +256,16 @@ function SetLoggerRow(props: {
               step="0.5"
               value={load ?? ''}
               disabled={completed}
-              onChange={(event) => setLoad(numeric_value(event.target.value))}
-              onBlur={(event) => {
-                if (
-                  event.relatedTarget instanceof HTMLElement &&
-                  event.relatedTarget.dataset.setAction === 'true'
-                ) {
-                  return
-                }
-                void save(false)
+              onChange={(event) => change_load(numeric_value(event.target.value))}
+              onBlur={() => {
+                clear_autosave_timer()
+                void queue_save()
               }}
             />
             <button
               type="button"
               data-set-action="true"
-              disabled={completed || saving}
+              disabled={completed}
               onClick={() => adjust_load(2.5)}
             >
               +
@@ -194,7 +279,7 @@ function SetLoggerRow(props: {
             <button
               type="button"
               data-set-action="true"
-              disabled={completed || saving}
+              disabled={completed}
               onClick={() => adjust_reps(-1)}
             >
               −
@@ -207,21 +292,16 @@ function SetLoggerRow(props: {
               step="1"
               value={reps ?? ''}
               disabled={completed}
-              onChange={(event) => setReps(numeric_value(event.target.value))}
-              onBlur={(event) => {
-                if (
-                  event.relatedTarget instanceof HTMLElement &&
-                  event.relatedTarget.dataset.setAction === 'true'
-                ) {
-                  return
-                }
-                void save(false)
+              onChange={(event) => change_reps(numeric_value(event.target.value))}
+              onBlur={() => {
+                clear_autosave_timer()
+                void queue_save()
               }}
             />
             <button
               type="button"
               data-set-action="true"
-              disabled={completed || saving}
+              disabled={completed}
               onClick={() => adjust_reps(1)}
             >
               +
@@ -235,12 +315,8 @@ function SetLoggerRow(props: {
           type="button"
           data-set-action="true"
           className={failed ? styles.failureOn : styles.failureOff}
-          disabled={completed || saving || reps === null}
-          onClick={() => {
-            const next_failed = !failed
-            setFailed(next_failed)
-            void save(false, next_failed)
-          }}
+          disabled={completed || reps === null}
+          onClick={toggle_failure}
         >
           {failed ? 'FAIL ✓' : 'FAIL'}
         </button>
@@ -248,13 +324,16 @@ function SetLoggerRow(props: {
           type="button"
           data-set-action="true"
           className={styles.completeSetButton}
-          disabled={completed || saving || reps === null}
-          onClick={() => void save(true)}
+          disabled={completed || reps === null}
+          onClick={complete_set}
         >
-          {completed ? 'SET COMPLETE' : saving ? 'SAVING…' : 'COMPLETE SET'}
+          {completed ? 'SET COMPLETE' : 'COMPLETE SET'}
         </button>
       </div>
 
+      {saving && !completed && (
+        <div className={styles.autosaveStatus}>AUTOSAVING…</div>
+      )}
       {error && <div className={styles.setError}>{error}</div>}
     </div>
   )
