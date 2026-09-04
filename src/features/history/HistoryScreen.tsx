@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { load_history_entries } from '../../app/projectFreakServices'
+import {
+  load_coach_exclusions,
+  load_history_entries,
+  set_coach_session_excluded,
+} from '../../app/projectFreakServices'
 import styles from './HistoryScreen.module.css'
 
 type HistoryEntry = Awaited<ReturnType<typeof load_history_entries>>[number]
@@ -31,14 +35,19 @@ export function HistoryScreen() {
   const [entries, setEntries] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [coachExcludedIds, setCoachExcludedIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [coachSavingId, setCoachSavingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
-    void load_history_entries()
-      .then((result) => {
+    void Promise.all([load_history_entries(), load_coach_exclusions()])
+      .then(([result, exclusions]) => {
         if (cancelled) return
         setEntries(result)
+        setCoachExcludedIds(new Set(exclusions.session_ids))
         setError(null)
       })
       .catch((cause) => {
@@ -83,25 +92,40 @@ export function HistoryScreen() {
         <div className={styles.empty}>No workout sessions recorded yet.</div>
       ) : (
         <section className={styles.list}>
-          {entries.map((entry) => (
-            <article className={styles.card} key={entry.session.id}>
+          {entries.map((entry) => {
+            const coach_excluded = coachExcludedIds.has(entry.session.id)
+
+            return (
+            <article
+              className={
+                coach_excluded ? styles.cardCoachExcluded : styles.card
+              }
+              key={entry.session.id}
+            >
               <div className={styles.cardHeader}>
                 <div>
                   <span>{session_source(entry)}</span>
                   <h2>{entry.session.session_name}</h2>
                   <small>{entry.session.session_date_local}</small>
                 </div>
-                <span
-                  className={
-                    entry.session.status === 'completed'
-                      ? styles.statusComplete
-                      : entry.session.status === 'in_progress'
-                        ? styles.statusActive
-                        : styles.statusAbandoned
-                  }
-                >
-                  {entry.session.status.replaceAll('_', ' ')}
-                </span>
+                <div className={styles.statusGroup}>
+                  {coach_excluded && (
+                    <span className={styles.statusCoachExcluded}>
+                      COACH EXCLUDED
+                    </span>
+                  )}
+                  <span
+                    className={
+                      entry.session.status === 'completed'
+                        ? styles.statusComplete
+                        : entry.session.status === 'in_progress'
+                          ? styles.statusActive
+                          : styles.statusAbandoned
+                    }
+                  >
+                    {entry.session.status.replaceAll('_', ' ')}
+                  </span>
+                </div>
               </div>
 
               <div className={styles.metrics}>
@@ -127,16 +151,59 @@ export function HistoryScreen() {
                 </div>
               </div>
 
-              <Link
-                className={styles.openButton}
-                to={`/workout/${entry.session.id}`}
-              >
-                {entry.session.status === 'completed'
-                  ? 'VIEW WORKOUT'
-                  : 'RESUME WORKOUT'}
-              </Link>
+              <div className={styles.cardActions}>
+                <Link
+                  className={styles.openButton}
+                  to={`/workout/${entry.session.id}`}
+                >
+                  {entry.session.status === 'completed'
+                    ? 'VIEW WORKOUT'
+                    : 'RESUME WORKOUT'}
+                </Link>
+
+                {entry.session.status === 'completed' &&
+                  entry.session.source_kind !== 'historical_import' && (
+                    <button
+                      type="button"
+                      className={
+                        coach_excluded
+                          ? styles.coachIncludeButton
+                          : styles.coachExcludeButton
+                      }
+                      disabled={coachSavingId === entry.session.id}
+                      onClick={() => {
+                        const next_excluded = !coach_excluded
+                        setCoachSavingId(entry.session.id)
+                        setError(null)
+
+                        void set_coach_session_excluded(
+                          entry.session.id,
+                          next_excluded,
+                        )
+                          .then((state) => {
+                            setCoachExcludedIds(new Set(state.session_ids))
+                          })
+                          .catch((cause) => {
+                            setError(
+                              cause instanceof Error
+                                ? cause.message
+                                : 'Unable to update Coach inclusion.',
+                            )
+                          })
+                          .finally(() => setCoachSavingId(null))
+                      }}
+                    >
+                      {coachSavingId === entry.session.id
+                        ? 'SAVING…'
+                        : coach_excluded
+                          ? 'INCLUDE IN COACH'
+                          : 'EXCLUDE FROM COACH'}
+                    </button>
+                  )}
+              </div>
             </article>
-          ))}
+            )
+          })}
         </section>
       )}
     </div>
