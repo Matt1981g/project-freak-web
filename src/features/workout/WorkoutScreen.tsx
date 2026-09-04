@@ -25,6 +25,10 @@ import {
   recommended_rotation_exercise_id,
 } from '../../application/workout/pairedRotation'
 import { can_safely_correct_set } from '../../application/history/correctCompletedSet'
+import {
+  is_session_exercise_completed,
+  is_training_set_completed,
+} from '../../domain/rules/completion'
 import styles from './WorkoutScreen.module.css'
 
 type LiveWorkout = NonNullable<
@@ -724,7 +728,7 @@ function SetLoggerRow(props: {
   const pending_saves_ref = useRef(0)
 
   const completed =
-    saved_set?.completed_at !== null && saved_set?.completed_at !== undefined
+    saved_set !== null && is_training_set_completed(saved_set)
   const target = planned_set?.set
 
   useEffect(() => {
@@ -1438,13 +1442,13 @@ export function WorkoutScreen() {
 
   const all_exercises_complete =
     workout.exercises.length > 0 &&
-    workout.exercises.every(
-      ({ exercise }) => exercise.completed_at !== null,
+    workout.exercises.every(({ exercise }) =>
+      is_session_exercise_completed(exercise, workout.session),
     )
 
   const rotation_progress = workout.exercises.map((entry) => ({
     ...entry.exercise,
-    completed_sets: entry.sets.filter((set) => set.completed_at !== null).length,
+    completed_sets: entry.sets.filter(is_training_set_completed).length,
     target_sets:
       entry.planned_sets.length ||
       entry.exercise.target_sets ||
@@ -1554,15 +1558,17 @@ export function WorkoutScreen() {
           {workout.exercises.map((entry) => {
             const { exercise, sets, metrics, planned_sets } = entry
             const is_open = open_exercise_id === exercise.id
-            const completed_sets = sets.filter(
-              (set) => set.completed_at !== null,
-            ).length
+            const completed_sets = sets.filter(is_training_set_completed).length
             const planned_count =
               planned_sets.length ||
               exercise.target_sets ||
               Math.max(sets.length, 1)
             const all_sets_complete =
               planned_count > 0 && completed_sets >= planned_count
+            const exercise_complete = is_session_exercise_completed(
+              exercise,
+              workout.session,
+            )
             const set_numbers = Array.from(
               { length: planned_count },
               (_, index) => index + 1,
@@ -1601,7 +1607,7 @@ export function WorkoutScreen() {
                     {exercise.technique_cue && <p>{exercise.technique_cue}</p>}
                   </div>
                   <span className={styles.exerciseStatus}>
-                    {exercise.completed_at !== null
+                    {exercise_complete
                       ? 'COMPLETE ✓'
                       : all_sets_complete
                         ? 'RATE EXERCISE'
@@ -1657,7 +1663,7 @@ export function WorkoutScreen() {
                       )
                     })}
 
-                    {exercise.completed_at !== null ? (
+                    {exercise_complete ? (
                       <CompletedExerciseSummary metrics={metrics} />
                     ) : all_sets_complete ? (
                       <ExerciseScoringPanel
