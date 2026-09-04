@@ -10,6 +10,7 @@ import type {
   ExerciseRepository,
   SessionRepository,
 } from '../../data/repositories/contracts'
+import { is_training_set_completed } from '../../domain/rules/completion'
 
 export interface ExerciseHistoryAppearance {
   session_exercise: SessionExercise
@@ -119,7 +120,7 @@ export async function load_exercise_history(
     )
 
     const completed_sets = appearances.flatMap((appearance) =>
-      appearance.sets.filter((set) => set.completed_at !== null),
+      appearance.sets.filter(is_training_set_completed),
     )
 
     entries.push({
