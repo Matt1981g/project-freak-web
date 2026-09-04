@@ -2,6 +2,7 @@ import type {
   CompletedSession,
   Device,
   Exercise,
+  ExerciseAlias,
   ExerciseMetrics,
   SessionExercise,
   SetComponent,
@@ -16,7 +17,14 @@ export interface ExerciseRepository {
   get_by_id(id: string): Promise<Exercise | undefined>
   list_all(): Promise<Exercise[]>
   list_active(): Promise<Exercise[]>
+  list_aliases(): Promise<ExerciseAlias[]>
   put(exercise: Exercise): Promise<string>
+  merge_definitions(
+    source_ids: string[],
+    target_id: string,
+    device_id: string,
+    timestamp: string,
+  ): Promise<ExerciseAlias[]>
 }
 
 export interface SessionRepository {
