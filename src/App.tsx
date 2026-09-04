@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router'
 import { ExerciseLibraryScreen } from './features/exercises/ExerciseLibraryScreen'
 import { HistoryScreen } from './features/history/HistoryScreen'
+import { ExerciseHistoryScreen } from './features/history/ExerciseHistoryScreen'
 import { PlanScreen } from './features/plan/PlanScreen'
 import { PrioritiesScreen } from './features/priorities/PrioritiesScreen'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
@@ -60,6 +61,10 @@ function App() {
           <Route path="/plan" element={<PlanScreen />} />
           <Route path="/priorities" element={<PrioritiesScreen />} />
           <Route path="/history" element={<HistoryScreen />} />
+          <Route
+            path="/history/exercise/:exercise_id"
+            element={<ExerciseHistoryScreen />}
+          />
 
           <Route
             path="/workout/:completed_session_id"
