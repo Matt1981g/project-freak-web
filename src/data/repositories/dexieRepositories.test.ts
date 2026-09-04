@@ -330,6 +330,69 @@ describe('Dexie repositories', () => {
     expect(await db.completed_sessions.count()).toBe(2)
   })
 
+  it('stores an explicit reason on an audited set correction', async () => {
+    const set: TrainingSet = {
+      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: DEVICE_ID,
+      source_kind: 'historical_import',
+      source_id: 'batch-1',
+      completed_session_id: 'session-1',
+      session_exercise_id: 'session-exercise-1',
+      exercise_id: 'exercise-1',
+      exercise_order_snapshot: 1,
+      set_number: 1,
+      set_role: 'work',
+      structure_type: 'straight',
+      load_kg: 40,
+      load_type: 'normal',
+      rep_mode: 'total',
+      reps_as_recorded: '10',
+      primary_reps_completed: 10,
+      left_reps_completed: null,
+      right_reps_completed: null,
+      completed_reps: 10,
+      partial_reps: null,
+      duration_seconds: null,
+      failure_status: 'none',
+      left_failure_status: null,
+      right_failure_status: null,
+      actual_rest_seconds: null,
+      set_load_kg_reps: 400,
+      set_load_method: 'kg_reps_full_reps_only_v1',
+      notes: null,
+      completed_at: NOW,
+      source_record_key: 'source:set:1',
+    }
+
+    await repositories.sessions.put_set(set)
+
+    const corrected: TrainingSet = {
+      ...set,
+      load_kg: 42.5,
+      set_load_kg_reps: 425,
+      revision: 2,
+      updated_at: '2026-09-04T15:30:00.000Z',
+    }
+    await repositories.sessions.put_set(corrected, 'Entered wrong load')
+
+    const audit = await db.audit_events
+      .where('[entity_type+entity_id]')
+      .equals(['set', set.id])
+      .toArray()
+
+    expect(audit).toHaveLength(2)
+    expect(audit.find((event) => event.action === 'update')?.reason).toBe(
+      'Entered wrong load',
+    )
+    expect((await db.sets.get(set.id))?.source_record_key).toBe(
+      'source:set:1',
+    )
+  })
+
   it('lists completed sessions newest first', async () => {
     const newer = session_fixture()
     const older: CompletedSession = {
