@@ -12,6 +12,7 @@ import type {
   ProgrammedSessionSet,
   ProgrammedSetComponent,
   SessionExercise,
+  Setting,
   SetComponent,
   TemplateExercise,
   TemplateSet,
@@ -28,6 +29,7 @@ import type {
   ProgrammedSessionDetail,
   RepositoryBundle,
   SessionRepository,
+  SettingsRepository,
 } from './contracts'
 import {
   create_audit_event,
@@ -115,6 +117,23 @@ export class DexieDeviceRepository implements DeviceRepository {
     }
     await this.db.devices.add(device)
     return device
+  }
+}
+
+export class DexieSettingsRepository implements SettingsRepository {
+  private readonly db: ProjectFreakDatabase
+
+  constructor(db: ProjectFreakDatabase) {
+    this.db = db
+  }
+
+  get(key: string): Promise<Setting | undefined> {
+    return this.db.settings.get(key)
+  }
+
+  async put(setting: Setting): Promise<string> {
+    await this.db.settings.put(setting)
+    return setting.key
   }
 }
 
@@ -661,6 +680,7 @@ export function create_repositories(
 ): RepositoryBundle {
   return {
     devices: new DexieDeviceRepository(db),
+    settings: new DexieSettingsRepository(db),
     exercises: new DexieExerciseRepository(db),
     programme: new DexieProgrammeRepository(db),
     sessions: new DexieSessionRepository(db),
