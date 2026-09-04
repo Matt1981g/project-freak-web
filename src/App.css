@@ -117,7 +117,7 @@
     bottom: 12px;
     z-index: 30;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 8px;
     padding: 8px;
     border: 1px solid var(--pf-border);
@@ -129,6 +129,8 @@
   .app-nav-link {
     justify-content: center;
     min-height: 44px;
+    padding-inline: 6px;
+    font-size: 10px;
   }
 
   .phase-chip {
