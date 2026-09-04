@@ -1,5 +1,18 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import {
+  SupabaseSyncProvider,
+  clear_supabase_config,
+  load_supabase_config,
+  load_supabase_session,
+  run_pull_sync,
+  run_push_sync,
+  save_supabase_config,
+  supabase_sign_in,
+  supabase_sign_out,
+  supabase_sign_up,
+  type SupabaseSyncConfig,
+} from '../data/sync'
+import {
   build_full_backup,
   preview_backup_json,
   restore_validated_backup,
@@ -72,6 +85,162 @@ async function current_device_id(): Promise<string> {
   return device.id
 }
 
+
+
+export interface CloudSyncStatus {
+  configured: boolean
+  signed_in: boolean
+  email: string | null
+  user_id: string | null
+  pending_mutations: number
+  sync_state: Awaited<ReturnType<typeof repositories.sync.get_state>> | null
+  project_url: string | null
+}
+
+export interface FullCloudSyncResult {
+  pushed: number
+  acknowledged: number
+  pulled: number
+  applied: number
+  skipped: number
+  pending_after: number
+  error: string | null
+}
+
+export async function load_cloud_sync_status(): Promise<CloudSyncStatus> {
+  const config = load_supabase_config()
+  const session = load_supabase_session()
+  const [pending_mutations, sync_state] = await Promise.all([
+    repositories.sync.count_pending(),
+    repositories.sync.get_state('supabase'),
+  ])
+
+  return {
+    configured: config !== null,
+    signed_in: session !== null,
+    email: session?.email ?? null,
+    user_id: session?.user_id ?? null,
+    pending_mutations,
+    sync_state: sync_state ?? null,
+    project_url: config?.project_url ?? null,
+  }
+}
+
+export function configure_cloud_sync(
+  project_url: string,
+  anon_key: string,
+): SupabaseSyncConfig {
+  return save_supabase_config({ project_url, anon_key })
+}
+
+export function clear_cloud_sync_configuration(): void {
+  clear_supabase_config()
+}
+
+export function sign_up_cloud_sync(email: string, password: string) {
+  const config = load_supabase_config()
+  if (!config) throw new Error('Configure Supabase before creating an account.')
+  return supabase_sign_up(config, email, password)
+}
+
+export function sign_in_cloud_sync(email: string, password: string) {
+  const config = load_supabase_config()
+  if (!config) throw new Error('Configure Supabase before signing in.')
+  return supabase_sign_in(config, email, password)
+}
+
+export async function sign_out_cloud_sync() {
+  const config = load_supabase_config()
+  if (!config) return
+  await supabase_sign_out(config)
+}
+
+export async function run_full_cloud_sync(): Promise<FullCloudSyncResult> {
+  const config = load_supabase_config()
+  if (!config) throw new Error('Configure Supabase before syncing.')
+  if (!load_supabase_session()) throw new Error('Sign in before syncing.')
+
+  const provider = new SupabaseSyncProvider(config)
+  let pushed = 0
+  let acknowledged = 0
+  let pulled = 0
+  let applied = 0
+  let skipped = 0
+  let pending_after = await repositories.sync.count_pending()
+
+  for (let batch = 0; batch < 100 && pending_after > 0; batch += 1) {
+    const push = await run_push_sync(repositories.sync, provider, {
+      now_iso: new Date().toISOString(),
+      batch_size: 100,
+    })
+
+    pushed += push.attempted
+    acknowledged += push.acknowledged
+    pending_after = push.pending_after
+
+    if (push.status === 'error') {
+      return {
+        pushed,
+        acknowledged,
+        pulled,
+        applied,
+        skipped,
+        pending_after,
+        error: push.error,
+      }
+    }
+  }
+
+  if (pending_after > 0) {
+    return {
+      pushed,
+      acknowledged,
+      pulled,
+      applied,
+      skipped,
+      pending_after,
+      error: 'Sync stopped after 100 push batches. Local data remains pending.',
+    }
+  }
+
+  let previous_cursor: string | null = null
+
+  for (let batch = 0; batch < 100; batch += 1) {
+    const pull = await run_pull_sync(repositories.sync, provider, {
+      now_iso: new Date().toISOString(),
+      batch_size: 100,
+    })
+
+    pulled += pull.received
+    applied += pull.applied
+    skipped += pull.skipped
+
+    if (pull.status === 'error') {
+      return {
+        pushed,
+        acknowledged,
+        pulled,
+        applied,
+        skipped,
+        pending_after,
+        error: pull.error,
+      }
+    }
+
+    if (pull.received < 100 || pull.cursor === previous_cursor) break
+    previous_cursor = pull.cursor
+  }
+
+  return {
+    pushed,
+    acknowledged,
+    pulled,
+    applied,
+    skipped,
+    pending_after: await repositories.sync.count_pending(),
+    error: null,
+  }
+}
 
 export interface StorageDiagnostics {
   origin: string
