@@ -1,6 +1,10 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { load_workout_history } from '../application/history/workoutHistory'
-import { build_last_7_days_training_export } from '../application/coach/trainingExport'
+import {
+  build_last_7_days_training_export,
+  build_training_export,
+  type TrainingExportScopeRequest,
+} from '../application/coach/trainingExport'
 import {
   load_coach_excluded_sessions,
   set_session_coach_excluded,
@@ -138,6 +142,15 @@ export function set_coach_session_excluded(
   return set_session_coach_excluded(session_id, excluded, repositories.settings, {
     now_iso: new Date().toISOString(),
   })
+}
+
+export function build_coach_export(scope: TrainingExportScopeRequest) {
+  return build_training_export(repositories, {
+    now_iso: new Date().toISOString(),
+    to_date_local: current_local_date(),
+    app_version: null,
+    db_schema_version: Number(projectFreakDb.verno) || null,
+  }, scope)
 }
 
 export function build_last_7_days_coach_export() {
