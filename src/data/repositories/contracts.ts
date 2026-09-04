@@ -1,11 +1,16 @@
 import type {
   CompletedSession,
+  Device,
   Exercise,
   ExerciseMetrics,
   SessionExercise,
   SetComponent,
   TrainingSet,
 } from '../../domain/models'
+
+export interface DeviceRepository {
+  ensure_local(platform: string): Promise<Device>
+}
 
 export interface ExerciseRepository {
   get_by_id(id: string): Promise<Exercise | undefined>
@@ -25,6 +30,7 @@ export interface SessionRepository {
 }
 
 export interface RepositoryBundle {
+  devices: DeviceRepository
   exercises: ExerciseRepository
   sessions: SessionRepository
 }
