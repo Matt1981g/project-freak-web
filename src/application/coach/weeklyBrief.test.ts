@@ -15,6 +15,33 @@ const payload: TrainingExport = {
     exercise_ids: [],
     programme_block_id: null,
   },
+  coach_instructions: {
+    instruction_version: '1.0.0',
+    purpose: 'Build the next week.',
+    user_command: 'Build next week.',
+    programming_hierarchy: ['Form', 'Target-muscle stimulus', 'Reps', 'Load'],
+    review_requirements: [],
+    rules: [],
+    next_block: {
+      length_days: 7,
+      calendar_span: 'monday_to_sunday',
+      schedule: {
+        monday: 'train',
+        tuesday: 'train',
+        wednesday: 'recovery',
+        thursday: 'train',
+        friday: 'train',
+        saturday: 'long_training_session',
+        sunday: 'recovery',
+      },
+    },
+    required_output: [],
+    programme_output: {
+      format: 'project-freak-programme',
+      schema_version: '1.0.0',
+      delivery: 'downloadable_json_file',
+    },
+  },
   coach_context: {
     training_priorities: {
       schema_version: '1.0.0',
