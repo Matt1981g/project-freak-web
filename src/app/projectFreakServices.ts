@@ -14,6 +14,7 @@ import {
   save_exercise_scores,
 } from '../application/workout/exerciseCompletion'
 import { save_training_set } from '../application/workout/logSet'
+import { save_session_readiness } from '../application/workout/readiness'
 import { start_programmed_workout } from '../application/workout/startWorkout'
 import {
   commit_programme_import,
@@ -194,6 +195,8 @@ export async function load_live_workout(completed_session_id: string) {
 
   return {
     session,
+    readiness:
+      await repositories.readiness.get_by_session_id(completed_session_id),
     summary: build_workout_summary(session, actual_exercises, all_sets),
     exercises: await Promise.all(
       actual_exercises.map(async (exercise) => ({
@@ -212,6 +215,18 @@ export async function load_live_workout(completed_session_id: string) {
       })),
     ),
   }
+}
+
+export async function save_live_readiness(
+  input: Omit<
+    Parameters<typeof save_session_readiness>[0],
+    'completed_session_id'
+  > & { completed_session_id: string },
+) {
+  return save_session_readiness(input, repositories.readiness, {
+    device_id: await current_device_id(),
+    now_iso: new Date().toISOString(),
+  })
 }
 
 export async function save_live_training_set(input: {
