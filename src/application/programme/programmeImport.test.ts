@@ -52,6 +52,7 @@ function programme_repository(
     list_blocks: async () => [],
     list_templates_for_block: async () => [],
     list_programmed_sessions_for_block: async () => [],
+    get_programmed_session_detail: async () => undefined,
     get_latest_template_version: async () => latest_version,
     commit_import: async () => 'committed',
   }
