@@ -4,6 +4,7 @@ import type { ExerciseMetrics, TrainingSet } from '../../domain/models'
 import {
   complete_live_session_exercise,
   complete_live_workout,
+  correct_history_training_set,
   load_live_workout,
   save_live_exercise_scores,
   save_live_readiness,
@@ -23,6 +24,7 @@ import {
   is_rotation_exercise_lagging,
   recommended_rotation_exercise_id,
 } from '../../application/workout/pairedRotation'
+import { can_safely_correct_set } from '../../application/history/correctCompletedSet'
 import styles from './WorkoutScreen.module.css'
 
 type LiveWorkout = NonNullable<
@@ -556,14 +558,170 @@ function RecoveryPanel(props: {
   )
 }
 
+function CompletedSetCorrection(props: {
+  set: TrainingSet
+  on_saved: (set: TrainingSet) => Promise<void>
+}) {
+  const { set, on_saved } = props
+  const [open, setOpen] = useState(false)
+  const [load, setLoad] = useState<number | null>(set.load_kg)
+  const [reps, setReps] = useState<number>(set.completed_reps ?? 0)
+  const [failed, setFailed] = useState(
+    set.failure_status === 'attempted_next_rep_failed',
+  )
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!can_safely_correct_set(set)) {
+    return null
+  }
+
+  function cancel() {
+    setLoad(set.load_kg)
+    setReps(set.completed_reps ?? 0)
+    setFailed(set.failure_status === 'attempted_next_rep_failed')
+    setReason('')
+    setError(null)
+    setOpen(false)
+  }
+
+  async function save_correction() {
+    if (saving) return
+
+    const confirmed = window.confirm(
+      'Correct this completed set? The original provenance remains linked and the change will be recorded in the audit trail.',
+    )
+    if (!confirmed) return
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const corrected = await correct_history_training_set({
+        set,
+        load_kg: load,
+        completed_reps: reps,
+        failed_next_rep: failed,
+        reason,
+      })
+      await on_saved(corrected)
+      setReason('')
+      setOpen(false)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Unable to correct set.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={styles.correctionArea}>
+      {!open ? (
+        <button
+          type="button"
+          className={styles.correctionToggle}
+          onClick={() => setOpen(true)}
+        >
+          CORRECT SET
+        </button>
+      ) : (
+        <div className={styles.correctionPanel}>
+          <div className={styles.correctionHeader}>
+            <div>
+              <span>SAFE CORRECTION</span>
+              <strong>Fix a genuine logging error</strong>
+            </div>
+            <small>ORIGINAL PROVENANCE PRESERVED</small>
+          </div>
+
+          <div className={styles.correctionGrid}>
+            <label>
+              <span>LOAD KG</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.5"
+                value={load ?? ''}
+                onChange={(event) =>
+                  setLoad(numeric_value(event.target.value))
+                }
+              />
+            </label>
+            <label>
+              <span>REPS</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="1"
+                value={reps}
+                onChange={(event) =>
+                  setReps(Math.max(0, Math.trunc(Number(event.target.value) || 0)))
+                }
+              />
+            </label>
+            <button
+              type="button"
+              className={failed ? styles.failureOn : styles.failureOff}
+              onClick={() => setFailed((current) => !current)}
+            >
+              {failed ? 'FAIL ✓' : 'FAIL'}
+            </button>
+          </div>
+
+          <label className={styles.correctionReason}>
+            <span>REASON FOR CORRECTION</span>
+            <input
+              type="text"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="e.g. entered wrong load"
+            />
+          </label>
+
+          <div className={styles.correctionActions}>
+            <button type="button" onClick={cancel} disabled={saving}>
+              CANCEL
+            </button>
+            <button
+              type="button"
+              className={styles.correctionSave}
+              onClick={() => void save_correction()}
+              disabled={saving || reason.trim().length < 3}
+            >
+              {saving ? 'SAVING…' : 'SAVE CORRECTION'}
+            </button>
+          </div>
+
+          {error && <div className={styles.setError}>{error}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SetLoggerRow(props: {
   exercise: LiveExercise['exercise']
   set_number: number
   planned_set: PlannedSet | null
   actual_set: TrainingSet | null
+  allow_correction?: boolean
   on_complete: () => Promise<void>
+  on_corrected?: () => Promise<void>
 }) {
-  const { exercise, set_number, planned_set, actual_set, on_complete } = props
+  const {
+    exercise,
+    set_number,
+    planned_set,
+    actual_set,
+    allow_correction = false,
+    on_complete,
+    on_corrected,
+  } = props
   const [saved_set, setSavedSet] = useState<TrainingSet | null>(actual_set)
   const [load, setLoad] = useState<number | null>(
     actual_set?.load_kg ?? planned_set?.set.target_load_kg ?? null,
@@ -823,6 +981,25 @@ function SetLoggerRow(props: {
         <div className={styles.autosaveStatus}>AUTOSAVING…</div>
       )}
       {error && <div className={styles.setError}>{error}</div>}
+
+      {completed && allow_correction && saved_set && (
+        <CompletedSetCorrection
+          set={saved_set}
+          on_saved={async (corrected) => {
+            saved_set_ref.current = corrected
+            setSavedSet(corrected)
+            load_ref.current = corrected.load_kg
+            setLoad(corrected.load_kg)
+            reps_ref.current = corrected.completed_reps
+            setReps(corrected.completed_reps)
+            const corrected_failed =
+              corrected.failure_status === 'attempted_next_rep_failed'
+            failed_ref.current = corrected_failed
+            setFailed(corrected_failed)
+            await on_corrected?.()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1475,6 +1652,10 @@ export function WorkoutScreen() {
                           set_number={set_number}
                           planned_set={planned_set}
                           actual_set={actual_set}
+                          allow_correction={
+                            workout.session.status === 'completed'
+                          }
+                          on_corrected={refresh_workout}
                           on_complete={async () => {
                             const recommendation =
                               set_number < planned_count
