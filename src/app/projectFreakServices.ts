@@ -99,6 +99,14 @@ export function load_programme_sessions(programme_block_id: string) {
   )
 }
 
+export function load_programmed_session_detail(
+  programmed_session_id: string,
+) {
+  return repositories.programme.get_programmed_session_detail(
+    programmed_session_id,
+  )
+}
+
 export function preview_programme_json(json_text: string) {
   return preview_programme_import(json_text, repositories.exercises)
 }
