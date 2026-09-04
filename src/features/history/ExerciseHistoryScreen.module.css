@@ -1,0 +1,318 @@
+.screen {
+  width: min(980px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 30px 0 96px;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--pf-accent);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.heading h1 {
+  margin: 0;
+  color: var(--pf-text-strong);
+  font-size: clamp(32px, 6vw, 54px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.intro {
+  max-width: 700px;
+  margin: 10px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 13px;
+}
+
+.countCard {
+  min-width: 92px;
+  padding: 12px 14px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 14px;
+  background: var(--pf-accent-soft);
+  text-align: right;
+}
+
+.countCard strong,
+.countCard span {
+  display: block;
+}
+
+.countCard strong {
+  color: var(--pf-accent);
+  font-size: 25px;
+  line-height: 1;
+}
+
+.countCard span {
+  margin-top: 4px;
+  color: var(--pf-text-muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-panel);
+}
+
+.toolbar a,
+.sessionHeader a,
+.state a {
+  color: var(--pf-accent);
+  font-size: 10px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.toolbar span {
+  color: var(--pf-text-faint);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.historyList {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.sessionCard {
+  padding: 15px;
+  border: 1px solid var(--pf-border);
+  border-radius: 16px;
+  background: var(--pf-panel);
+}
+
+.sessionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.sessionHeader > div > span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.sessionHeader h2 {
+  margin: 4px 0 0;
+  color: var(--pf-text-strong);
+  font-size: 18px;
+}
+
+.sessionHeader a {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 9px;
+  background: var(--pf-accent-soft);
+}
+
+.sessionStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sessionStats div {
+  padding: 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  background: var(--pf-bg);
+}
+
+.sessionStats span,
+.sessionStats strong {
+  display: block;
+}
+
+.sessionStats span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.sessionStats strong {
+  margin-top: 4px;
+  color: var(--pf-text-strong);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.appearanceList {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.appearance {
+  padding: 11px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-panel-raised);
+}
+
+.appearanceHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.appearanceHeader > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.appearanceHeader > div:first-child span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.appearanceHeader strong {
+  color: var(--pf-text-strong);
+  font-size: 13px;
+}
+
+.scores {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.scores span {
+  padding: 4px 6px;
+  border: 1px solid var(--pf-border);
+  border-radius: 999px;
+  color: var(--pf-text-muted);
+  background: var(--pf-bg);
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.setTable {
+  display: grid;
+  gap: 4px;
+  margin-top: 9px;
+}
+
+.setTableHeader,
+.setRow {
+  display: grid;
+  grid-template-columns: 0.5fr 1fr 1fr 1fr;
+  gap: 6px;
+  align-items: center;
+}
+
+.setTableHeader {
+  padding: 0 8px;
+  color: var(--pf-text-faint);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.setRow {
+  min-height: 38px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--pf-bg);
+}
+
+.setRow strong,
+.setRow span {
+  color: var(--pf-text-strong);
+  font-size: 10px;
+}
+
+.empty,
+.state {
+  margin: 18px auto 0;
+  padding: 18px;
+  border: 1px solid var(--pf-border);
+  border-radius: 14px;
+  color: var(--pf-text-muted);
+  background: var(--pf-panel);
+}
+
+.state {
+  width: min(700px, calc(100% - 32px));
+  display: grid;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.state strong {
+  color: var(--pf-text-strong);
+}
+
+@media (max-width: 560px) {
+  .screen {
+    width: min(100% - 24px, 980px);
+    padding-top: 20px;
+  }
+
+  .heading {
+    gap: 12px;
+  }
+
+  .countCard {
+    min-width: 74px;
+  }
+
+  .toolbar,
+  .sessionHeader,
+  .appearanceHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sessionStats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sessionStats div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .scores {
+    justify-content: flex-start;
+  }
+
+  .setTableHeader,
+  .setRow {
+    grid-template-columns: 0.45fr 1fr 0.8fr 1fr;
+  }
+}
