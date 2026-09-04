@@ -180,6 +180,73 @@
   );
 }
 
+.auditClean,
+.auditWarning {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--pf-panel);
+}
+
+.auditClean {
+  border: 1px solid var(--pf-accent-border);
+}
+
+.auditWarning {
+  border: 1px solid var(--pf-warning-border);
+}
+
+.auditHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.auditHeader h2 {
+  margin: 0;
+  color: var(--pf-text-strong);
+  font-size: 21px;
+}
+
+.auditStats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.auditStats div {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--pf-panel-raised);
+}
+
+.auditStats strong,
+.auditStats span {
+  display: block;
+}
+
+.auditStats strong {
+  color: var(--pf-text-strong);
+  font-size: 22px;
+}
+
+.auditStats span {
+  margin-top: 2px;
+  color: var(--pf-text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.auditNote {
+  margin: 0;
+  color: var(--pf-text-muted);
+  font-size: 12px;
+}
+
 .mergeHeading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -676,6 +743,10 @@
 
   .mergeHeading {
     grid-template-columns: 1fr;
+  }
+
+  .auditStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .renameEditor {
