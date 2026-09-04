@@ -123,15 +123,35 @@
   gap: 8px;
 }
 
-.exerciseCard {
+.exerciseCard,
+.exerciseCardOpen {
+  overflow: hidden;
+  border: 1px solid var(--pf-border);
+  border-radius: 14px;
+  background: var(--pf-panel-raised);
+}
+
+.exerciseCardOpen {
+  border-color: var(--pf-accent-border);
+}
+
+.exerciseToggle {
+  width: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
   padding: 13px;
-  border: 1px solid var(--pf-border);
-  border-radius: 14px;
-  background: var(--pf-panel-raised);
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.exerciseCardOpen .exerciseToggle {
+  background: var(--pf-accent-soft);
+  border-bottom: 1px solid var(--pf-accent-border);
 }
 
 .exerciseNumber {
@@ -174,18 +194,182 @@
   font-size: 12px;
 }
 
-.exerciseBody small {
-  display: block;
-  margin-top: 5px;
-  color: var(--pf-text-faint);
-  font-size: 10px;
-}
-
 .exerciseStatus {
+  padding-top: 3px;
   color: var(--pf-accent);
   font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+
+.loggerPanel {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  background: #090b09;
+}
+
+.setRow,
+.setRowComplete {
+  padding: 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 13px;
+  background: var(--pf-panel);
+}
+
+.setRowComplete {
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent-soft);
+}
+
+.setHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 10px;
+}
+
+.setHeading strong,
+.setHeading span {
+  display: block;
+}
+
+.setHeading strong {
+  color: var(--pf-text-strong);
+  font-size: 12px;
+  letter-spacing: 0.07em;
+}
+
+.setHeading div > span {
+  margin-top: 2px;
+  color: var(--pf-text-faint);
+  font-size: 10px;
+}
+
+.doneBadge {
+  padding: 4px 7px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 999px;
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.loggerGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.fieldGroup label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--pf-text-faint);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  gap: 6px;
+}
+
+.stepper button,
+.stepper input {
+  min-height: 50px;
+  border: 1px solid var(--pf-border);
+  border-radius: 11px;
+  font: inherit;
+}
+
+.stepper button {
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font-size: 23px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.stepper input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+  color: var(--pf-text-strong);
+  background: var(--pf-bg);
+  font-size: 19px;
+  font-weight: 900;
+  text-align: center;
+  outline: none;
+}
+
+.stepper input:focus {
+  border-color: var(--pf-accent-border);
+  box-shadow: 0 0 0 3px var(--pf-accent-soft);
+}
+
+.stepper button:disabled,
+.stepper input:disabled {
+  opacity: 0.52;
+  cursor: default;
+}
+
+.setActions {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.35fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.failureOff,
+.failureOn,
+.completeSetButton {
+  min-height: 52px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.failureOff {
+  border: 1px solid var(--pf-border);
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+}
+
+.failureOn {
+  border: 1px solid var(--pf-danger-border);
+  color: var(--pf-danger);
+  background: var(--pf-danger-soft);
+}
+
+.completeSetButton {
+  border: 1px solid var(--pf-accent-border);
+  color: #071006;
+  background: var(--pf-accent);
+}
+
+.failureOff:disabled,
+.failureOn:disabled,
+.completeSetButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.setError {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--pf-danger-border);
+  border-radius: 9px;
+  color: var(--pf-danger);
+  background: var(--pf-danger-soft);
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .state {
@@ -216,11 +400,23 @@
     grid-template-columns: 1fr;
   }
 
-  .exerciseCard {
+  .exerciseToggle {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
   .exerciseStatus {
     grid-column: 2;
+  }
+
+  .loggerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stepper {
+    grid-template-columns: 56px minmax(0, 1fr) 56px;
+  }
+
+  .setActions {
+    grid-template-columns: 0.4fr 1fr;
   }
 }
