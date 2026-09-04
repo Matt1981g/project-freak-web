@@ -49,6 +49,7 @@ function repository_fixture() {
     list_sessions_descending: async () => [],
     list_session_exercises: async () => [],
     list_sets_for_session_exercise: async () => [],
+    get_exercise_metrics: async () => undefined,
     create_session_graph: async (session) => ({
       session_id: session.id,
       created: true,
