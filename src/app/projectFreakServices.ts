@@ -23,6 +23,7 @@ import {
 } from '../application/workout/readiness'
 import { start_programmed_workout } from '../application/workout/startWorkout'
 import { select_previous_comparable } from '../application/workout/previousComparable'
+import { build_progression_suggestion } from '../application/workout/progressionSuggestion'
 import {
   commit_programme_import,
   preview_programme_import,
@@ -229,22 +230,43 @@ export async function load_live_workout(completed_session_id: string) {
           ),
         ])
 
+        const planned_sets =
+          exercise.programmed_session_exercise_id === null
+            ? []
+            : planned_by_id.get(exercise.programmed_session_exercise_id)?.sets ??
+              []
+        const previous_comparable = history
+          ? select_previous_comparable(
+              history,
+              session.id,
+              session.session_date_local,
+            )
+          : null
+        const progression_targets =
+          planned_sets.length > 0
+            ? planned_sets.map((detail) => ({
+                set_number: detail.set.set_number,
+                target_rep_min:
+                  detail.set.target_rep_min ?? exercise.target_rep_min,
+                target_rep_max:
+                  detail.set.target_rep_max ?? exercise.target_rep_max,
+              }))
+            : (previous_comparable?.sets ?? []).map((set) => ({
+                set_number: set.set_number,
+                target_rep_min: exercise.target_rep_min,
+                target_rep_max: exercise.target_rep_max,
+              }))
+
         return {
           exercise,
           sets,
           metrics,
-          previous_comparable: history
-            ? select_previous_comparable(
-                history,
-                session.id,
-                session.session_date_local,
-              )
-            : null,
-          planned_sets:
-            exercise.programmed_session_exercise_id === null
-              ? []
-              : planned_by_id.get(exercise.programmed_session_exercise_id)?.sets ??
-                [],
+          previous_comparable,
+          progression_suggestion: build_progression_suggestion(
+            previous_comparable,
+            progression_targets,
+          ),
+          planned_sets,
         }
       }),
     ),
