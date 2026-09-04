@@ -7,7 +7,6 @@ export interface CorrectCompletedSetInput {
   load_kg: number | null
   completed_reps: number
   failed_next_rep: boolean
-  reason: string
 }
 
 export interface CorrectCompletedSetContext {
@@ -59,11 +58,6 @@ export async function correct_completed_set(
   validate_non_negative(input.load_kg, 'Load')
   validate_non_negative(input.completed_reps, 'Reps', true)
 
-  const reason = input.reason.trim()
-  if (reason.length < 3) {
-    throw new Error('Enter a brief reason for the correction.')
-  }
-
   const failure_status = input.failed_next_rep
     ? 'attempted_next_rep_failed'
     : 'none'
@@ -89,6 +83,6 @@ export async function correct_completed_set(
     set_load_method: tonnage.method,
   }
 
-  await repository.put_set(corrected, reason)
+  await repository.put_set(corrected, 'User corrected completed set')
   return corrected
 }
