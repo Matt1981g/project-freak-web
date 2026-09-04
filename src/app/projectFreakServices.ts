@@ -1,5 +1,9 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
+import {
+  complete_live_exercise,
+  save_exercise_scores,
+} from '../application/workout/exerciseCompletion'
 import { save_training_set } from '../application/workout/logSet'
 import { start_programmed_workout } from '../application/workout/startWorkout'
 import {
@@ -172,6 +176,8 @@ export async function load_live_workout(completed_session_id: string) {
           await repositories.sessions.list_sets_for_session_exercise(
             exercise.id,
           ),
+        metrics:
+          await repositories.sessions.get_exercise_metrics(exercise.id),
         planned_sets:
           exercise.programmed_session_exercise_id === null
             ? []
@@ -193,6 +199,30 @@ export async function save_live_training_set(input: {
   complete: boolean
 }) {
   return save_training_set(input, repositories.sessions, {
+    device_id: await current_device_id(),
+    now_iso: new Date().toISOString(),
+  })
+}
+
+export async function save_live_exercise_scores(
+  session_exercise_id: string,
+  scores: Parameters<typeof save_exercise_scores>[1],
+) {
+  return save_exercise_scores(
+    session_exercise_id,
+    scores,
+    repositories.sessions,
+    {
+      device_id: await current_device_id(),
+      now_iso: new Date().toISOString(),
+    },
+  )
+}
+
+export async function complete_live_session_exercise(
+  exercise: Parameters<typeof complete_live_exercise>[0],
+) {
+  return complete_live_exercise(exercise, repositories.sessions, {
     device_id: await current_device_id(),
     now_iso: new Date().toISOString(),
   })
