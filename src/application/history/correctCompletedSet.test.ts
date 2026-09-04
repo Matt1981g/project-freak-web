@@ -99,7 +99,6 @@ describe('correct_completed_set', () => {
         load_kg: 42.5,
         completed_reps: 11,
         failed_next_rep: true,
-        reason: 'Entered wrong load',
       },
       fixture.repository,
       {
@@ -125,7 +124,7 @@ describe('correct_completed_set', () => {
       device_id: 'device-2',
       notes: 'Original note',
     })
-    expect(fixture.reason()).toBe('Entered wrong load')
+    expect(fixture.reason()).toBe('User corrected completed set')
   })
 
   it('allows failure to be removed and recalculates comparable volume', async () => {
@@ -140,7 +139,6 @@ describe('correct_completed_set', () => {
         load_kg: 40,
         completed_reps: 12,
         failed_next_rep: false,
-        reason: 'Rep count typo',
       },
       fixture.repository,
       {
@@ -166,7 +164,6 @@ describe('correct_completed_set', () => {
           load_kg: 40,
           completed_reps: 10,
           failed_next_rep: false,
-          reason: 'Correction',
         },
         fixture.repository,
         {
@@ -177,24 +174,4 @@ describe('correct_completed_set', () => {
     ).rejects.toThrow('advanced structure or rep mode')
   })
 
-  it('requires a correction reason', async () => {
-    const fixture = repository_fixture()
-
-    await expect(
-      correct_completed_set(
-        {
-          set: set_fixture(),
-          load_kg: 40,
-          completed_reps: 10,
-          failed_next_rep: false,
-          reason: ' ',
-        },
-        fixture.repository,
-        {
-          device_id: 'device-1',
-          now_iso: NOW,
-        },
-      ),
-    ).rejects.toThrow('brief reason')
-  })
 })
