@@ -80,7 +80,17 @@ export interface ProgrammeRepository {
 
 export interface SessionRepository {
   get_session(id: string): Promise<CompletedSession | undefined>
+  get_by_programmed_session_id(
+    programmed_session_id: string,
+  ): Promise<CompletedSession | undefined>
   list_sessions_descending(): Promise<CompletedSession[]>
+  list_session_exercises(
+    completed_session_id: string,
+  ): Promise<SessionExercise[]>
+  create_session_graph(
+    session: CompletedSession,
+    exercises: SessionExercise[],
+  ): Promise<{ session_id: string; created: boolean }>
   put_session(session: CompletedSession): Promise<string>
   put_session_exercise(session_exercise: SessionExercise): Promise<string>
   put_set(set: TrainingSet): Promise<string>
