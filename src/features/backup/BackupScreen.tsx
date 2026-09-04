@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   build_database_backup,
   preview_database_backup,
+  restore_database_backup,
 } from '../../app/projectFreakServices'
 import type {
   BackupPreview,
@@ -36,6 +37,7 @@ export function BackupScreen() {
   const [preview, setPreview] = useState<BackupPreview | null>(null)
   const [building, setBuilding] = useState(false)
   const [previewing, setPreviewing] = useState(false)
+  const [restoring, setRestoring] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,22 +66,69 @@ export function BackupScreen() {
     }
   }
 
-  function download_backup() {
-    if (!backup || !backupJson) return
-
-    const blob = new Blob([backupJson], {
+  function download_backup_payload(
+    value: ProjectFreakBackup,
+    filename = backup_filename(value),
+  ) {
+    const blob = new Blob([JSON.stringify(value, null, 2)], {
       type: 'application/json;charset=utf-8',
     })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = backup_filename(backup)
+    anchor.download = filename
     document.body.appendChild(anchor)
     anchor.click()
     anchor.remove()
     URL.revokeObjectURL(url)
+  }
+
+  function download_backup() {
+    if (!backup || !backupJson) return
+
+    download_backup_payload(backup)
     setStatus('Backup downloaded.')
     setError(null)
+  }
+
+  async function restore_backup() {
+    if (!preview || restoring) return
+
+    const confirmed = window.confirm(
+      'Restore this backup? The current database will be replaced. A safety backup will be downloaded first.',
+    )
+    if (!confirmed) return
+
+    setRestoring(true)
+    setError(null)
+    setStatus('Building safety backup before restore…')
+
+    try {
+      const safety = await build_database_backup()
+      download_backup_payload(
+        safety,
+        backup_filename(safety).replace(
+          'PROJECT_FREAK_Backup_',
+          'PROJECT_FREAK_SAFETY_BEFORE_RESTORE_',
+        ),
+      )
+
+      setStatus('Safety backup downloaded. Restoring database…')
+      const result = await restore_database_backup(preview)
+      setBackup(result.safety_backup)
+      setStatus(
+        `RESTORE COMPLETE ✓ ${result.total_records.toLocaleString()} records restored and verified. Reload the app before continuing.`,
+      )
+      setError(null)
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Database restore failed.',
+      )
+    } finally {
+      setRestoring(false)
+    }
   }
 
   async function preview_restore(file: File) {
@@ -111,8 +160,8 @@ export function BackupScreen() {
           <h1>Backup & Restore</h1>
           <p>
             Export every local PROJECT FREAK table with SHA-256 checksums.
-            Restore is preview-only in this slice, so validation cannot overwrite
-            your training database.
+            Restore validates first, downloads a safety backup, then replaces the
+            database transactionally and verifies the restored data.
           </p>
         </div>
         <span>PHASE 12</span>
@@ -179,7 +228,7 @@ export function BackupScreen() {
             <span>RESTORE PREVIEW</span>
             <h2>Validate before touching anything</h2>
           </div>
-          <strong>NO WRITES</strong>
+          <strong>VALIDATE FIRST</strong>
         </div>
 
         <p>
@@ -206,7 +255,7 @@ export function BackupScreen() {
           <>
             <div className={styles.validBanner}>
               <strong>VALID BACKUP ✓</strong>
-              <span>No records changed.</span>
+              <span>Ready for transactional restore.</span>
             </div>
 
             <div className={styles.summaryGrid}>
@@ -239,17 +288,27 @@ export function BackupScreen() {
                 ))}
               </div>
             </details>
+
+            <button
+              type="button"
+              className={styles.restoreButton}
+              disabled={restoring || previewing}
+              onClick={() => void restore_backup()}
+            >
+              {restoring ? 'RESTORING…' : 'RESTORE BACKUP'}
+            </button>
           </>
         )}
       </section>
 
       <section className={styles.warning}>
-        <span>RESTORE STATUS</span>
-        <strong>Preview only. Destructive restore is not enabled yet.</strong>
+        <span>RESTORE SAFETY</span>
+        <strong>Safety backup → atomic replace → checksum verification.</strong>
         <p>
-          The next slice adds transactional restore with an automatic safety
-          backup first. Because replacing a database without a parachute would
-          be impressively stupid.
+          If a write fails, the transaction rolls back. If verification fails
+          after the transaction, PROJECT FREAK automatically restores and verifies
+          the pre-restore safety copy. Reload the app after a successful restore
+          so every screen reads the restored state.
         </p>
       </section>
 
