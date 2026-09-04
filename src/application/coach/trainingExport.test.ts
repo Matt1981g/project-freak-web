@@ -302,7 +302,7 @@ function repositories(): RepositoryBundle {
                   target_duration_seconds: null,
                   target_load_kg: 45,
                   target_load_type: 'normal',
-                  failure_target: 'optional',
+                  failure_target: 'allowed',
                   notes: null,
                 },
                 components: [],
