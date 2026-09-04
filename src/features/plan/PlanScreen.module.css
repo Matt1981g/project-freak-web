@@ -662,11 +662,24 @@
   margin-top: 10px;
 }
 
+.storedSetLabels,
 .storedSetRow {
   display: grid;
   grid-template-columns: auto repeat(4, minmax(0, auto));
   gap: 8px;
   align-items: center;
+}
+
+.storedSetLabels {
+  padding: 0 9px 1px;
+  color: var(--pf-text-faint);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.storedSetRow {
   padding: 7px 9px;
   border-radius: 9px;
   background: var(--pf-bg);
@@ -757,6 +770,10 @@
     align-items: flex-start;
     flex-direction: column;
     padding-block: 10px;
+  }
+
+  .storedSetLabels {
+    display: none;
   }
 
   .storedSetRow {
