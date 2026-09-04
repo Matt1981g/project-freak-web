@@ -1,5 +1,6 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
+import { save_training_set } from '../application/workout/logSet'
 import { start_programmed_workout } from '../application/workout/startWorkout'
 import {
   commit_programme_import,
@@ -147,11 +148,54 @@ export async function load_live_workout(completed_session_id: string) {
     return undefined
   }
 
+  const actual_exercises =
+    await repositories.sessions.list_session_exercises(completed_session_id)
+  const programmed_detail = session.programmed_session_id
+    ? await repositories.programme.get_programmed_session_detail(
+        session.programmed_session_id,
+      )
+    : undefined
+
+  const planned_by_id = new Map(
+    programmed_detail?.exercises.map((detail) => [
+      detail.exercise.id,
+      detail,
+    ]) ?? [],
+  )
+
   return {
     session,
-    exercises:
-      await repositories.sessions.list_session_exercises(completed_session_id),
+    exercises: await Promise.all(
+      actual_exercises.map(async (exercise) => ({
+        exercise,
+        sets:
+          await repositories.sessions.list_sets_for_session_exercise(
+            exercise.id,
+          ),
+        planned_sets:
+          exercise.programmed_session_exercise_id === null
+            ? []
+            : planned_by_id.get(exercise.programmed_session_exercise_id)?.sets ??
+              [],
+      })),
+    ),
   }
+}
+
+export async function save_live_training_set(input: {
+  session_exercise: Parameters<typeof save_training_set>[0]['session_exercise']
+  programmed_set: Parameters<typeof save_training_set>[0]['programmed_set']
+  existing_set: Parameters<typeof save_training_set>[0]['existing_set']
+  set_number: number
+  load_kg: number | null
+  completed_reps: number | null
+  failed_next_rep: boolean
+  complete: boolean
+}) {
+  return save_training_set(input, repositories.sessions, {
+    device_id: await current_device_id(),
+    now_iso: new Date().toISOString(),
+  })
 }
 
 export function preview_programme_json(json_text: string) {
