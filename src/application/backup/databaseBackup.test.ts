@@ -7,6 +7,7 @@ import {
   build_full_backup,
   preview_backup_json,
   restore_validated_backup,
+  sha256_text,
 } from './databaseBackup'
 
 const TEST_DB_NAME = 'project-freak-backup-test'
@@ -32,6 +33,24 @@ describe('PROJECT FREAK database backup', () => {
   afterEach(async () => {
     db.close()
     await Dexie.delete(TEST_DB_NAME)
+  })
+
+  it('falls back to pure JavaScript SHA-256 when WebCrypto is unavailable', async () => {
+    const original_crypto = globalThis.crypto
+
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: {},
+    })
+
+    await expect(sha256_text('abc')).resolves.toBe(
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+    )
+
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: original_crypto,
+    })
   })
 
   it('exports every v1 table with a checksum', async () => {
