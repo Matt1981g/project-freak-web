@@ -1,4 +1,5 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
+import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
 import {
   commit_programme_import,
   preview_programme_import,
@@ -86,6 +87,10 @@ export async function consolidate_exercise_definitions(
 
 export function load_programme_blocks() {
   return repositories.programme.list_blocks()
+}
+
+export function export_programme_exercise_catalogue() {
+  return build_programme_exercise_catalogue_json(repositories.exercises)
 }
 
 export function load_programme_sessions(programme_block_id: string) {
