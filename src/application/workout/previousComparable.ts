@@ -25,6 +25,7 @@ export interface PreviousComparablePerformance {
 function is_comparable_set(set: TrainingSet): boolean {
   return (
     is_training_set_completed(set) &&
+    set.set_role === 'work' &&
     set.structure_type === 'straight' &&
     set.rep_mode === 'total' &&
     set.load_type === 'normal'
