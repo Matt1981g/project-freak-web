@@ -6,6 +6,7 @@ import {
   complete_live_workout,
   load_live_workout,
   save_live_exercise_scores,
+  save_live_readiness,
   save_live_training_set,
 } from '../../app/projectFreakServices'
 import {
@@ -133,6 +134,283 @@ function numeric_value(value: string): number | null {
   if (value.trim() === '') return null
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function ReadinessPanel(props: {
+  completed_session_id: string
+  readiness: LiveWorkout['readiness']
+}) {
+  const { completed_session_id, readiness } = props
+  const [form, setForm] = useState(() => ({
+    bodyweight_kg: readiness?.bodyweight_kg ?? null,
+    sleep_duration_minutes: readiness?.sleep_duration_minutes ?? null,
+    sleep_score: readiness?.sleep_score ?? null,
+    energy_pre: readiness?.energy_pre ?? null,
+    motivation_pre: readiness?.motivation_pre ?? null,
+    soreness_score: readiness?.soreness_score ?? null,
+    soreness_notes: readiness?.soreness_notes ?? '',
+    joint_issue_present: readiness?.joint_issue_present ?? null,
+    joint_issue_notes: readiness?.joint_issue_notes ?? '',
+    pre_workout_nutrition: readiness?.pre_workout_nutrition ?? '',
+    intra_workout_nutrition: readiness?.intra_workout_nutrition ?? '',
+    intra_hydration_ml: readiness?.intra_hydration_ml ?? null,
+    notes: readiness?.notes ?? '',
+  }))
+  const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(Boolean(readiness))
+  const [error, setError] = useState<string | null>(null)
+
+  function update<K extends keyof typeof form>(
+    key: K,
+    value: (typeof form)[K],
+  ) {
+    setForm((current) => ({ ...current, [key]: value }))
+    setDirty(true)
+    setSaved(false)
+  }
+
+  useEffect(() => {
+    if (!dirty) return
+
+    const timer = window.setTimeout(() => {
+      setSaving(true)
+      setError(null)
+
+      void save_live_readiness({
+        completed_session_id,
+        bodyweight_kg: form.bodyweight_kg,
+        sleep_duration_minutes: form.sleep_duration_minutes,
+        sleep_score: form.sleep_score,
+        energy_pre: form.energy_pre,
+        motivation_pre: form.motivation_pre,
+        soreness_score: form.soreness_score,
+        soreness_notes: form.soreness_notes || null,
+        joint_issue_present: form.joint_issue_present,
+        joint_issue_notes: form.joint_issue_notes || null,
+        pre_workout_nutrition: form.pre_workout_nutrition || null,
+        intra_workout_nutrition: form.intra_workout_nutrition || null,
+        intra_hydration_ml: form.intra_hydration_ml,
+        notes: form.notes || null,
+      })
+        .then(() => {
+          setDirty(false)
+          setSaved(true)
+        })
+        .catch((cause) => {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : 'Unable to save readiness.',
+          )
+        })
+        .finally(() => setSaving(false))
+    }, 400)
+
+    return () => window.clearTimeout(timer)
+  }, [completed_session_id, dirty, form])
+
+  return (
+    <details className={styles.readinessPanel}>
+      <summary>
+        <div>
+          <span>SESSION CONTEXT</span>
+          <strong>Readiness</strong>
+        </div>
+        <small>
+          {saving ? 'AUTOSAVING…' : error ? 'SAVE ERROR' : saved ? 'SAVED ✓' : 'OPTIONAL'}
+        </small>
+      </summary>
+
+      <div className={styles.readinessGrid}>
+        <label>
+          <span>BODYWEIGHT KG</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            min="20"
+            max="400"
+            value={form.bodyweight_kg ?? ''}
+            onChange={(event) =>
+              update('bodyweight_kg', numeric_value(event.target.value))
+            }
+          />
+        </label>
+
+        <label>
+          <span>SLEEP MINUTES</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min="0"
+            max="1440"
+            value={form.sleep_duration_minutes ?? ''}
+            onChange={(event) =>
+              update(
+                'sleep_duration_minutes',
+                numeric_value(event.target.value),
+              )
+            }
+          />
+        </label>
+
+        <label>
+          <span>SLEEP SCORE /100</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            max="100"
+            value={form.sleep_score ?? ''}
+            onChange={(event) =>
+              update('sleep_score', numeric_value(event.target.value))
+            }
+          />
+        </label>
+
+        <label>
+          <span>ENERGY 1–10</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="10"
+            value={form.energy_pre ?? ''}
+            onChange={(event) =>
+              update('energy_pre', numeric_value(event.target.value))
+            }
+          />
+        </label>
+
+        <label>
+          <span>MOTIVATION 1–10</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="10"
+            value={form.motivation_pre ?? ''}
+            onChange={(event) =>
+              update('motivation_pre', numeric_value(event.target.value))
+            }
+          />
+        </label>
+
+        <label>
+          <span>SORENESS 1–10</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="10"
+            value={form.soreness_score ?? ''}
+            onChange={(event) =>
+              update('soreness_score', numeric_value(event.target.value))
+            }
+          />
+        </label>
+
+        <label>
+          <span>JOINT ISSUE?</span>
+          <select
+            value={
+              form.joint_issue_present === null
+                ? ''
+                : form.joint_issue_present
+                  ? 'yes'
+                  : 'no'
+            }
+            onChange={(event) =>
+              update(
+                'joint_issue_present',
+                event.target.value === ''
+                  ? null
+                  : event.target.value === 'yes',
+              )
+            }
+          >
+            <option value="">Not recorded</option>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </label>
+
+        <label>
+          <span>HYDRATION ML</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            step="50"
+            min="0"
+            max="10000"
+            value={form.intra_hydration_ml ?? ''}
+            onChange={(event) =>
+              update(
+                'intra_hydration_ml',
+                numeric_value(event.target.value),
+              )
+            }
+          />
+        </label>
+      </div>
+
+      <div className={styles.readinessNotes}>
+        <label>
+          <span>SORENESS NOTES</span>
+          <input
+            type="text"
+            value={form.soreness_notes}
+            onChange={(event) => update('soreness_notes', event.target.value)}
+            placeholder="Optional"
+          />
+        </label>
+        <label>
+          <span>JOINT NOTES</span>
+          <input
+            type="text"
+            value={form.joint_issue_notes}
+            onChange={(event) => update('joint_issue_notes', event.target.value)}
+            placeholder="Optional"
+          />
+        </label>
+        <label>
+          <span>PRE-WORKOUT NUTRITION</span>
+          <input
+            type="text"
+            value={form.pre_workout_nutrition}
+            onChange={(event) =>
+              update('pre_workout_nutrition', event.target.value)
+            }
+            placeholder="Optional"
+          />
+        </label>
+        <label>
+          <span>INTRA-WORKOUT</span>
+          <input
+            type="text"
+            value={form.intra_workout_nutrition}
+            onChange={(event) =>
+              update('intra_workout_nutrition', event.target.value)
+            }
+            placeholder="Optional"
+          />
+        </label>
+        <label className={styles.readinessNotesWide}>
+          <span>SESSION NOTES</span>
+          <input
+            type="text"
+            value={form.notes}
+            onChange={(event) => update('notes', event.target.value)}
+            placeholder="Optional"
+          />
+        </label>
+      </div>
+
+      {error && <div className={styles.setError}>{error}</div>}
+    </details>
+  )
 }
 
 function SetLoggerRow(props: {
@@ -908,6 +1186,11 @@ export function WorkoutScreen() {
           </strong>
         </div>
       </section>
+
+      <ReadinessPanel
+        completed_session_id={workout.session.id}
+        readiness={workout.readiness}
+      />
 
       {pairing_prompt && workout.session.status !== 'completed' && (
         <section className={styles.pairingPrompt}>
