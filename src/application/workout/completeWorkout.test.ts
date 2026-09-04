@@ -160,6 +160,47 @@ describe('complete workout', () => {
     })
   })
 
+  it('counts imported historical sets as completed without inventing completion timestamps', () => {
+    const historical_session: CompletedSession = {
+      ...session_fixture('completed'),
+      source_kind: 'historical_import',
+      source_id: 'batch-1',
+      programmed_session_id: null,
+      legacy_workout_id: 'W41',
+      session_name: 'W41',
+      completed_at: null,
+      started_at: null,
+      duration_seconds: null,
+    }
+    const historical_exercise: SessionExercise = {
+      ...exercise_fixture('a', false),
+      source_kind: 'historical_import',
+      source_id: 'batch-1',
+      completed_at: null,
+    }
+    const historical_set: TrainingSet = {
+      ...set_fixture('historical-set', 500),
+      source_kind: 'historical_import',
+      source_id: 'batch-1',
+      completed_at: null,
+      source_record_key: 'project-freak-historical:xlsx:v1:W41:1:1',
+    }
+
+    const summary = build_workout_summary(
+      historical_session,
+      [historical_exercise],
+      [historical_set],
+    )
+
+    expect(historical_set.completed_at).toBeNull()
+    expect(summary).toEqual({
+      total_volume_kg: 500,
+      completed_sets: 1,
+      exercise_count: 1,
+      duration_seconds: null,
+    })
+  })
+
   it('rejects workout completion while an exercise remains incomplete', async () => {
     const fixture = repository_fixture({
       exercises: [exercise_fixture('a'), exercise_fixture('b', false)],
