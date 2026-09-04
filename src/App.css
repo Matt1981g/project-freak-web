@@ -10,7 +10,7 @@
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
   min-height: 72px;
@@ -85,6 +85,42 @@
   border-color: var(--pf-accent-border);
 }
 
+.pwa-install-button,
+.pwa-install-check,
+.pwa-install-status {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+
+.pwa-install-button {
+  border: 1px solid var(--pf-accent-border);
+  color: #071006;
+  background: var(--pf-accent);
+  cursor: pointer;
+}
+
+.pwa-install-check {
+  border: 1px solid var(--pf-border);
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+  cursor: pointer;
+}
+
+.pwa-install-status {
+  border: 1px solid var(--pf-accent-border);
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+}
+
 .phase-chip {
   padding: 7px 10px;
   border: 1px solid var(--pf-accent-border);
@@ -107,7 +143,7 @@
   }
 
   .app-header {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
   }
 
   .app-nav {
@@ -131,6 +167,14 @@
     min-height: 44px;
     padding-inline: 6px;
     font-size: 9px;
+  }
+
+  .pwa-install-button,
+  .pwa-install-check,
+  .pwa-install-status {
+    min-height: 30px;
+    padding-inline: 8px;
+    font-size: 8px;
   }
 
   .phase-chip {
