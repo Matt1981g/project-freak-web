@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   SupabaseSyncProvider,
+  check_supabase_backend,
   validate_supabase_config,
 } from './supabaseProvider'
 
@@ -28,6 +29,54 @@ describe('Supabase sync provider', () => {
         anon_key: 'abcdefghijklmnopqrstuvwxyz',
       }),
     ).toThrow('HTTPS')
+  })
+
+  it('verifies the authenticated backend contract without mutating data', async () => {
+    const fetch_mock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          contract_version: '1.0.0',
+          authenticated_user_id: 'user-1',
+          entity_count: 12,
+          change_count: 14,
+        }),
+    })
+    vi.stubGlobal('fetch', fetch_mock)
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn().mockReturnValue(
+        JSON.stringify({
+          access_token: 'access',
+          refresh_token: 'refresh',
+          expires_at: Date.now() + 60_000,
+          user_id: 'user-1',
+          email: 'test@example.com',
+        }),
+      ),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+
+    await expect(
+      check_supabase_backend({
+        project_url: 'https://example.supabase.co',
+        anon_key: 'abcdefghijklmnopqrstuvwxyz',
+      }),
+    ).resolves.toEqual({
+      contract_version: '1.0.0',
+      authenticated_user_id: 'user-1',
+      entity_count: 12,
+      change_count: 14,
+    })
+
+    expect(fetch_mock).toHaveBeenCalledWith(
+      'https://example.supabase.co/rest/v1/rpc/project_freak_sync_health',
+      expect.objectContaining({
+        method: 'POST',
+        body: '{}',
+      }),
+    )
   })
 
   it('maps push mutations to the Supabase RPC contract', async () => {
