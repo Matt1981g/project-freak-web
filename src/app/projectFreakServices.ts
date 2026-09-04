@@ -1,5 +1,6 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { load_workout_history } from '../application/history/workoutHistory'
+import { load_exercise_history } from '../application/history/exerciseHistory'
 import { correct_completed_set } from '../application/history/correctCompletedSet'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
 import {
@@ -117,6 +118,14 @@ export function save_priority_settings(
     local_date: current_local_date(),
     now_iso: new Date().toISOString(),
   })
+}
+
+export function load_exercise_history_entries(exercise_id: string) {
+  return load_exercise_history(
+    exercise_id,
+    repositories.exercises,
+    repositories.sessions,
+  )
 }
 
 export function load_history_entries() {
