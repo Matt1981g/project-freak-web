@@ -4,9 +4,18 @@ import type {
   Exercise,
   ExerciseAlias,
   ExerciseMetrics,
+  ProgrammeBlock,
+  ProgrammedSession,
+  ProgrammedSessionExercise,
+  ProgrammedSessionSet,
+  ProgrammedSetComponent,
   SessionExercise,
   SetComponent,
+  TemplateExercise,
+  TemplateSet,
+  TemplateSetComponent,
   TrainingSet,
+  WorkoutTemplate,
 } from '../../domain/models'
 
 export interface DeviceRepository {
@@ -27,6 +36,30 @@ export interface ExerciseRepository {
   ): Promise<ExerciseAlias[]>
 }
 
+export interface ProgrammeImportEntities {
+  block: ProgrammeBlock
+  templates: WorkoutTemplate[]
+  template_exercises: TemplateExercise[]
+  template_sets: TemplateSet[]
+  template_set_components: TemplateSetComponent[]
+  programmed_sessions: ProgrammedSession[]
+  programmed_session_exercises: ProgrammedSessionExercise[]
+  programmed_session_sets: ProgrammedSessionSet[]
+  programmed_set_components: ProgrammedSetComponent[]
+}
+
+export interface ProgrammeRepository {
+  list_blocks(): Promise<ProgrammeBlock[]>
+  list_templates_for_block(programme_block_id: string): Promise<WorkoutTemplate[]>
+  list_programmed_sessions_for_block(
+    programme_block_id: string,
+  ): Promise<ProgrammedSession[]>
+  get_latest_template_version(template_family_id: string): Promise<number>
+  commit_import(
+    entities: ProgrammeImportEntities,
+  ): Promise<'committed' | 'duplicate_noop'>
+}
+
 export interface SessionRepository {
   get_session(id: string): Promise<CompletedSession | undefined>
   list_sessions_descending(): Promise<CompletedSession[]>
@@ -40,5 +73,6 @@ export interface SessionRepository {
 export interface RepositoryBundle {
   devices: DeviceRepository
   exercises: ExerciseRepository
+  programme: ProgrammeRepository
   sessions: SessionRepository
 }
