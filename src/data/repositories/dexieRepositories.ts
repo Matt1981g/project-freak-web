@@ -6,14 +6,25 @@ import type {
   ExerciseAlias,
   ExerciseMetrics,
   MutableEntity,
+  ProgrammeBlock,
+  ProgrammedSession,
+  ProgrammedSessionExercise,
+  ProgrammedSessionSet,
+  ProgrammedSetComponent,
   SessionExercise,
   SetComponent,
+  TemplateExercise,
+  TemplateSet,
+  TemplateSetComponent,
   TrainingSet,
+  WorkoutTemplate,
 } from '../../domain/models'
 import type { ProjectFreakDatabase } from '../db/projectFreakDb'
 import type {
   DeviceRepository,
   ExerciseRepository,
+  ProgrammeImportEntities,
+  ProgrammeRepository,
   RepositoryBundle,
   SessionRepository,
 } from './contracts'
@@ -25,6 +36,15 @@ import {
 type SyncableEntity =
   | Exercise
   | ExerciseAlias
+  | ProgrammeBlock
+  | WorkoutTemplate
+  | TemplateExercise
+  | TemplateSet
+  | TemplateSetComponent
+  | ProgrammedSession
+  | ProgrammedSessionExercise
+  | ProgrammedSessionSet
+  | ProgrammedSetComponent
   | CompletedSession
   | SessionExercise
   | TrainingSet
@@ -231,6 +251,172 @@ export class DexieExerciseRepository implements ExerciseRepository {
   }
 }
 
+export class DexieProgrammeRepository implements ProgrammeRepository {
+  private readonly db: ProjectFreakDatabase
+
+  constructor(db: ProjectFreakDatabase) {
+    this.db = db
+  }
+
+  async list_blocks(): Promise<ProgrammeBlock[]> {
+    const blocks = await this.db.programme_blocks.toArray()
+    return blocks
+      .filter((block) => block.deleted_at === null)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  }
+
+  async list_templates_for_block(
+    programme_block_id: string,
+  ): Promise<WorkoutTemplate[]> {
+    const templates = await this.db.workout_templates
+      .where('programme_block_id')
+      .equals(programme_block_id)
+      .toArray()
+
+    return templates
+      .filter((template) => template.deleted_at === null)
+      .sort((a, b) => {
+        const by_name = a.name.localeCompare(b.name)
+        if (by_name !== 0) return by_name
+        return b.version_number - a.version_number
+      })
+  }
+
+  async list_programmed_sessions_for_block(
+    programme_block_id: string,
+  ): Promise<ProgrammedSession[]> {
+    const sessions = await this.db.programmed_sessions
+      .where('programme_block_id')
+      .equals(programme_block_id)
+      .toArray()
+
+    return sessions
+      .filter((session) => session.deleted_at === null)
+      .sort((a, b) => {
+        const left = a.scheduled_date_local ?? '9999-12-31'
+        const right = b.scheduled_date_local ?? '9999-12-31'
+        return left.localeCompare(right)
+      })
+  }
+
+  async get_latest_template_version(
+    template_family_id: string,
+  ): Promise<number> {
+    const templates = await this.db.workout_templates
+      .where('template_family_id')
+      .equals(template_family_id)
+      .toArray()
+
+    return templates.reduce(
+      (latest, template) => Math.max(latest, template.version_number),
+      0,
+    )
+  }
+
+  async commit_import(
+    entities: ProgrammeImportEntities,
+  ): Promise<'committed' | 'duplicate_noop'> {
+    const duplicate = await this.db.programme_blocks
+      .filter(
+        (block) =>
+          block.deleted_at === null &&
+          block.source_kind === 'programme_import' &&
+          block.source_id === entities.block.source_id,
+      )
+      .first()
+
+    if (duplicate) {
+      return 'duplicate_noop'
+    }
+
+    const syncable: Array<[string, SyncableEntity]> = [
+      ['programme_block', entities.block],
+      ...entities.templates.map(
+        (entity) => ['workout_template', entity] as [string, SyncableEntity],
+      ),
+      ...entities.template_exercises.map(
+        (entity) => ['template_exercise', entity] as [string, SyncableEntity],
+      ),
+      ...entities.template_sets.map(
+        (entity) => ['template_set', entity] as [string, SyncableEntity],
+      ),
+      ...entities.template_set_components.map(
+        (entity) =>
+          ['template_set_component', entity] as [string, SyncableEntity],
+      ),
+      ...entities.programmed_sessions.map(
+        (entity) => ['programmed_session', entity] as [string, SyncableEntity],
+      ),
+      ...entities.programmed_session_exercises.map(
+        (entity) =>
+          ['programmed_session_exercise', entity] as [string, SyncableEntity],
+      ),
+      ...entities.programmed_session_sets.map(
+        (entity) =>
+          ['programmed_session_set', entity] as [string, SyncableEntity],
+      ),
+      ...entities.programmed_set_components.map(
+        (entity) =>
+          ['programmed_set_component', entity] as [string, SyncableEntity],
+      ),
+    ]
+
+    return this.db.transaction(
+      'rw',
+      this.db.programme_blocks,
+      this.db.workout_templates,
+      this.db.template_exercises,
+      this.db.template_sets,
+      this.db.template_set_components,
+      this.db.programmed_sessions,
+      this.db.programmed_session_exercises,
+      this.db.programmed_session_sets,
+      this.db.programmed_set_components,
+      this.db.audit_events,
+      this.db.sync_outbox,
+      async () => {
+        await this.db.programme_blocks.add(entities.block)
+        await this.db.workout_templates.bulkAdd(entities.templates)
+        await this.db.template_exercises.bulkAdd(entities.template_exercises)
+        await this.db.template_sets.bulkAdd(entities.template_sets)
+        if (entities.template_set_components.length > 0) {
+          await this.db.template_set_components.bulkAdd(
+            entities.template_set_components,
+          )
+        }
+
+        await this.db.programmed_sessions.bulkAdd(
+          entities.programmed_sessions,
+        )
+        await this.db.programmed_session_exercises.bulkAdd(
+          entities.programmed_session_exercises,
+        )
+        await this.db.programmed_session_sets.bulkAdd(
+          entities.programmed_session_sets,
+        )
+        if (entities.programmed_set_components.length > 0) {
+          await this.db.programmed_set_components.bulkAdd(
+            entities.programmed_set_components,
+          )
+        }
+
+        await this.db.audit_events.bulkAdd(
+          syncable.map(([entity_type, entity]) =>
+            create_audit_event(entity_type, entity, null, 'create'),
+          ),
+        )
+        await this.db.sync_outbox.bulkAdd(
+          syncable.map(([entity_type, entity]) =>
+            create_sync_outbox_entry(entity_type, entity),
+          ),
+        )
+
+        return 'committed'
+      },
+    )
+  }
+}
+
 export class DexieSessionRepository implements SessionRepository {
   private readonly db: ProjectFreakDatabase
 
@@ -306,6 +492,7 @@ export function create_repositories(
   return {
     devices: new DexieDeviceRepository(db),
     exercises: new DexieExerciseRepository(db),
+    programme: new DexieProgrammeRepository(db),
     sessions: new DexieSessionRepository(db),
   }
 }
