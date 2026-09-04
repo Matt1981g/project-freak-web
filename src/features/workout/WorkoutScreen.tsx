@@ -17,6 +17,7 @@ import {
   start_rest_timer,
   type RestTimerState,
 } from '../../application/workout/restTimer'
+import { recommended_rotation_exercise_id } from '../../application/workout/pairedRotation'
 import styles from './WorkoutScreen.module.css'
 
 type LiveWorkout = NonNullable<
@@ -29,6 +30,16 @@ type ScoreKey = 'rpe' | 'pump' | 'form'
 type ActiveRestTimer = RestTimerState & {
   exercise_id: string
   exercise_name: string
+}
+
+type PairingPrompt = {
+  source_exercise_id: string
+  source_name: string
+  target_exercise_id: string
+  target_name: string
+  target_label: string
+  target_next_set: number
+  catching_up: boolean
 }
 
 function rep_target(
@@ -673,6 +684,7 @@ export function WorkoutScreen() {
   const [open_exercise_id, setOpenExerciseId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [finishing, setFinishing] = useState(false)
+  const [pairing_prompt, setPairingPrompt] = useState<PairingPrompt | null>(null)
   const [rest_timer, setRestTimer] = useState<ActiveRestTimer | null>(() =>
     load_stored_rest_timer(completed_session_id),
   )
@@ -760,6 +772,75 @@ export function WorkoutScreen() {
     })
   }
 
+  function pairing_recommendation(
+    current_exercise_id: string,
+    increment_current_completed_sets: boolean,
+  ): PairingPrompt | null {
+    if (!workout) return null
+
+    const progress = workout.exercises.map((entry) => {
+      const completed_sets =
+        entry.sets.filter((set) => set.completed_at !== null).length +
+        (increment_current_completed_sets &&
+        entry.exercise.id === current_exercise_id
+          ? 1
+          : 0)
+      const target_sets =
+        entry.planned_sets.length ||
+        entry.exercise.target_sets ||
+        Math.max(entry.sets.length, 1)
+
+      return {
+        ...entry.exercise,
+        completed_sets,
+        target_sets,
+      }
+    })
+
+    const target_id = recommended_rotation_exercise_id(
+      progress,
+      current_exercise_id,
+    )
+    if (!target_id) return null
+
+    const source = workout.exercises.find(
+      (entry) => entry.exercise.id === current_exercise_id,
+    )
+    const target = workout.exercises.find(
+      (entry) => entry.exercise.id === target_id,
+    )
+    const target_progress = progress.find(
+      (entry) => entry.id === target_id,
+    )
+
+    if (!source || !target || !target_progress) return null
+
+    return {
+      source_exercise_id: source.exercise.id,
+      source_name: source.exercise.exercise_name_snapshot,
+      target_exercise_id: target.exercise.id,
+      target_name: target.exercise.exercise_name_snapshot,
+      target_label: exercise_label(target.exercise),
+      target_next_set: Math.min(
+        target_progress.completed_sets + 1,
+        target_progress.target_sets,
+      ),
+      catching_up: target.exercise.id === source.exercise.id,
+    }
+  }
+
+  function follow_pairing_recommendation(prompt: PairingPrompt) {
+    setOpenExerciseId(prompt.target_exercise_id)
+    setPairingPrompt(prompt)
+  }
+
+  function manual_open_exercise(exercise_id: string, is_open: boolean) {
+    setPairingPrompt(null)
+    setOpenExerciseId(is_open ? null : exercise_id)
+  }
+
+
+
   if (loading) {
     return <div className={styles.state}>Loading workout…</div>
   }
@@ -816,6 +897,54 @@ export function WorkoutScreen() {
         </div>
       </section>
 
+      {pairing_prompt && workout.session.status !== 'completed' && (
+        <section className={styles.pairingPrompt}>
+          <div className={styles.pairingPromptCopy}>
+            <span>
+              {pairing_prompt.catching_up ? 'PAIR CATCH-UP' : 'PAIRED NEXT'}
+            </span>
+            <strong>
+              {pairing_prompt.target_label} · {pairing_prompt.target_name}
+            </strong>
+            <small>Set {pairing_prompt.target_next_set} is recommended next</small>
+          </div>
+
+          <div className={styles.pairingPromptActions}>
+            <button
+              type="button"
+              className={styles.pairingGo}
+              onClick={() => {
+                setOpenExerciseId(pairing_prompt.target_exercise_id)
+                setPairingPrompt(null)
+              }}
+            >
+              {pairing_prompt.catching_up
+                ? `CONTINUE ${pairing_prompt.target_label}`
+                : `GO TO ${pairing_prompt.target_label}`}
+            </button>
+
+            {!pairing_prompt.catching_up && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenExerciseId(pairing_prompt.source_exercise_id)
+                  setPairingPrompt(null)
+                }}
+              >
+                MACHINE BUSY · STAY HERE
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPairingPrompt(null)}
+            >
+              I'LL CHOOSE
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className={styles.sequence}>
         <div className={styles.sequenceHeader}>
           <div>
@@ -853,9 +982,7 @@ export function WorkoutScreen() {
                 <button
                   type="button"
                   className={styles.exerciseToggle}
-                  onClick={() =>
-                    setOpenExerciseId(is_open ? null : exercise.id)
-                  }
+                  onClick={() => manual_open_exercise(exercise.id, is_open)}
                 >
                   <div className={styles.exerciseNumber}>
                     {exercise_label(exercise)}
@@ -906,10 +1033,20 @@ export function WorkoutScreen() {
                           planned_set={planned_set}
                           actual_set={actual_set}
                           on_complete={async () => {
+                            const recommendation =
+                              set_number < planned_count
+                                ? pairing_recommendation(exercise.id, true)
+                                : null
+
                             if (set_number < planned_count) {
                               begin_rest(exercise)
                             }
+
                             await refresh_workout()
+
+                            if (recommendation) {
+                              follow_pairing_recommendation(recommendation)
+                            }
                           }}
                         />
                       )
@@ -921,7 +1058,15 @@ export function WorkoutScreen() {
                       <ExerciseScoringPanel
                         exercise={exercise}
                         metrics={metrics}
-                        on_complete={refresh_workout}
+                        on_complete={async () => {
+                          const recommendation =
+                            pairing_recommendation(exercise.id, false)
+                          await refresh_workout()
+
+                          if (recommendation) {
+                            follow_pairing_recommendation(recommendation)
+                          }
+                        }}
                       />
                     ) : null}
                   </div>
