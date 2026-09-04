@@ -7,6 +7,7 @@ import { ExerciseHistoryScreen } from './features/history/ExerciseHistoryScreen'
 import { PlanScreen } from './features/plan/PlanScreen'
 import { PrioritiesScreen } from './features/priorities/PrioritiesScreen'
 import { PwaInstallControl } from './features/pwa/PwaInstallControl'
+import { SyncScreen } from './features/sync/SyncScreen'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
 import './App.css'
 
@@ -55,6 +56,14 @@ function App() {
             Coach
           </NavLink>
           <NavLink
+            to="/sync"
+            className={({ isActive }) =>
+              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
+            }
+          >
+            Sync
+          </NavLink>
+          <NavLink
             to="/backup"
             className={({ isActive }) =>
               isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
@@ -72,7 +81,7 @@ function App() {
           </NavLink>
         </nav>
         <PwaInstallControl />
-        <div className="phase-chip">PHASE 13</div>
+        <div className="phase-chip">PHASE 14</div>
       </header>
 
       <main>
@@ -82,6 +91,7 @@ function App() {
           <Route path="/priorities" element={<PrioritiesScreen />} />
           <Route path="/history" element={<HistoryScreen />} />
           <Route path="/coach" element={<CoachScreen />} />
+          <Route path="/sync" element={<SyncScreen />} />
           <Route path="/backup" element={<BackupScreen />} />
           <Route
             path="/history/exercise/:exercise_id"
