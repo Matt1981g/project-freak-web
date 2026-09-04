@@ -99,6 +99,7 @@ function repository_fixture(options?: {
     list_sessions_descending: async () => [],
     list_session_exercises: async () => [],
     list_sets_for_session_exercise: async () => options?.sets ?? [],
+    list_sets_for_session: async () => [],
     get_exercise_metrics: async () => options?.metrics,
     create_session_graph: async (session) => ({
       session_id: session.id,
