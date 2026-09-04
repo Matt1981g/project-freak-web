@@ -87,6 +87,9 @@ export interface SessionRepository {
   list_session_exercises(
     completed_session_id: string,
   ): Promise<SessionExercise[]>
+  list_sets_for_session_exercise(
+    session_exercise_id: string,
+  ): Promise<TrainingSet[]>
   create_session_graph(
     session: CompletedSession,
     exercises: SessionExercise[],
