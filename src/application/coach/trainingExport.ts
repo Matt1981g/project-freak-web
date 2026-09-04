@@ -1,11 +1,13 @@
 import type {
   ExerciseAlias,
-  ProgrammedSessionExerciseDetail,
   ReadinessEntry,
   SetComponent,
   TrainingSet,
 } from '../../domain/models'
-import type { RepositoryBundle } from '../../data/repositories/contracts'
+import type {
+  ProgrammedSessionExerciseDetail,
+  RepositoryBundle,
+} from '../../data/repositories/contracts'
 import { load_training_priorities } from '../priorities/trainingPriorities'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
