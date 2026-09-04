@@ -15,6 +15,8 @@ import type {
   ProgrammedSetComponent,
   SessionExercise,
   Setting,
+  SyncOutbox,
+  SyncState,
   SetComponent,
   TemplateExercise,
   TemplateSet,
@@ -23,6 +25,7 @@ import type {
   WorkoutTemplate,
 } from '../../domain/models'
 import type { ProjectFreakDatabase } from '../db/projectFreakDb'
+import type { SyncRepository } from '../sync/contracts'
 import type {
   DeviceRepository,
   ExerciseRepository,
@@ -90,6 +93,78 @@ async function put_with_audit_and_outbox<T extends SyncableEntity>(
       return entity.id
     },
   )
+}
+
+export class DexieSyncRepository implements SyncRepository {
+  private readonly db: ProjectFreakDatabase
+
+  constructor(db: ProjectFreakDatabase) {
+    this.db = db
+  }
+
+  get_state(provider: string): Promise<SyncState | undefined> {
+    return this.db.sync_state.get(provider)
+  }
+
+  async put_state(state: SyncState): Promise<string> {
+    await this.db.sync_state.put(state)
+    return state.provider
+  }
+
+  async list_pending(limit: number): Promise<SyncOutbox[]> {
+    const entries = await this.db.sync_outbox
+      .orderBy('created_at')
+      .filter((entry) => entry.synced_at === null)
+      .limit(limit)
+      .toArray()
+
+    return entries
+  }
+
+  async mark_attempted(
+    outbox_ids: readonly string[],
+    attempted_at: string,
+  ): Promise<void> {
+    if (outbox_ids.length === 0) return
+
+    await this.db.transaction('rw', this.db.sync_outbox, async () => {
+      for (const id of outbox_ids) {
+        const entry = await this.db.sync_outbox.get(id)
+        if (!entry || entry.synced_at !== null) continue
+
+        await this.db.sync_outbox.put({
+          ...entry,
+          attempt_count: entry.attempt_count + 1,
+          last_attempt_at: attempted_at,
+        })
+      }
+    })
+  }
+
+  async mark_synced(
+    outbox_ids: readonly string[],
+    synced_at: string,
+  ): Promise<void> {
+    if (outbox_ids.length === 0) return
+
+    await this.db.transaction('rw', this.db.sync_outbox, async () => {
+      for (const id of outbox_ids) {
+        const entry = await this.db.sync_outbox.get(id)
+        if (!entry) continue
+
+        await this.db.sync_outbox.put({
+          ...entry,
+          synced_at,
+        })
+      }
+    })
+  }
+
+  async count_pending(): Promise<number> {
+    return this.db.sync_outbox
+      .filter((entry) => entry.synced_at === null)
+      .count()
+  }
 }
 
 export class DexieDeviceRepository implements DeviceRepository {
@@ -750,5 +825,6 @@ export function create_repositories(
     programme: new DexieProgrammeRepository(db),
     readiness: new DexieReadinessRepository(db),
     sessions: new DexieSessionRepository(db),
+    sync: new DexieSyncRepository(db),
   }
 }
