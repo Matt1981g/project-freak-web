@@ -101,6 +101,7 @@ function repository_fixture(existing?: CompletedSession) {
     list_sessions_descending: async () => [],
     list_session_exercises: async () => [],
     list_sets_for_session_exercise: async () => [],
+    get_exercise_metrics: async () => undefined,
     create_session_graph: vi.fn(async (session, exercises) => {
       graph = { session, exercises }
       return { session_id: session.id, created: true }
