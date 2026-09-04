@@ -8,6 +8,15 @@ import {
   save_live_exercise_scores,
   save_live_training_set,
 } from '../../app/projectFreakServices'
+import {
+  add_rest_seconds,
+  pause_rest_timer,
+  reset_rest_timer,
+  rest_seconds_remaining,
+  resume_rest_timer,
+  start_rest_timer,
+  type RestTimerState,
+} from '../../application/workout/restTimer'
 import styles from './WorkoutScreen.module.css'
 
 type LiveWorkout = NonNullable<
@@ -16,6 +25,11 @@ type LiveWorkout = NonNullable<
 type LiveExercise = LiveWorkout['exercises'][number]
 type PlannedSet = LiveExercise['planned_sets'][number]
 type ScoreKey = 'rpe' | 'pump' | 'form'
+
+type ActiveRestTimer = RestTimerState & {
+  exercise_id: string
+  exercise_name: string
+}
 
 function rep_target(
   minimum: number | null,
@@ -60,6 +74,45 @@ function format_volume(value: number): string {
   return value.toLocaleString(undefined, {
     maximumFractionDigits: 1,
   })
+}
+
+function rest_timer_storage_key(completed_session_id: string): string {
+  return `project-freak:rest-timer:${completed_session_id}`
+}
+
+function load_stored_rest_timer(
+  completed_session_id: string | undefined,
+): ActiveRestTimer | null {
+  if (!completed_session_id || typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem(
+      rest_timer_storage_key(completed_session_id),
+    )
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as Partial<ActiveRestTimer>
+    if (
+      typeof parsed.planned_seconds !== 'number' ||
+      (typeof parsed.ends_at_ms !== 'number' && parsed.ends_at_ms !== null) ||
+      (typeof parsed.paused_remaining_seconds !== 'number' &&
+        parsed.paused_remaining_seconds !== null) ||
+      typeof parsed.exercise_id !== 'string' ||
+      typeof parsed.exercise_name !== 'string'
+    ) {
+      return null
+    }
+
+    return parsed as ActiveRestTimer
+  } catch {
+    return null
+  }
+}
+
+function format_rest_time(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const remainder = seconds % 60
+  return `${minutes}:${String(remainder).padStart(2, '0')}`
 }
 
 function numeric_value(value: string): number | null {
@@ -511,6 +564,92 @@ function ExerciseScoringPanel(props: {
   )
 }
 
+function RestTimerPanel(props: {
+  timer: ActiveRestTimer
+  now_ms: number
+  on_change: (timer: ActiveRestTimer) => void
+  on_skip: () => void
+}) {
+  const { timer, now_ms, on_change, on_skip } = props
+  const remaining = rest_seconds_remaining(timer, now_ms)
+  const paused = timer.ends_at_ms === null
+  const ready = remaining === 0 && !paused
+
+  return (
+    <aside className={ready ? styles.restTimerReady : styles.restTimer}>
+      <div className={styles.restTimerMain}>
+        <div>
+          <span>{ready ? 'REST COMPLETE' : paused ? 'REST PAUSED' : 'REST TIMER'}</span>
+          <small>{timer.exercise_name}</small>
+        </div>
+        <strong>{ready ? 'GO' : format_rest_time(remaining)}</strong>
+      </div>
+
+      <div className={styles.restTimerActions}>
+        <button
+          type="button"
+          onClick={() =>
+            on_change(
+              paused
+                ? {
+                    ...resume_rest_timer(timer, Date.now()),
+                    exercise_id: timer.exercise_id,
+                    exercise_name: timer.exercise_name,
+                  }
+                : {
+                    ...pause_rest_timer(timer, Date.now()),
+                    exercise_id: timer.exercise_id,
+                    exercise_name: timer.exercise_name,
+                  },
+            )
+          }
+        >
+          {paused ? 'RESUME' : 'PAUSE'}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            on_change({
+              ...reset_rest_timer(timer, Date.now()),
+              exercise_id: timer.exercise_id,
+              exercise_name: timer.exercise_name,
+            })
+          }
+        >
+          RESET
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            on_change({
+              ...add_rest_seconds(timer, 15),
+              exercise_id: timer.exercise_id,
+              exercise_name: timer.exercise_name,
+            })
+          }
+        >
+          +15
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            on_change({
+              ...add_rest_seconds(timer, 30),
+              exercise_id: timer.exercise_id,
+              exercise_name: timer.exercise_name,
+            })
+          }
+        >
+          +30
+        </button>
+        <button type="button" onClick={on_skip}>
+          SKIP
+        </button>
+      </div>
+    </aside>
+  )
+}
+
 function CompletedExerciseSummary(props: {
   metrics: ExerciseMetrics | undefined
 }) {
@@ -534,6 +673,10 @@ export function WorkoutScreen() {
   const [open_exercise_id, setOpenExerciseId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [finishing, setFinishing] = useState(false)
+  const [rest_timer, setRestTimer] = useState<ActiveRestTimer | null>(() =>
+    load_stored_rest_timer(completed_session_id),
+  )
+  const [rest_now_ms, setRestNowMs] = useState(() => Date.now())
   const [error, setError] = useState<string | null>(null)
 
   const refresh_workout = useCallback(async () => {
@@ -583,6 +726,39 @@ export function WorkoutScreen() {
   useEffect(() => {
     void refresh_workout()
   }, [refresh_workout])
+
+  useEffect(() => {
+    if (!rest_timer) return
+
+    const tick = window.setInterval(() => {
+      setRestNowMs(Date.now())
+    }, 250)
+
+    return () => window.clearInterval(tick)
+  }, [rest_timer])
+
+  useEffect(() => {
+    if (!completed_session_id) return
+
+    const key = rest_timer_storage_key(completed_session_id)
+    if (rest_timer) {
+      window.localStorage.setItem(key, JSON.stringify(rest_timer))
+    } else {
+      window.localStorage.removeItem(key)
+    }
+  }, [completed_session_id, rest_timer])
+
+  function begin_rest(exercise: LiveExercise['exercise']) {
+    if (exercise.rest_seconds === null || exercise.rest_seconds <= 0) return
+
+    const now = Date.now()
+    setRestNowMs(now)
+    setRestTimer({
+      ...start_rest_timer(exercise.rest_seconds, now),
+      exercise_id: exercise.id,
+      exercise_name: exercise.exercise_name_snapshot,
+    })
+  }
 
   if (loading) {
     return <div className={styles.state}>Loading workout…</div>
@@ -729,7 +905,12 @@ export function WorkoutScreen() {
                           set_number={set_number}
                           planned_set={planned_set}
                           actual_set={actual_set}
-                          on_complete={refresh_workout}
+                          on_complete={async () => {
+                            if (set_number < planned_count) {
+                              begin_rest(exercise)
+                            }
+                            await refresh_workout()
+                          }}
                         />
                       )
                     })}
@@ -750,6 +931,18 @@ export function WorkoutScreen() {
           })}
         </div>
       </section>
+
+      {rest_timer && workout.session.status !== 'completed' && (
+        <RestTimerPanel
+          timer={rest_timer}
+          now_ms={rest_now_ms}
+          on_change={(timer) => {
+            setRestNowMs(Date.now())
+            setRestTimer(timer)
+          }}
+          on_skip={() => setRestTimer(null)}
+        />
+      )}
 
       {workout.session.status === 'completed' ? (
         <section className={styles.workoutSummary}>
