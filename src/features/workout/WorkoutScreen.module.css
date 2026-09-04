@@ -703,22 +703,19 @@
   margin-top: 10px;
 }
 
-.correctionGrid label,
-.correctionReason {
+.correctionGrid label {
   display: grid;
   gap: 5px;
 }
 
-.correctionGrid label > span,
-.correctionReason > span {
+.correctionGrid label > span {
   color: var(--pf-text-faint);
   font-size: 8px;
   font-weight: 900;
   letter-spacing: 0.08em;
 }
 
-.correctionGrid input,
-.correctionReason input {
+.correctionGrid input {
   width: 100%;
   min-width: 0;
   min-height: 44px;
@@ -732,8 +729,7 @@
   outline: none;
 }
 
-.correctionGrid input:focus,
-.correctionReason input:focus {
+.correctionGrid input:focus {
   border-color: var(--pf-accent-border);
   box-shadow: 0 0 0 3px var(--pf-accent-soft);
 }
@@ -745,10 +741,6 @@
   font-size: 10px;
   font-weight: 900;
   cursor: pointer;
-}
-
-.correctionReason {
-  margin-top: 8px;
 }
 
 .correctionActions {
