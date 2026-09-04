@@ -236,7 +236,7 @@ describe('load_exercise_history', () => {
     )
 
     expect(result?.exercise.id).toBe('canonical')
-    expect(new Set(result?.resolved_exercise_ids)).toEqual(
+    expect(new Set(result?.resolved_exercise_ids ?? [])).toEqual(
       new Set(['canonical', 'old-b', 'old-a']),
     )
     expect(result?.entries.map((entry) => entry.session.id)).toEqual([
