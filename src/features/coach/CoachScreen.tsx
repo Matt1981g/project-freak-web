@@ -102,7 +102,7 @@ export function CoachScreen() {
           <p className={styles.eyebrow}>COACH BRIDGE</p>
           <h1>Weekly coaching export</h1>
           <p>
-            Actual training, programmed targets, readiness, exercise scores,
+            Completed training, programmed targets, readiness, exercise scores,
             priorities and valid exercise IDs in one local JSON package.
           </p>
         </div>
@@ -140,7 +140,8 @@ export function CoachScreen() {
             <p>
               Training priorities are included in rank order. Historical aliases
               are mapped to canonical definitions, while original session labels
-              remain untouched.
+              remain untouched. In-progress and Coach-excluded sessions are omitted
+              from this weekly review.
             </p>
             <ol>
               {payload.coach_context.training_priorities.current.map(
