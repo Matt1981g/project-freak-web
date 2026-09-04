@@ -10,6 +10,10 @@ export interface ExerciseAliasCandidateGroup {
   members: ExerciseAliasCandidateMember[]
 }
 
+function compare_text(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
 export function find_case_only_exercise_alias_candidates(
   exercises: Exercise[],
   aliases: ExerciseAlias[] = [],
@@ -45,11 +49,11 @@ export function find_case_only_exercise_alias_candidates(
           exercise_id: exercise.id,
           label: exercise.canonical_name,
         }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
+        .sort((a, b) => compare_text(a.label, b.label)),
     }))
     .filter(
       (group) =>
         new Set(group.members.map((member) => member.label)).size > 1,
     )
-    .sort((a, b) => a.members[0].label.localeCompare(b.members[0].label))
+    .sort((a, b) => compare_text(a.members[0].label, b.members[0].label))
 }
