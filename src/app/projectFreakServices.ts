@@ -1,5 +1,6 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
+import { start_programmed_workout } from '../application/workout/startWorkout'
 import {
   commit_programme_import,
   preview_programme_import,
@@ -105,6 +106,52 @@ export function load_programmed_session_detail(
   return repositories.programme.get_programmed_session_detail(
     programmed_session_id,
   )
+}
+
+function current_local_date(): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
+function current_timezone(): string | null {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || null
+}
+
+export async function start_programmed_session_workout(
+  programmed_session_id: string,
+) {
+  const detail =
+    await repositories.programme.get_programmed_session_detail(
+      programmed_session_id,
+    )
+  if (!detail) {
+    throw new Error('Programmed session was not found.')
+  }
+
+  return start_programmed_workout(detail, repositories.sessions, {
+    device_id: await current_device_id(),
+    now_iso: new Date().toISOString(),
+    local_date: current_local_date(),
+    timezone: current_timezone(),
+  })
+}
+
+export async function load_live_workout(completed_session_id: string) {
+  const session = await repositories.sessions.get_session(completed_session_id)
+  if (!session || session.deleted_at !== null) {
+    return undefined
+  }
+
+  return {
+    session,
+    exercises:
+      await repositories.sessions.list_session_exercises(completed_session_id),
+  }
 }
 
 export function preview_programme_json(json_text: string) {
