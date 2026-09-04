@@ -27,7 +27,7 @@ export function find_case_only_exercise_alias_candidates(
       normalized_name,
       exercise_ids: group.map((exercise) => exercise.id).sort(),
       labels: [...new Set(group.map((exercise) => exercise.canonical_name))]
-        .sort((a, b) => a.localeCompare(b)),
+        .sort(),
     }))
     .filter((group) => group.labels.length > 1)
     .sort((a, b) => a.labels[0].localeCompare(b.labels[0]))
