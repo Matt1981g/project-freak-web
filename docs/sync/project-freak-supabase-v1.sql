@@ -1,4 +1,5 @@
 -- PROJECT FREAK Supabase sync backend v1
+-- Contract version: 1.0.0
 -- Run in the Supabase SQL editor for the project used by PROJECT FREAK.
 
 create table if not exists public.project_freak_sync_entities (
@@ -83,21 +84,29 @@ begin
        and entity_id = v_entity_id;
 
     if found then
+
+      -- Incoming mutation is older than the authoritative remote state.
+      -- It cannot overwrite the newer entity, so acknowledge it as
+      -- superseded and allow sync to continue to the pull stage.
       if v_revision < v_existing.revision then
-        v_error := coalesce(
-          v_error,
-          format('Remote revision is newer for %s:%s.', v_entity_type, v_entity_id)
-        );
+        v_ack := array_append(v_ack, v_outbox_id);
         continue;
       end if;
 
+      -- Same revision is idempotent only when the contents are identical.
+      -- Different contents at the same revision remain a genuine conflict.
       if v_revision = v_existing.revision then
-        if v_operation = v_existing.operation and v_payload = v_existing.payload_json then
+        if v_operation = v_existing.operation
+           and v_payload = v_existing.payload_json then
           v_ack := array_append(v_ack, v_outbox_id);
         else
           v_error := coalesce(
             v_error,
-            format('Revision conflict for %s:%s.', v_entity_type, v_entity_id)
+            format(
+              'Revision conflict for %s:%s.',
+              v_entity_type,
+              v_entity_id
+            )
           );
         end if;
         continue;
@@ -105,10 +114,22 @@ begin
     end if;
 
     insert into public.project_freak_sync_entities (
-      user_id, entity_type, entity_id, operation, revision, payload_json, updated_at
+      user_id,
+      entity_type,
+      entity_id,
+      operation,
+      revision,
+      payload_json,
+      updated_at
     )
     values (
-      v_user, v_entity_type, v_entity_id, v_operation, v_revision, v_payload, now()
+      v_user,
+      v_entity_type,
+      v_entity_id,
+      v_operation,
+      v_revision,
+      v_payload,
+      now()
     )
     on conflict (user_id, entity_type, entity_id)
     do update set
@@ -118,10 +139,22 @@ begin
       updated_at = excluded.updated_at;
 
     insert into public.project_freak_sync_changes (
-      user_id, entity_type, entity_id, operation, revision, payload_json, updated_at
+      user_id,
+      entity_type,
+      entity_id,
+      operation,
+      revision,
+      payload_json,
+      updated_at
     )
     values (
-      v_user, v_entity_type, v_entity_id, v_operation, v_revision, v_payload, now()
+      v_user,
+      v_entity_type,
+      v_entity_id,
+      v_operation,
+      v_revision,
+      v_payload,
+      now()
     );
 
     v_ack := array_append(v_ack, v_outbox_id);
@@ -196,7 +229,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_entity_count bigint;
@@ -223,7 +256,7 @@ begin
     'change_count', v_change_count
   );
 end;
-$;
+$$;
 
 revoke all on function public.project_freak_push_mutations(jsonb) from public;
 revoke all on function public.project_freak_pull_changes(text, integer) from public;
