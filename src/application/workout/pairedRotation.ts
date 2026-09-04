@@ -96,6 +96,30 @@ export function recommended_rotation_exercise_id<
   return null
 }
 
+export function is_rotation_exercise_lagging<
+  T extends RotationProgressExercise,
+>(
+  exercises: readonly T[],
+  exercise_id: string,
+): boolean {
+  const current = exercises.find((exercise) => exercise.id === exercise_id)
+  if (!current || !current.rotation_group_key) return false
+  if (
+    current.completed_at !== null ||
+    current.completed_sets >= current.target_sets
+  ) {
+    return false
+  }
+
+  const members = rotation_members(exercises, current)
+  if (members.length < 2) return false
+
+  const most_completed = Math.max(
+    ...members.map((exercise) => exercise.completed_sets),
+  )
+  return current.completed_sets < most_completed
+}
+
 export function next_exercise_after_completion<T extends RotationExercise>(
   exercises: readonly T[],
   current_exercise_id: string,
