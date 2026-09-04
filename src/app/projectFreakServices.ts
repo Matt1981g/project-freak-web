@@ -1,6 +1,7 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import {
   SupabaseSyncProvider,
+  check_supabase_backend,
   clear_supabase_config,
   load_supabase_config,
   load_supabase_session,
@@ -10,6 +11,7 @@ import {
   supabase_sign_in,
   supabase_sign_out,
   supabase_sign_up,
+  type SupabaseBackendHealth,
   type SupabaseSyncConfig,
 } from '../data/sync'
 import {
@@ -153,6 +155,22 @@ export async function sign_out_cloud_sync() {
   const config = load_supabase_config()
   if (!config) return
   await supabase_sign_out(config)
+}
+
+export async function check_cloud_sync_backend(): Promise<SupabaseBackendHealth> {
+  const config = load_supabase_config()
+  const session = load_supabase_session()
+
+  if (!config) throw new Error('Configure Supabase before checking the backend.')
+  if (!session) throw new Error('Sign in before checking the backend.')
+
+  const health = await check_supabase_backend(config)
+
+  if (health.authenticated_user_id !== session.user_id) {
+    throw new Error('Supabase backend user does not match the local auth session.')
+  }
+
+  return health
 }
 
 export async function run_full_cloud_sync(): Promise<FullCloudSyncResult> {
