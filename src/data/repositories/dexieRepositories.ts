@@ -376,7 +376,7 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
         this.db.audit_events,
         this.db.sync_outbox,
       ],
-      async () => {
+      async (): Promise<'committed'> => {
         await this.db.programme_blocks.add(entities.block)
         await this.db.workout_templates.bulkAdd(entities.templates)
         await this.db.template_exercises.bulkAdd(entities.template_exercises)
