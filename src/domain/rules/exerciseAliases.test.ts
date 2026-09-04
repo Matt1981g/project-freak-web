@@ -56,8 +56,8 @@ describe('find_case_only_exercise_alias_candidates', () => {
       {
         normalized_name: 'lat pulldown',
         members: [
-          { exercise_id: '1', label: 'Lat Pulldown' },
           { exercise_id: '2', label: 'LAT PULLDOWN' },
+          { exercise_id: '1', label: 'Lat Pulldown' },
         ],
       },
     ])
