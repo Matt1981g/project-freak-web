@@ -1,3 +1,4 @@
+import { create_uuid } from '../../domain/ids/uuid'
 import type { AuditEvent, JsonValue, MutableEntity, SyncOutbox } from '../../domain/models'
 
 export function to_json_value(value: unknown): JsonValue {
@@ -11,7 +12,7 @@ export function create_audit_event(
   action: AuditEvent['action'],
 ): AuditEvent {
   return {
-    id: crypto.randomUUID(),
+    id: create_uuid(),
     entity_type,
     entity_id: entity.id,
     action,
@@ -28,7 +29,7 @@ export function create_sync_outbox_entry(
   entity: MutableEntity,
 ): SyncOutbox {
   return {
-    id: crypto.randomUUID(),
+    id: create_uuid(),
     entity_type,
     entity_id: entity.id,
     operation: entity.deleted_at === null ? 'upsert' : 'delete',
