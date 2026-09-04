@@ -73,6 +73,15 @@ describe('Dexie repositories', () => {
     await Dexie.delete(TEST_DB_NAME)
   })
 
+  it('reuses one stable local device identity', async () => {
+    const first = await repositories.devices.ensure_local('test-platform')
+    const second = await repositories.devices.ensure_local('test-platform-2')
+
+    expect(second.id).toBe(first.id)
+    expect(second.platform).toBe('test-platform-2')
+    expect(await db.devices.count()).toBe(1)
+  })
+
   it('persists an exercise with audit and sync records in the same mutation', async () => {
     const exercise = exercise_fixture()
 
@@ -90,6 +99,71 @@ describe('Dexie repositories', () => {
     expect(outbox[0].entity_type).toBe('exercise')
     expect(outbox[0].operation).toBe('upsert')
     expect(outbox[0].revision).toBe(1)
+  })
+
+  it('lists active and archived exercises without deleting either definition', async () => {
+    const active = exercise_fixture()
+    const archived: Exercise = {
+      ...exercise_fixture(),
+      id: '55555555-5555-4555-8555-555555555555',
+      canonical_name: 'LAT PULLDOWN',
+      archived_at: '2026-09-04T15:00:00.000Z',
+    }
+
+    await repositories.exercises.put(active)
+    await repositories.exercises.put(archived)
+
+    expect((await repositories.exercises.list_active()).map((exercise) => exercise.id)).toEqual([
+      active.id,
+    ])
+    expect((await repositories.exercises.list_all()).map((exercise) => exercise.id).sort()).toEqual([
+      active.id,
+      archived.id,
+    ].sort())
+  })
+
+  it('consolidates a duplicate definition without rewriting the target or history keys', async () => {
+    const target = exercise_fixture()
+    const source: Exercise = {
+      ...exercise_fixture(),
+      id: '66666666-6666-4666-8666-666666666666',
+      canonical_name: 'NAUTILUS BICEPS CURL',
+    }
+
+    await db.exercises.bulkAdd([target, source])
+
+    const aliases = await repositories.exercises.merge_definitions(
+      [source.id],
+      target.id,
+      DEVICE_ID,
+      '2026-09-04T15:20:00.000Z',
+    )
+
+    expect(aliases).toHaveLength(1)
+    expect(aliases[0].exercise_id).toBe(target.id)
+    expect(aliases[0].source_exercise_id).toBe(source.id)
+    expect(aliases[0].alias).toBe(source.canonical_name)
+
+    expect((await db.exercises.get(target.id))?.canonical_name).toBe(
+      target.canonical_name,
+    )
+    expect((await db.exercises.get(source.id))?.archived_at).toBe(
+      '2026-09-04T15:20:00.000Z',
+    )
+    expect(await db.exercise_aliases.count()).toBe(1)
+    expect(await db.audit_events.count()).toBe(2)
+    expect(await db.sync_outbox.count()).toBe(2)
+
+    await repositories.exercises.merge_definitions(
+      [source.id],
+      target.id,
+      DEVICE_ID,
+      '2026-09-04T15:21:00.000Z',
+    )
+
+    expect(await db.exercise_aliases.count()).toBe(1)
+    expect(await db.audit_events.count()).toBe(2)
+    expect(await db.sync_outbox.count()).toBe(2)
   })
 
   it('records an update rather than rewriting the original audit history', async () => {
