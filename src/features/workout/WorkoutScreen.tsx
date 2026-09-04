@@ -569,7 +569,6 @@ function CompletedSetCorrection(props: {
   const [failed, setFailed] = useState(
     set.failure_status === 'attempted_next_rep_failed',
   )
-  const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -581,7 +580,6 @@ function CompletedSetCorrection(props: {
     setLoad(set.load_kg)
     setReps(set.completed_reps ?? 0)
     setFailed(set.failure_status === 'attempted_next_rep_failed')
-    setReason('')
     setError(null)
     setOpen(false)
   }
@@ -603,7 +601,6 @@ function CompletedSetCorrection(props: {
         load_kg: load,
         completed_reps: reps,
         failed_next_rep: failed,
-        reason,
       })
       await on_saved(corrected)
       setReason('')
@@ -673,16 +670,6 @@ function CompletedSetCorrection(props: {
             </button>
           </div>
 
-          <label className={styles.correctionReason}>
-            <span>REASON FOR CORRECTION</span>
-            <input
-              type="text"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="e.g. entered wrong load"
-            />
-          </label>
-
           <div className={styles.correctionActions}>
             <button type="button" onClick={cancel} disabled={saving}>
               CANCEL
@@ -691,7 +678,7 @@ function CompletedSetCorrection(props: {
               type="button"
               className={styles.correctionSave}
               onClick={() => void save_correction()}
-              disabled={saving || reason.trim().length < 3}
+              disabled={saving}
             >
               {saving ? 'SAVING…' : 'SAVE CORRECTION'}
             </button>
