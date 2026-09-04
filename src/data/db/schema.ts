@@ -53,7 +53,7 @@ export const PROJECT_FREAK_SCHEMA_V1 = {
   import_batches:
     '&id, file_sha256, status, started_at, completed_at',
   import_records:
-    '&id, import_batch_id, source_record_key, entity_type, entity_id, source_row_sha256',
+    '&id, import_batch_id, &source_record_key, entity_type, entity_id, source_row_sha256',
   import_issues:
     '&id, import_batch_id, severity, code, source_record_key, resolution_status',
   audit_events:
