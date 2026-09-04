@@ -1,4 +1,5 @@
 import type {
+  CompletedSession,
   ExerciseAlias,
   ReadinessEntry,
   SetComponent,
@@ -13,6 +14,20 @@ import { load_coach_excluded_sessions } from './coachExclusions'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
 export const TRAINING_EXPORT_SCHEMA_VERSION = '1.0.0' as const
+
+export type TrainingExportScopeType =
+  | 'today'
+  | 'last_7_days'
+  | 'exercise'
+  | 'programme_block'
+  | 'full'
+
+export type TrainingExportScopeRequest =
+  | { type: 'today' }
+  | { type: 'last_7_days' }
+  | { type: 'exercise'; exercise_id: string }
+  | { type: 'programme_block'; programme_block_id: string }
+  | { type: 'full' }
 
 export interface TrainingExportContext {
   now_iso: string
@@ -64,11 +79,11 @@ export interface TrainingExport {
   db_schema_version: number | null
   exported_at: string
   scope: {
-    type: 'last_7_days'
-    from_date: string
-    to_date: string
+    type: TrainingExportScopeType
+    from_date: string | null
+    to_date: string | null
     exercise_ids: string[]
-    programme_block_id: null
+    programme_block_id: string | null
   }
   coach_context: {
     training_priorities: Awaited<ReturnType<typeof load_training_priorities>>
@@ -138,6 +153,30 @@ function alias_row(alias: ExerciseAlias) {
     exercise_id: alias.exercise_id,
     alias: alias.alias,
   }
+}
+
+function resolve_exercise_ids(
+  requested_exercise_id: string,
+  aliases: readonly ExerciseAlias[],
+): Set<string> {
+  const resolved = new Set([requested_exercise_id])
+  let changed = true
+
+  while (changed) {
+    changed = false
+    for (const alias of aliases) {
+      if (
+        alias.deleted_at === null &&
+        resolved.has(alias.exercise_id) &&
+        !resolved.has(alias.source_exercise_id)
+      ) {
+        resolved.add(alias.source_exercise_id)
+        changed = true
+      }
+    }
+  }
+
+  return resolved
 }
 
 function programmed_target(
@@ -226,11 +265,110 @@ async function exported_set(
   }
 }
 
-export async function build_last_7_days_training_export(
+function completed_and_included(
+  session: CompletedSession,
+  excluded_ids: ReadonlySet<string>,
+): boolean {
+  return (
+    session.deleted_at === null &&
+    session.status === 'completed' &&
+    !excluded_ids.has(session.id)
+  )
+}
+
+function session_matches_scope(
+  session: CompletedSession,
+  request: TrainingExportScopeRequest,
+  context: TrainingExportContext,
+  excluded_ids: ReadonlySet<string>,
+): boolean {
+  if (session.deleted_at !== null || excluded_ids.has(session.id)) return false
+
+  switch (request.type) {
+    case 'today':
+      return (
+        session.session_date_local === context.to_date_local &&
+        (session.status === 'completed' || session.status === 'in_progress')
+      )
+    case 'last_7_days': {
+      const from_date = date_minus_days(context.to_date_local, 6)
+      return (
+        completed_and_included(session, excluded_ids) &&
+        session.session_date_local >= from_date &&
+        session.session_date_local <= context.to_date_local
+      )
+    }
+    case 'exercise':
+      return completed_and_included(session, excluded_ids)
+    case 'programme_block':
+      return (
+        completed_and_included(session, excluded_ids) &&
+        session.programme_block_id === request.programme_block_id
+      )
+    case 'full':
+      return completed_and_included(session, excluded_ids)
+  }
+}
+
+async function scope_descriptor(
+  repositories: RepositoryBundle,
+  request: TrainingExportScopeRequest,
+  context: TrainingExportContext,
+  exercise_ids: readonly string[],
+): Promise<TrainingExport['scope']> {
+  switch (request.type) {
+    case 'today':
+      return {
+        type: 'today',
+        from_date: context.to_date_local,
+        to_date: context.to_date_local,
+        exercise_ids: [],
+        programme_block_id: null,
+      }
+    case 'last_7_days':
+      return {
+        type: 'last_7_days',
+        from_date: date_minus_days(context.to_date_local, 6),
+        to_date: context.to_date_local,
+        exercise_ids: [],
+        programme_block_id: null,
+      }
+    case 'exercise':
+      return {
+        type: 'exercise',
+        from_date: null,
+        to_date: null,
+        exercise_ids: [...exercise_ids],
+        programme_block_id: null,
+      }
+    case 'programme_block': {
+      const block = (await repositories.programme.list_blocks()).find(
+        (item) => item.id === request.programme_block_id,
+      )
+      return {
+        type: 'programme_block',
+        from_date: block?.start_date_local ?? null,
+        to_date: block?.end_date_local ?? null,
+        exercise_ids: [],
+        programme_block_id: request.programme_block_id,
+      }
+    }
+    case 'full':
+      return {
+        type: 'full',
+        from_date: null,
+        to_date: null,
+        exercise_ids: [],
+        programme_block_id: null,
+      }
+  }
+}
+
+export async function build_training_export(
   repositories: RepositoryBundle,
   context: TrainingExportContext,
+  request: TrainingExportScopeRequest,
 ): Promise<TrainingExport> {
-  const from_date = date_minus_days(context.to_date_local, 6)
   const [priorities, active_exercises, aliases, exclusions] = await Promise.all([
     load_training_priorities(repositories.settings),
     repositories.exercises.list_active(),
@@ -238,93 +376,117 @@ export async function build_last_7_days_training_export(
     load_coach_excluded_sessions(repositories.settings),
   ])
   const excluded_ids = new Set(exclusions.session_ids)
+  const exercise_filter =
+    request.type === 'exercise'
+      ? resolve_exercise_ids(request.exercise_id, aliases)
+      : null
 
   const sessions = (await repositories.sessions.list_sessions_descending())
-    .filter(
-      (session) =>
-        session.deleted_at === null &&
-        session.status === 'completed' &&
-        !excluded_ids.has(session.id) &&
-        session.session_date_local >= from_date &&
-        session.session_date_local <= context.to_date_local,
+    .filter((session) =>
+      session_matches_scope(session, request, context, excluded_ids),
     )
-    .sort((a, b) => a.session_date_local.localeCompare(b.session_date_local))
+    .sort((a, b) =>
+      a.session_date_local === b.session_date_local
+        ? (a.started_at ?? a.created_at).localeCompare(
+            b.started_at ?? b.created_at,
+          )
+        : a.session_date_local.localeCompare(b.session_date_local),
+    )
 
-  const exported_sessions = await Promise.all(
-    sessions.map(async (session) => {
-      const [readiness, session_exercises, programmed_detail] =
-        await Promise.all([
-          repositories.readiness.get_by_session_id(session.id),
-          repositories.sessions.list_session_exercises(session.id),
-          session.programmed_session_id
-            ? repositories.programme.get_programmed_session_detail(
-                session.programmed_session_id,
-              )
-            : Promise.resolve(undefined),
-        ])
-
-      const programmed_by_id = new Map(
-        programmed_detail?.exercises.map((detail) => [
-          detail.exercise.id,
-          detail,
-        ]) ?? [],
-      )
-
-      const exercises = await Promise.all(
-        session_exercises.map(async (exercise) => {
-          const [sets, metrics] = await Promise.all([
-            repositories.sessions.list_sets_for_session_exercise(exercise.id),
-            repositories.sessions.get_exercise_metrics(exercise.id),
+  const exported_sessions = (
+    await Promise.all(
+      sessions.map(async (session) => {
+        const [readiness, all_session_exercises, programmed_detail] =
+          await Promise.all([
+            repositories.readiness.get_by_session_id(session.id),
+            repositories.sessions.list_session_exercises(session.id),
+            session.programmed_session_id
+              ? repositories.programme.get_programmed_session_detail(
+                  session.programmed_session_id,
+                )
+              : Promise.resolve(undefined),
           ])
 
-          return {
-            session_exercise_id: exercise.id,
-            exercise_id: exercise.exercise_id,
-            exercise_name_snapshot: exercise.exercise_name_snapshot,
-            planned_order: exercise.planned_order,
-            actual_order: exercise.actual_order,
-            rotation_group_key: exercise.rotation_group_key,
-            rotation_position: exercise.rotation_position,
-            target: programmed_target(
-              exercise.programmed_session_exercise_id
-                ? programmed_by_id.get(exercise.programmed_session_exercise_id)
-                : undefined,
-            ),
-            metrics: metrics
-              ? {
-                  rpe: metrics.rpe,
-                  pump: metrics.pump,
-                  form: metrics.form,
-                  where_felt_text: metrics.where_felt_text,
-                  where_felt_tags: metrics.where_felt_tags,
-                  legacy_tension: metrics.legacy_tension,
-                  legacy_mmc: metrics.legacy_mmc,
-                  notes: metrics.notes,
-                }
-              : null,
-            notes: exercise.notes,
-            sets: await Promise.all(
-              sets.map((set) => exported_set(set, repositories)),
-            ),
-          }
-        }),
-      )
+        const session_exercises = exercise_filter
+          ? all_session_exercises.filter((exercise) =>
+              exercise_filter.has(exercise.exercise_id),
+            )
+          : all_session_exercises
 
-      return {
-        id: session.id,
-        legacy_workout_id: session.legacy_workout_id,
-        session_name: session.session_name,
-        session_date_local: session.session_date_local,
-        timezone: session.timezone,
-        status: session.status,
-        started_at: session.started_at,
-        completed_at: session.completed_at,
-        readiness: readiness ?? null,
-        notes: session.notes,
-        exercises,
-      }
-    }),
+        if (exercise_filter && session_exercises.length === 0) return null
+
+        const programmed_by_id = new Map(
+          programmed_detail?.exercises.map((detail) => [
+            detail.exercise.id,
+            detail,
+          ]) ?? [],
+        )
+
+        const exercises = await Promise.all(
+          session_exercises.map(async (exercise) => {
+            const [sets, metrics] = await Promise.all([
+              repositories.sessions.list_sets_for_session_exercise(exercise.id),
+              repositories.sessions.get_exercise_metrics(exercise.id),
+            ])
+
+            return {
+              session_exercise_id: exercise.id,
+              exercise_id: exercise.exercise_id,
+              exercise_name_snapshot: exercise.exercise_name_snapshot,
+              planned_order: exercise.planned_order,
+              actual_order: exercise.actual_order,
+              rotation_group_key: exercise.rotation_group_key,
+              rotation_position: exercise.rotation_position,
+              target: programmed_target(
+                exercise.programmed_session_exercise_id
+                  ? programmed_by_id.get(
+                      exercise.programmed_session_exercise_id,
+                    )
+                  : undefined,
+              ),
+              metrics: metrics
+                ? {
+                    rpe: metrics.rpe,
+                    pump: metrics.pump,
+                    form: metrics.form,
+                    where_felt_text: metrics.where_felt_text,
+                    where_felt_tags: metrics.where_felt_tags,
+                    legacy_tension: metrics.legacy_tension,
+                    legacy_mmc: metrics.legacy_mmc,
+                    notes: metrics.notes,
+                  }
+                : null,
+              notes: exercise.notes,
+              sets: await Promise.all(
+                sets.map((set) => exported_set(set, repositories)),
+              ),
+            }
+          }),
+        )
+
+        return {
+          id: session.id,
+          legacy_workout_id: session.legacy_workout_id,
+          session_name: session.session_name,
+          session_date_local: session.session_date_local,
+          timezone: session.timezone,
+          status: session.status,
+          started_at: session.started_at,
+          completed_at: session.completed_at,
+          readiness: readiness ?? null,
+          notes: session.notes,
+          exercises,
+        }
+      }),
+    )
+  ).filter(
+    (
+      session,
+    ): session is NonNullable<(typeof exported_sessions)[number]> =>
+      session !== null,
   )
+
+  const resolved_exercise_ids = exercise_filter ? [...exercise_filter] : []
 
   return {
     format: TRAINING_EXPORT_FORMAT,
@@ -332,13 +494,12 @@ export async function build_last_7_days_training_export(
     app_version: context.app_version ?? null,
     db_schema_version: context.db_schema_version ?? null,
     exported_at: context.now_iso,
-    scope: {
-      type: 'last_7_days',
-      from_date,
-      to_date: context.to_date_local,
-      exercise_ids: [],
-      programme_block_id: null,
-    },
+    scope: await scope_descriptor(
+      repositories,
+      request,
+      context,
+      resolved_exercise_ids,
+    ),
     coach_context: {
       training_priorities: priorities,
       exercise_catalogue: active_exercises.map((exercise) => ({
@@ -356,4 +517,13 @@ export async function build_last_7_days_training_export(
     sessions: exported_sessions,
     provenance: null,
   }
+}
+
+export function build_last_7_days_training_export(
+  repositories: RepositoryBundle,
+  context: TrainingExportContext,
+): Promise<TrainingExport> {
+  return build_training_export(repositories, context, {
+    type: 'last_7_days',
+  })
 }
