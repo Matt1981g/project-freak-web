@@ -48,12 +48,30 @@ export interface ProgrammeImportEntities {
   programmed_set_components: ProgrammedSetComponent[]
 }
 
+export interface ProgrammedSessionSetDetail {
+  set: ProgrammedSessionSet
+  components: ProgrammedSetComponent[]
+}
+
+export interface ProgrammedSessionExerciseDetail {
+  exercise: ProgrammedSessionExercise
+  sets: ProgrammedSessionSetDetail[]
+}
+
+export interface ProgrammedSessionDetail {
+  session: ProgrammedSession
+  exercises: ProgrammedSessionExerciseDetail[]
+}
+
 export interface ProgrammeRepository {
   list_blocks(): Promise<ProgrammeBlock[]>
   list_templates_for_block(programme_block_id: string): Promise<WorkoutTemplate[]>
   list_programmed_sessions_for_block(
     programme_block_id: string,
   ): Promise<ProgrammedSession[]>
+  get_programmed_session_detail(
+    programmed_session_id: string,
+  ): Promise<ProgrammedSessionDetail | undefined>
   get_latest_template_version(template_family_id: string): Promise<number>
   commit_import(
     entities: ProgrammeImportEntities,
