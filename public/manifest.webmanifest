@@ -1,0 +1,19 @@
+{
+  "name": "PROJECT FREAK",
+  "short_name": "FREAK",
+  "description": "Local-first hypertrophy training logger and coaching database.",
+  "start_url": "/plan",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0c0a",
+  "theme_color": "#a6ff00",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
