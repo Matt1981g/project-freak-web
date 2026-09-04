@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  is_rotation_exercise_lagging,
   next_exercise_after_completion,
   next_rotation_exercise_id,
   recommended_rotation_exercise_id,
@@ -91,6 +92,24 @@ describe('paired exercise rotation', () => {
     ]
 
     expect(recommended_rotation_exercise_id(progress, 'a2')).toBe('a1')
+  })
+
+  it('marks the exercise left behind by a machine-availability detour as pair due', () => {
+    const progress: RotationProgressExercise[] = [
+      {
+        ...exercise('a1', 1, 'A', 1),
+        completed_sets: 3,
+        target_sets: 4,
+      },
+      {
+        ...exercise('a2', 2, 'A', 2),
+        completed_sets: 1,
+        target_sets: 4,
+      },
+    ]
+
+    expect(is_rotation_exercise_lagging(progress, 'a2')).toBe(true)
+    expect(is_rotation_exercise_lagging(progress, 'a1')).toBe(false)
   })
 
   it('after finishing A1, keeps the athlete inside the pair while A2 remains', () => {
