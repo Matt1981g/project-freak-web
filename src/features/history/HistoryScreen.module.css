@@ -69,11 +69,17 @@
   margin-top: 18px;
 }
 
-.card {
+.card,
+.cardCoachExcluded {
   padding: 15px;
   border: 1px solid var(--pf-border);
   border-radius: 16px;
   background: var(--pf-panel);
+}
+
+.cardCoachExcluded {
+  opacity: 0.72;
+  border-style: dashed;
 }
 
 .cardHeader {
@@ -101,6 +107,24 @@
   margin-top: 4px;
   color: var(--pf-text-muted);
   font-size: 10px;
+}
+
+.statusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.statusCoachExcluded {
+  padding: 6px 8px;
+  border: 1px solid var(--pf-border);
+  border-radius: 999px;
+  color: var(--pf-text-faint);
+  background: var(--pf-panel-raised);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
 }
 
 .statusComplete,
@@ -159,12 +183,18 @@
   font-size: 14px;
 }
 
+.cardActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .openButton {
   min-height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 12px;
   border: 1px solid var(--pf-accent-border);
   border-radius: 11px;
   color: #071006;
@@ -173,6 +203,31 @@
   font-weight: 1000;
   letter-spacing: 0.06em;
   text-decoration: none;
+}
+
+.coachExcludeButton,
+.coachIncludeButton {
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 11px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.coachIncludeButton {
+  color: var(--pf-accent);
+  border-color: var(--pf-accent-border);
+}
+
+.coachExcludeButton:disabled,
+.coachIncludeButton:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .empty,
@@ -215,5 +270,13 @@
 
   .cardHeader {
     gap: 10px;
+  }
+
+  .cardActions {
+    grid-template-columns: 1fr;
+  }
+
+  .statusGroup {
+    max-width: 45%;
   }
 }
