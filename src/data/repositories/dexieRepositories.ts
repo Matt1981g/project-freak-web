@@ -1,3 +1,4 @@
+import { create_uuid } from '../../domain/ids/uuid'
 import type { Table } from 'dexie'
 import type {
   CompletedSession,
@@ -113,7 +114,7 @@ export class DexieDeviceRepository implements DeviceRepository {
     }
 
     const device: Device = {
-      id: crypto.randomUUID(),
+      id: create_uuid(),
       display_name: 'This device',
       platform,
       first_seen_at: now,
@@ -234,7 +235,7 @@ export class DexieExerciseRepository implements ExerciseRepository {
           }
 
           const alias: ExerciseAlias = {
-            id: crypto.randomUUID(),
+            id: create_uuid(),
             exercise_id: target_id,
             source_exercise_id: source.id,
             alias: source.canonical_name,
