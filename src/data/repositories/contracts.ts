@@ -1,3 +1,4 @@
+import type { SyncRepository } from '../sync/contracts'
 import type {
   CompletedSession,
   Device,
@@ -127,4 +128,5 @@ export interface RepositoryBundle {
   programme: ProgrammeRepository
   readiness: ReadinessRepository
   sessions: SessionRepository
+  sync: SyncRepository
 }
