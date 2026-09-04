@@ -130,7 +130,14 @@ export async function commit_historical_import(
     detected_sets: preview.detected.sets,
     summary_json: {
       canonical_source: preview.is_canonical_source,
-      detected: preview.detected,
+      detected: {
+        sessions: preview.detected.sessions,
+        session_exercises: preview.detected.session_exercises,
+        exact_exercise_labels: preview.detected.exact_exercise_labels,
+        sets: preview.detected.sets,
+        case_only_duplicate_groups:
+          preview.detected.case_only_duplicate_groups,
+      },
       alias_candidate_groups: preview.alias_candidate_groups,
       warnings: preview.issues.filter((entry) => entry.severity === 'warning')
         .length,
