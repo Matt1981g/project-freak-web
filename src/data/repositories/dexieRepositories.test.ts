@@ -1,6 +1,10 @@
 import Dexie from 'dexie'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { CompletedSession, Exercise } from '../../domain/models'
+import type {
+  CompletedSession,
+  Exercise,
+  SessionExercise,
+} from '../../domain/models'
 import { ProjectFreakDatabase } from '../db/projectFreakDb'
 import { create_repositories } from './dexieRepositories'
 
@@ -189,6 +193,64 @@ describe('Dexie repositories', () => {
     const update_event = audit.find((event) => event.action === 'update')
     expect(update_event?.before_json).not.toBeNull()
 
+    expect(await db.sync_outbox.count()).toBe(2)
+  })
+
+  it('creates a live workout graph atomically and reuses the programmed session', async () => {
+    const session: CompletedSession = {
+      ...session_fixture(),
+      programmed_session_id: 'programmed-session-1',
+    }
+    const exercise: SessionExercise = {
+      id: '77777777-7777-4777-8777-777777777777',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: DEVICE_ID,
+      source_kind: 'user',
+      source_id: null,
+      completed_session_id: session.id,
+      programmed_session_exercise_id: 'programmed-exercise-1',
+      exercise_id: 'exercise-1',
+      exercise_name_snapshot: 'Nautilus Bicep Curl',
+      planned_order: 1,
+      actual_order: 1,
+      rotation_group_key: 'A',
+      rotation_position: 1,
+      target_sets: 4,
+      target_rep_min: 8,
+      target_rep_max: 12,
+      rest_seconds: 90,
+      tempo: '3-0-1-0',
+      technique_cue: 'Keep upper arm fixed.',
+      programme_notes: null,
+      started_at: null,
+      completed_at: null,
+      notes: null,
+    }
+
+    await expect(
+      repositories.sessions.create_session_graph(session, [exercise]),
+    ).resolves.toEqual({ session_id: session.id, created: true })
+
+    expect(await db.completed_sessions.count()).toBe(1)
+    expect(await db.session_exercises.count()).toBe(1)
+    expect(await db.audit_events.count()).toBe(2)
+    expect(await db.sync_outbox.count()).toBe(2)
+
+    const duplicate_session: CompletedSession = {
+      ...session,
+      id: '88888888-8888-4888-8888-888888888888',
+    }
+
+    await expect(
+      repositories.sessions.create_session_graph(duplicate_session, []),
+    ).resolves.toEqual({ session_id: session.id, created: false })
+
+    expect(await db.completed_sessions.count()).toBe(1)
+    expect(await db.session_exercises.count()).toBe(1)
+    expect(await db.audit_events.count()).toBe(2)
     expect(await db.sync_outbox.count()).toBe(2)
   })
 
