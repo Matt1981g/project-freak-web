@@ -1,4 +1,5 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
+import { load_workout_history } from '../application/history/workoutHistory'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
 import {
   load_training_priorities,
@@ -115,6 +116,10 @@ export function save_priority_settings(
     local_date: current_local_date(),
     now_iso: new Date().toISOString(),
   })
+}
+
+export function load_history_entries() {
+  return load_workout_history(repositories.sessions)
 }
 
 export function load_programme_blocks() {
