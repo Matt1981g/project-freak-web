@@ -1,4 +1,8 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
+import {
+  build_full_backup,
+  preview_backup_json,
+} from '../application/backup/databaseBackup'
 import { load_workout_history } from '../application/history/workoutHistory'
 import {
   build_last_7_days_training_export,
@@ -64,6 +68,18 @@ function current_platform(): string {
 async function current_device_id(): Promise<string> {
   const device = await repositories.devices.ensure_local(current_platform())
   return device.id
+}
+
+export async function build_database_backup() {
+  return build_full_backup(projectFreakDb, {
+    now_iso: new Date().toISOString(),
+    source_device_id: await current_device_id(),
+    app_version: null,
+  })
+}
+
+export async function preview_database_backup(file: File) {
+  return preview_backup_json(await file.text())
 }
 
 export function load_exercise_library(query: ExerciseLibraryQuery = {}) {
