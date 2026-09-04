@@ -1,3 +1,4 @@
+import { create_uuid } from '../../domain/ids/uuid'
 import type { ReadinessEntry } from '../../domain/models'
 import type { ReadinessRepository } from '../../data/repositories/contracts'
 
@@ -65,7 +66,7 @@ export async function save_session_readiness(
   const existing = await repository.get_by_session_id(
     input.completed_session_id,
   )
-  const make_id = context.id_factory ?? (() => crypto.randomUUID())
+  const make_id = context.id_factory ?? (() => create_uuid())
 
   const entry: ReadinessEntry = {
     id: existing?.id ?? make_id(),
@@ -113,7 +114,7 @@ export async function save_session_recovery(
   const existing = await repository.get_by_session_id(
     input.completed_session_id,
   )
-  const make_id = context.id_factory ?? (() => crypto.randomUUID())
+  const make_id = context.id_factory ?? (() => create_uuid())
 
   const entry: ReadinessEntry = {
     id: existing?.id ?? make_id(),
