@@ -7,6 +7,7 @@ import type {
   ExerciseMetrics,
   MutableEntity,
   ProgrammeBlock,
+  ReadinessEntry,
   ProgrammedSession,
   ProgrammedSessionExercise,
   ProgrammedSessionSet,
@@ -26,6 +27,7 @@ import type {
   ExerciseRepository,
   ProgrammeImportEntities,
   ProgrammeRepository,
+  ReadinessRepository,
   ProgrammedSessionDetail,
   RepositoryBundle,
   SessionRepository,
@@ -40,6 +42,7 @@ type SyncableEntity =
   | Exercise
   | ExerciseAlias
   | ProgrammeBlock
+  | ReadinessEntry
   | WorkoutTemplate
   | TemplateExercise
   | TemplateSet
@@ -490,6 +493,33 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
   }
 }
 
+export class DexieReadinessRepository implements ReadinessRepository {
+  private readonly db: ProjectFreakDatabase
+
+  constructor(db: ProjectFreakDatabase) {
+    this.db = db
+  }
+
+  get_by_session_id(
+    completed_session_id: string,
+  ): Promise<ReadinessEntry | undefined> {
+    return this.db.readiness_entries
+      .where('completed_session_id')
+      .equals(completed_session_id)
+      .filter((entry) => entry.deleted_at === null)
+      .first()
+  }
+
+  put(entry: ReadinessEntry): Promise<string> {
+    return put_with_audit_and_outbox(
+      this.db,
+      this.db.readiness_entries,
+      'readiness_entry',
+      entry,
+    )
+  }
+}
+
 export class DexieSessionRepository implements SessionRepository {
   private readonly db: ProjectFreakDatabase
 
@@ -699,6 +729,7 @@ export function create_repositories(
     settings: new DexieSettingsRepository(db),
     exercises: new DexieExerciseRepository(db),
     programme: new DexieProgrammeRepository(db),
+    readiness: new DexieReadinessRepository(db),
     sessions: new DexieSessionRepository(db),
   }
 }
