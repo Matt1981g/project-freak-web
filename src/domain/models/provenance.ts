@@ -59,6 +59,7 @@ export interface AuditEvent {
     | 'restore'
     | 'import'
     | 'restore_backup'
+    | 'sync_apply'
   before_json: JsonValue | null
   after_json: JsonValue | null
   reason: string | null
