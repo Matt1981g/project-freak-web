@@ -347,6 +347,9 @@ function repositories(): RepositoryBundle {
       mark_attempted: async () => undefined,
       mark_synced: async () => undefined,
       count_pending: async () => 0,
+      get_local_entity: async () => undefined,
+      has_pending_entity_mutation: async () => false,
+      apply_remote_entity: async () => undefined,
     },
   }
 }
