@@ -81,6 +81,107 @@
   font-size: 16px;
 }
 
+.previousComparable,
+.previousComparableEmpty {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-bg);
+}
+
+.previousComparable {
+  border-color: var(--pf-accent-border);
+  background:
+    linear-gradient(135deg, var(--pf-accent-soft), transparent 72%),
+    var(--pf-bg);
+}
+
+.previousComparableHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.previousComparableHeader > div:first-child,
+.previousComparableEmpty > div {
+  display: grid;
+  gap: 3px;
+}
+
+.previousComparableHeader span,
+.previousComparableEmpty span {
+  color: var(--pf-accent);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.previousComparableHeader strong,
+.previousComparableEmpty strong {
+  color: var(--pf-text-strong);
+  font-size: 13px;
+}
+
+.previousComparableHeader small,
+.previousComparableEmpty small {
+  color: var(--pf-text-faint);
+  font-size: 9px;
+}
+
+.previousComparableEmpty {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.previousScores {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.previousScores span {
+  padding: 4px 6px;
+  border: 1px solid var(--pf-border);
+  border-radius: 999px;
+  color: var(--pf-text-muted);
+  background: var(--pf-panel);
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.previousSetStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.previousSet {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--pf-border);
+  border-radius: 9px;
+  background: var(--pf-panel);
+}
+
+.previousSet span {
+  color: var(--pf-text-faint);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.previousSet strong {
+  color: var(--pf-text-strong);
+  font-size: 11px;
+}
+
 .readinessPanel {
   margin-top: 16px;
   border: 1px solid var(--pf-border);
@@ -1132,6 +1233,20 @@
 
   .sessionMeta {
     grid-template-columns: 1fr;
+  }
+
+  .previousComparableHeader,
+  .previousComparableEmpty {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .previousScores {
+    justify-content: flex-start;
+  }
+
+  .previousSetStrip {
+    grid-template-columns: 1fr 1fr;
   }
 
   .readinessGrid,
