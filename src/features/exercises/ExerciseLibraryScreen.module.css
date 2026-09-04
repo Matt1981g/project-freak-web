@@ -99,6 +99,8 @@
 .archiveButton,
 .restoreButton,
 .renameButton,
+.selectButton,
+.selectButtonActive,
 .aliasChoice,
 .filterButton,
 .filterActive {
@@ -121,6 +123,8 @@
 .archiveButton:active,
 .restoreButton:active,
 .renameButton:active,
+.selectButton:active,
+.selectButtonActive:active,
 .aliasChoice:active,
 .filterButton:active,
 .filterActive:active {
@@ -132,6 +136,8 @@
 .archiveButton:disabled,
 .restoreButton:disabled,
 .renameButton:disabled,
+.selectButton:disabled,
+.selectButtonActive:disabled,
 .aliasChoice:disabled {
   cursor: progress;
   opacity: 0.55;
@@ -155,6 +161,109 @@
 }
 
 .filterActive {
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  border-color: var(--pf-accent-border);
+}
+
+.mergePanel {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 18px;
+  background: linear-gradient(
+    135deg,
+    var(--pf-accent-soft),
+    var(--pf-panel)
+  );
+}
+
+.mergeHeading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.mergeHeading h2 {
+  margin: 0;
+  color: var(--pf-text-strong);
+  font-size: 22px;
+}
+
+.mergeHeading p {
+  max-width: 720px;
+  margin: 6px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 13px;
+}
+
+.mergeCandidates {
+  display: grid;
+  gap: 8px;
+}
+
+.mergeCandidate,
+.mergeCandidateActive {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-panel-raised);
+  cursor: pointer;
+}
+
+.mergeCandidateActive {
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent-soft);
+}
+
+.mergeCandidate input,
+.mergeCandidateActive input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--pf-accent);
+}
+
+.mergeCandidate span,
+.mergeCandidateActive span {
+  display: grid;
+  gap: 2px;
+}
+
+.mergeCandidate strong,
+.mergeCandidateActive strong {
+  color: var(--pf-text-strong);
+  font-size: 14px;
+}
+
+.mergeCandidate small,
+.mergeCandidateActive small {
+  color: var(--pf-text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.mergeCandidateActive small {
+  color: var(--pf-accent);
+}
+
+.selectButton {
+  min-width: 82px;
+  color: var(--pf-text-muted);
+  background: transparent;
+  border-color: var(--pf-border);
+}
+
+.selectButtonActive {
+  min-width: 82px;
   color: var(--pf-accent);
   background: var(--pf-accent-soft);
   border-color: var(--pf-accent-border);
@@ -559,8 +668,14 @@
 
   .archiveButton,
   .restoreButton,
-  .renameButton {
+  .renameButton,
+  .selectButton,
+  .selectButtonActive {
     width: 100%;
+  }
+
+  .mergeHeading {
+    grid-template-columns: 1fr;
   }
 
   .renameEditor {
