@@ -100,6 +100,7 @@ function repository_fixture(existing?: CompletedSession) {
     get_by_programmed_session_id: async () => existing,
     list_sessions_descending: async () => [],
     list_session_exercises: async () => [],
+    list_sets_for_session_exercise: async () => [],
     create_session_graph: vi.fn(async (session, exercises) => {
       graph = { session, exercises }
       return { session_id: session.id, created: true }
