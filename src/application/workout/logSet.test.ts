@@ -149,6 +149,57 @@ describe('save_training_set', () => {
     expect(saved.reps_as_recorded).toBe('10')
   })
 
+  it('updates the same draft record during repeated autosaves', async () => {
+    const fixture = repository_fixture()
+
+    const first = await save_training_set(
+      {
+        session_exercise: session_exercise(),
+        programmed_set: null,
+        existing_set: null,
+        set_number: 1,
+        load_kg: 42.5,
+        completed_reps: null,
+        failed_next_rep: false,
+        complete: false,
+      },
+      fixture.repository,
+      {
+        device_id: 'device-1',
+        now_iso: NOW,
+        id_factory: () => 'autosave-set-1',
+      },
+    )
+
+    const second = await save_training_set(
+      {
+        session_exercise: session_exercise(),
+        programmed_set: null,
+        existing_set: first,
+        set_number: 1,
+        load_kg: 45,
+        completed_reps: 11,
+        failed_next_rep: false,
+        complete: false,
+      },
+      fixture.repository,
+      {
+        device_id: 'device-1',
+        now_iso: '2026-09-04T18:00:01.000Z',
+      },
+    )
+
+    expect(second).toMatchObject({
+      id: 'autosave-set-1',
+      created_at: NOW,
+      updated_at: '2026-09-04T18:00:01.000Z',
+      revision: 2,
+      load_kg: 45,
+      completed_reps: 11,
+      completed_at: null,
+    })
+  })
+
   it('rejects completion without completed reps', async () => {
     const fixture = repository_fixture()
 
