@@ -157,6 +157,58 @@ describe('start_programmed_workout', () => {
     })
   })
 
+  it('creates a fresh actual workout when the previous attempt is completed', async () => {
+    const completed: CompletedSession = {
+      id: 'completed-session',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 2,
+      device_id: DEVICE_ID,
+      source_kind: 'user',
+      source_id: null,
+      programmed_session_id: 'programmed-session-1',
+      programme_block_id: 'block-1',
+      workout_template_id_snapshot: 'template-1',
+      legacy_workout_id: null,
+      session_name: 'Monday — Arms + Delts',
+      session_date_local: '2026-09-04',
+      timezone: 'Europe/London',
+      status: 'completed',
+      started_at: NOW,
+      completed_at: '2026-09-04T18:30:00.000Z',
+      source_start_text: null,
+      source_finish_text: null,
+      duration_seconds: 3600,
+      notes: null,
+    }
+    const fixture = repository_fixture(completed)
+    const ids = ['repeat-session', 'repeat-exercise-1', 'repeat-exercise-2']
+    let id_index = 0
+
+    const result = await start_programmed_workout(
+      programmed_detail(),
+      fixture.repository,
+      {
+        device_id: DEVICE_ID,
+        now_iso: '2026-09-05T17:30:00.000Z',
+        local_date: '2026-09-05',
+        timezone: 'Europe/London',
+        id_factory: () => ids[id_index++],
+      },
+    )
+
+    expect(result).toEqual({ session_id: 'repeat-session', created: true })
+    expect(fixture.get_graph()?.session).toMatchObject({
+      id: 'repeat-session',
+      programmed_session_id: 'programmed-session-1',
+      status: 'in_progress',
+      session_date_local: '2026-09-05',
+      completed_at: null,
+    })
+    expect(fixture.get_graph()?.exercises).toHaveLength(2)
+  })
+
   it('reopens an existing actual workout instead of duplicating it', async () => {
     const existing: CompletedSession = {
       id: 'existing-session',
