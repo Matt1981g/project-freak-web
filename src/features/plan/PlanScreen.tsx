@@ -576,7 +576,7 @@ export function PlanScreen() {
                             onClick={() => void toggle_stored_session(session.id)}
                           >
                             <span>
-                              {session.scheduled_date_local ?? 'TBC'} ·{' '}
+                              {format_local_date_display(session.scheduled_date_local, 'TBC')} ·{' '}
                               {session.name_snapshot}
                             </span>
                             <strong>{is_open ? 'Hide' : 'View session'}</strong>
