@@ -4,6 +4,10 @@ import type {
   TrainingSet,
 } from '../../domain/models'
 import type { SessionRepository } from '../../data/repositories/contracts'
+import {
+  is_session_exercise_completed,
+  is_training_set_completed,
+} from '../../domain/rules/completion'
 
 export interface WorkoutSummary {
   total_volume_kg: number
@@ -37,7 +41,7 @@ export function build_workout_summary(
   exercises: SessionExercise[],
   sets: TrainingSet[],
 ): WorkoutSummary {
-  const completed_sets = sets.filter((set) => set.completed_at !== null)
+  const completed_sets = sets.filter(is_training_set_completed)
 
   return {
     total_volume_kg: completed_sets.reduce(
@@ -62,7 +66,7 @@ export async function complete_workout_session(
   }
 
   const incomplete = exercises.filter(
-    (exercise) => exercise.completed_at === null,
+    (exercise) => !is_session_exercise_completed(exercise, session),
   )
   if (incomplete.length > 0) {
     throw new Error(
