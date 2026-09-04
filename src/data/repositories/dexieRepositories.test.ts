@@ -122,6 +122,50 @@ describe('Dexie repositories', () => {
     ].sort())
   })
 
+  it('consolidates a duplicate definition without rewriting the target or history keys', async () => {
+    const target = exercise_fixture()
+    const source: Exercise = {
+      ...exercise_fixture(),
+      id: '66666666-6666-4666-8666-666666666666',
+      canonical_name: 'NAUTILUS BICEPS CURL',
+    }
+
+    await db.exercises.bulkAdd([target, source])
+
+    const aliases = await repositories.exercises.merge_definitions(
+      [source.id],
+      target.id,
+      DEVICE_ID,
+      '2026-09-04T15:20:00.000Z',
+    )
+
+    expect(aliases).toHaveLength(1)
+    expect(aliases[0].exercise_id).toBe(target.id)
+    expect(aliases[0].source_exercise_id).toBe(source.id)
+    expect(aliases[0].alias).toBe(source.canonical_name)
+
+    expect((await db.exercises.get(target.id))?.canonical_name).toBe(
+      target.canonical_name,
+    )
+    expect((await db.exercises.get(source.id))?.archived_at).toBe(
+      '2026-09-04T15:20:00.000Z',
+    )
+    expect(await db.exercise_aliases.count()).toBe(1)
+    expect(await db.audit_events.count()).toBe(2)
+    expect(await db.sync_outbox.count()).toBe(2)
+
+    await repositories.exercises.merge_definitions(
+      [source.id],
+      target.id,
+      DEVICE_ID,
+      '2026-09-04T15:21:00.000Z',
+    )
+
+    expect(await db.exercise_aliases.count()).toBe(1)
+    expect(await db.audit_events.count()).toBe(2)
+    expect(await db.sync_outbox.count()).toBe(2)
+  })
+
   it('records an update rather than rewriting the original audit history', async () => {
     const exercise = exercise_fixture()
     await repositories.exercises.put(exercise)
