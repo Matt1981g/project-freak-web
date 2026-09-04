@@ -85,6 +85,15 @@ describe('build_progression_suggestion', () => {
     ).toBe('HOLD LOAD')
   })
 
+  it('returns insufficient data when the programme has no usable rep target', () => {
+    const result = build_progression_suggestion(previous(), [
+      { set_number: 1, target_rep_min: null, target_rep_max: null },
+      { set_number: 2, target_rep_min: null, target_rep_max: null },
+    ])
+
+    expect(result.label).toBe('INSUFFICIENT DATA')
+  })
+
   it('adds reps when a comparable set is below the programmed range', () => {
     const result = build_progression_suggestion(
       previous({
