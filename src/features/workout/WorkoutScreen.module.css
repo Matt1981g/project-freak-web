@@ -361,6 +361,15 @@
   cursor: default;
 }
 
+.autosaveStatus {
+  margin-top: 7px;
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-align: right;
+}
+
 .setError {
   margin-top: 8px;
   padding: 8px 10px;
