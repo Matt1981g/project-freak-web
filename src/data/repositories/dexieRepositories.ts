@@ -1,6 +1,7 @@
 import type { Table } from 'dexie'
 import type {
   CompletedSession,
+  Device,
   Exercise,
   ExerciseMetrics,
   MutableEntity,
@@ -10,6 +11,7 @@ import type {
 } from '../../domain/models'
 import type { ProjectFreakDatabase } from '../db/projectFreakDb'
 import type {
+  DeviceRepository,
   ExerciseRepository,
   RepositoryBundle,
   SessionRepository,
@@ -58,6 +60,39 @@ async function put_with_audit_and_outbox<T extends SyncableEntity>(
       return entity.id
     },
   )
+}
+
+export class DexieDeviceRepository implements DeviceRepository {
+  private readonly db: ProjectFreakDatabase
+
+  constructor(db: ProjectFreakDatabase) {
+    this.db = db
+  }
+
+  async ensure_local(platform: string): Promise<Device> {
+    const now = new Date().toISOString()
+    const existing = await this.db.devices.toCollection().first()
+
+    if (existing) {
+      const updated: Device = {
+        ...existing,
+        platform,
+        last_seen_at: now,
+      }
+      await this.db.devices.put(updated)
+      return updated
+    }
+
+    const device: Device = {
+      id: crypto.randomUUID(),
+      display_name: 'This device',
+      platform,
+      first_seen_at: now,
+      last_seen_at: now,
+    }
+    await this.db.devices.add(device)
+    return device
+  }
 }
 
 export class DexieExerciseRepository implements ExerciseRepository {
@@ -167,6 +202,7 @@ export function create_repositories(
   db: ProjectFreakDatabase,
 ): RepositoryBundle {
   return {
+    devices: new DexieDeviceRepository(db),
     exercises: new DexieExerciseRepository(db),
     sessions: new DexieSessionRepository(db),
   }
