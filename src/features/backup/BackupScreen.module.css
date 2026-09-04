@@ -250,6 +250,27 @@
   font-weight: 900;
 }
 
+.restoreButton {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 14px;
+  padding: 0 16px;
+  border: 1px solid var(--pf-danger-border);
+  border-radius: 12px;
+  color: var(--pf-danger);
+  background: var(--pf-danger-soft);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.restoreButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .warning {
   margin-top: 18px;
   padding: 14px;
