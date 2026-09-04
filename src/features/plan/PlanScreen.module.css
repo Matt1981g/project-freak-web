@@ -618,6 +618,25 @@
   font-size: 12px;
 }
 
+.startWorkoutButton {
+  width: 100%;
+  min-height: 52px;
+  margin-bottom: 12px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 13px;
+  color: #071006;
+  background: var(--pf-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.startWorkoutButton:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
 .storedExerciseList {
   display: grid;
   gap: 8px;
