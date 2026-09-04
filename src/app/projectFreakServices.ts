@@ -1,4 +1,5 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
+import { request_auto_sync } from '../application/sync/autoSyncEvents'
 import {
   SupabaseSyncProvider,
   check_supabase_backend,
@@ -173,7 +174,7 @@ export async function check_cloud_sync_backend(): Promise<SupabaseBackendHealth>
   return health
 }
 
-export async function run_full_cloud_sync(): Promise<FullCloudSyncResult> {
+async function run_full_cloud_sync_once(): Promise<FullCloudSyncResult> {
   const config = load_supabase_config()
   if (!config) throw new Error('Configure Supabase before syncing.')
   if (!load_supabase_session()) throw new Error('Sign in before syncing.')
@@ -258,6 +259,19 @@ export async function run_full_cloud_sync(): Promise<FullCloudSyncResult> {
     pending_after: await repositories.sync.count_pending(),
     error: null,
   }
+}
+
+let full_cloud_sync_in_flight: Promise<FullCloudSyncResult> | null = null
+
+export function run_full_cloud_sync(): Promise<FullCloudSyncResult> {
+  if (full_cloud_sync_in_flight) return full_cloud_sync_in_flight
+
+  const operation = run_full_cloud_sync_once().finally(() => {
+    full_cloud_sync_in_flight = null
+  })
+
+  full_cloud_sync_in_flight = operation
+  return operation
 }
 
 export interface StorageDiagnostics {
@@ -726,10 +740,17 @@ export async function complete_live_workout(
     throw new Error('Workout session was not found.')
   }
 
-  return complete_workout_session(session, repositories.sessions, {
-    device_id: await current_device_id(),
-    now_iso: new Date().toISOString(),
-  })
+  const result = await complete_workout_session(
+    session,
+    repositories.sessions,
+    {
+      device_id: await current_device_id(),
+      now_iso: new Date().toISOString(),
+    },
+  )
+
+  request_auto_sync('workout_completed')
+  return result
 }
 
 export async function save_live_exercise_scores(
@@ -763,11 +784,14 @@ export function preview_programme_json(json_text: string) {
 export async function commit_programme_json(
   preview: ProgrammeImportPreview,
 ) {
-  return commit_programme_import(
+  const result = await commit_programme_import(
     preview,
     repositories.programme,
     await current_device_id(),
   )
+
+  request_auto_sync('programme_imported')
+  return result
 }
 
 export async function preview_historical_workbook(file: File) {

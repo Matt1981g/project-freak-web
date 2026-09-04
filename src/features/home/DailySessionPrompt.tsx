@@ -5,6 +5,7 @@ import {
   start_programmed_session_workout,
   type TodayProgrammedSession,
 } from '../../app/projectFreakServices'
+import { AUTO_SYNC_COMPLETE_EVENT } from '../../application/sync/autoSyncEvents'
 import { format_local_date_display } from '../../utils/dateFormat'
 import styles from './DailySessionPrompt.module.css'
 
@@ -17,26 +18,49 @@ export function DailySessionPrompt() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (location.pathname.startsWith('/workout/')) return
-
     let active = true
-    void load_today_programmed_sessions()
-      .then((result) => {
-        if (active) setSessions(result)
-      })
-      .catch((cause) => {
+
+    async function refresh_today() {
+      if (
+        dismissed ||
+        location.pathname.startsWith('/workout/')
+      ) {
+        return
+      }
+
+      try {
+        const result = await load_today_programmed_sessions()
+        if (!active) return
+        setSessions(result)
+        setError(null)
+      } catch (cause) {
         if (!active) return
         setError(
           cause instanceof Error
             ? cause.message
             : 'Unable to check today’s programmed session.',
         )
-      })
+      }
+    }
+
+    function handle_sync_complete() {
+      void refresh_today()
+    }
+
+    window.addEventListener(
+      AUTO_SYNC_COMPLETE_EVENT,
+      handle_sync_complete,
+    )
+    void refresh_today()
 
     return () => {
       active = false
+      window.removeEventListener(
+        AUTO_SYNC_COMPLETE_EVENT,
+        handle_sync_complete,
+      )
     }
-  }, [])
+  }, [dismissed, location.pathname])
 
   if (
     dismissed ||

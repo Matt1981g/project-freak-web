@@ -9,6 +9,7 @@ import { ExerciseHistoryScreen } from './features/history/ExerciseHistoryScreen'
 import { PlanScreen } from './features/plan/PlanScreen'
 import { PrioritiesScreen } from './features/priorities/PrioritiesScreen'
 import { PwaInstallControl } from './features/pwa/PwaInstallControl'
+import { AutoSyncRuntime } from './features/sync/AutoSyncRuntime'
 import { SyncScreen } from './features/sync/SyncScreen'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
 import './App.css'
@@ -94,6 +95,7 @@ function App() {
         <div className="phase-chip">PHASE 15</div>
       </header>
 
+      <AutoSyncRuntime />
       <DailySessionPrompt />
 
       <main>

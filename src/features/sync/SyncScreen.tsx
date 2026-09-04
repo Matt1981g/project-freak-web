@@ -128,6 +128,12 @@ export function SyncScreen() {
           <span>BACKEND VERIFIED</span>
           <strong>{backendHealth ? 'YES' : 'NO'}</strong>
         </div>
+        <div>
+          <span>AUTO SYNC</span>
+          <strong>
+            {status?.configured && status?.signed_in ? 'ON' : 'WAITING'}
+          </strong>
+        </div>
       </section>
 
       <section className={styles.panel}>
@@ -309,12 +315,14 @@ export function SyncScreen() {
 
       <section className={styles.syncPanel}>
         <div>
-          <span>MANUAL SYNC</span>
-          <h2>Push local changes, then pull remote changes</h2>
+          <span>SYNC CONTROL</span>
+          <h2>Automatic foreground sync + manual fallback</h2>
           <p>
-            CHECK BACKEND must pass before sync is enabled. First sync can take
-            longer because the historical database already contains a substantial
-            outbox. Conflicts stop the pull and preserve local data.
+            When signed in, PROJECT FREAK now syncs on app open, return from
+            background, restored internet, workout completion and programme
+            import, plus every 5 minutes while the app is visible. iOS cannot
+            reliably wake a fully closed PWA, so SYNC NOW remains the manual
+            fallback. CHECK BACKEND must pass before the manual button is enabled.
           </p>
         </div>
 
