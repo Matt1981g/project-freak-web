@@ -1,6 +1,11 @@
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
 import {
+  load_training_priorities,
+  save_training_priorities,
+  type TrainingPriorityArea,
+} from '../application/priorities/trainingPriorities'
+import {
   build_workout_summary,
   complete_workout_session,
 } from '../application/workout/completeWorkout'
@@ -93,6 +98,19 @@ export async function consolidate_exercise_definitions(
     target_id,
     await current_device_id(),
   )
+}
+
+export function load_priority_settings() {
+  return load_training_priorities(repositories.settings)
+}
+
+export function save_priority_settings(
+  ordered_areas: readonly TrainingPriorityArea[],
+) {
+  return save_training_priorities(ordered_areas, repositories.settings, {
+    local_date: current_local_date(),
+    now_iso: new Date().toISOString(),
+  })
 }
 
 export function load_programme_blocks() {
