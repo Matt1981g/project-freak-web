@@ -133,30 +133,32 @@
   letter-spacing: 0.1em;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 900px) {
   .app-header {
-    min-height: calc(64px + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) 12px 0;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    gap: 8px 10px;
+    min-height: auto;
+    padding:
+      max(env(safe-area-inset-top), 8px)
+      12px
+      8px;
   }
 
   .brand-copy small {
     display: none;
   }
 
-  .app-header {
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
-  }
-
   .app-nav {
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    z-index: 30;
+    position: static;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    z-index: auto;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 6px;
-    padding: 8px;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 4px;
+    padding: 6px;
     border: 1px solid var(--pf-border);
     border-radius: 16px;
     background: rgba(10, 12, 10, 0.94);
@@ -165,8 +167,9 @@
 
   .app-nav-link {
     justify-content: center;
-    min-height: 44px;
-    padding-inline: 4px;
+    min-width: 0;
+    min-height: 42px;
+    padding-inline: 2px;
     font-size: 7px;
   }
 
