@@ -1,5 +1,8 @@
 import { create_uuid } from '../../domain/ids/uuid'
-import type { ReadinessEntry } from '../../domain/models'
+import type {
+  MuscleRecoveryRating,
+  ReadinessEntry,
+} from '../../domain/models'
 import type { ReadinessRepository } from '../../data/repositories/contracts'
 
 export interface SaveReadinessInput {
@@ -11,6 +14,7 @@ export interface SaveReadinessInput {
   motivation_pre: number | null
   soreness_score: number | null
   soreness_notes: string | null
+  muscle_recovery?: MuscleRecoveryRating[]
   joint_issue_present: boolean | null
   joint_issue_notes: string | null
   pre_workout_nutrition: string | null
@@ -85,6 +89,7 @@ export async function save_session_readiness(
     motivation_pre: input.motivation_pre,
     soreness_score: input.soreness_score,
     soreness_notes: clean_text(input.soreness_notes),
+    muscle_recovery: input.muscle_recovery ?? existing?.muscle_recovery ?? [],
     joint_issue_present: input.joint_issue_present,
     joint_issue_notes: clean_text(input.joint_issue_notes),
     pre_workout_nutrition: clean_text(input.pre_workout_nutrition),
@@ -133,6 +138,7 @@ export async function save_session_recovery(
     motivation_pre: existing?.motivation_pre ?? null,
     soreness_score: existing?.soreness_score ?? null,
     soreness_notes: existing?.soreness_notes ?? null,
+    muscle_recovery: existing?.muscle_recovery ?? [],
     joint_issue_present: existing?.joint_issue_present ?? null,
     joint_issue_notes: existing?.joint_issue_notes ?? null,
     pre_workout_nutrition: existing?.pre_workout_nutrition ?? null,

@@ -360,6 +360,93 @@
   grid-column: 1 / -1;
 }
 
+.muscleRecovery {
+  margin: 0 12px 12px;
+  padding: 12px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 12px;
+  background: var(--pf-bg);
+}
+
+.muscleRecoveryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.muscleRecoveryHeader > div {
+  display: grid;
+  gap: 3px;
+}
+
+.muscleRecoveryHeader span {
+  color: var(--pf-accent);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+
+.muscleRecoveryHeader strong {
+  color: var(--pf-text-strong);
+  font-size: 13px;
+}
+
+.muscleRecoveryHeader small {
+  color: var(--pf-text-faint);
+  font-size: 9px;
+  text-align: right;
+}
+
+.muscleRecoveryList {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.muscleRecoveryRow {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.35fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.muscleRecoveryRow > strong {
+  color: var(--pf-text-strong);
+  font-size: 11px;
+}
+
+.muscleRecoveryRow > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.muscleRecoveryRow button {
+  min-height: 38px;
+  padding: 0 5px;
+  border: 1px solid var(--pf-border);
+  border-radius: 8px;
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.muscleRecoveryRow .recoverySelected {
+  color: #071006;
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent);
+}
+
+.muscleRecoveryRow .recoveryAffected {
+  color: var(--pf-danger);
+  border-color: var(--pf-danger-border);
+  background: var(--pf-danger-soft);
+}
+
 .recoveryPanel {
   margin-top: 16px;
   padding: 16px;
@@ -1627,8 +1714,17 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .recoveryHeader {
+  .recoveryHeader,
+  .muscleRecoveryHeader {
     flex-direction: column;
+  }
+
+  .muscleRecoveryHeader small {
+    text-align: left;
+  }
+
+  .muscleRecoveryRow {
+    grid-template-columns: 1fr;
   }
 
   .recoveryGrid {

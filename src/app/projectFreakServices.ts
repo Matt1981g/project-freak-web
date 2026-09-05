@@ -36,7 +36,9 @@ import { correct_completed_set } from '../application/history/correctCompletedSe
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
 import {
   load_training_priorities,
+  save_training_intents,
   save_training_priorities,
+  type MuscleIntentMap,
   type TrainingPriorityArea,
 } from '../application/priorities/trainingPriorities'
 import {
@@ -67,6 +69,10 @@ import {
 } from '../application/programme/programmeImport'
 import { create_repositories } from '../data/repositories'
 import { audit_exercise_library } from '../application/exercises/exerciseLibraryAudit'
+import {
+  load_muscle_mapping_catalogue,
+  resolve_exercise_muscle_targets,
+} from '../application/analysis/muscleMapping'
 import {
   archive_exercise,
   consolidate_exercises,
@@ -470,13 +476,25 @@ export function load_priority_settings() {
   return load_training_priorities(repositories.settings)
 }
 
-export function save_priority_settings(
+export async function save_priority_settings(
   ordered_areas: readonly TrainingPriorityArea[],
+  intent_by_area?: MuscleIntentMap,
 ) {
-  return save_training_priorities(ordered_areas, repositories.settings, {
+  const now_iso = new Date().toISOString()
+  let state = await save_training_priorities(ordered_areas, repositories.settings, {
     local_date: current_local_date(),
-    now_iso: new Date().toISOString(),
+    now_iso,
   })
+
+  if (intent_by_area) {
+    state = await save_training_intents(
+      intent_by_area,
+      repositories.settings,
+      { now_iso },
+    )
+  }
+
+  return state
 }
 
 export function load_coach_exclusions() {
@@ -623,6 +641,69 @@ export async function start_programmed_session_workout(
   })
 }
 
+async function load_previous_muscle_recovery_prompt(
+  current_session_id: string,
+) {
+  const current = await repositories.sessions.get_session(current_session_id)
+  if (!current) return null
+
+  const sessions = await repositories.sessions.list_sessions_descending()
+  const current_clock = current.started_at ?? current.created_at
+  const previous = sessions
+    .filter(
+      (session) =>
+        session.id !== current.id &&
+        session.status === 'completed' &&
+        (session.completed_at ?? session.created_at) < current_clock,
+    )
+    .sort((a, b) =>
+      (b.completed_at ?? b.created_at).localeCompare(
+        a.completed_at ?? a.created_at,
+      ),
+    )[0]
+
+  if (!previous) return null
+
+  const [session_exercises, catalogue] = await Promise.all([
+    repositories.sessions.list_session_exercises(previous.id),
+    load_muscle_mapping_catalogue(repositories.exercises),
+  ])
+
+  const targets = new Map<string, { primary: boolean; weight: number }>()
+  for (const session_exercise of session_exercises) {
+    const exercise = await repositories.exercises.get_by_id(
+      session_exercise.exercise_id,
+    )
+    if (!exercise) continue
+
+    for (const target of resolve_exercise_muscle_targets(exercise, catalogue)) {
+      const existing = targets.get(target.area)
+      targets.set(target.area, {
+        primary: target.role === 'primary' || existing?.primary === true,
+        weight: Math.max(existing?.weight ?? 0, target.allocation_weight),
+      })
+    }
+  }
+
+  const muscles = [...targets.entries()]
+    .sort((left, right) => {
+      const by_primary = Number(right[1].primary) - Number(left[1].primary)
+      return by_primary !== 0
+        ? by_primary
+        : right[1].weight - left[1].weight
+    })
+    .map(([muscle]) => muscle)
+
+  return muscles.length === 0
+    ? null
+    : {
+        source_session_id: previous.id,
+        source_session_date_local: previous.session_date_local,
+        source_session_name: previous.session_name,
+        muscles,
+      }
+}
+
 export async function load_live_workout(completed_session_id: string) {
   const session = await repositories.sessions.get_session(completed_session_id)
   if (!session || session.deleted_at !== null) {
@@ -649,6 +730,10 @@ export async function load_live_workout(completed_session_id: string) {
 
   return {
     session,
+    recovery_prompt:
+      session.status === 'in_progress'
+        ? await load_previous_muscle_recovery_prompt(completed_session_id)
+        : null,
     readiness:
       await repositories.readiness.get_by_session_id(completed_session_id),
     summary: build_workout_summary(session, actual_exercises, all_sets),

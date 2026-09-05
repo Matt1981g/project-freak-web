@@ -25,6 +25,19 @@ export interface CompletedSession extends MutableEntity {
   notes: string | null
 }
 
+export type MuscleRecoveryStatus =
+  | 'fresh'
+  | 'mild_soreness'
+  | 'sore'
+  | 'performance_affected'
+
+export interface MuscleRecoveryRating {
+  muscle: string
+  status: MuscleRecoveryStatus
+  source_session_id: string
+  source_session_date_local: string
+}
+
 export interface ReadinessEntry extends MutableEntity {
   completed_session_id: string
   bodyweight_kg: number | null
@@ -34,6 +47,7 @@ export interface ReadinessEntry extends MutableEntity {
   motivation_pre: number | null
   soreness_score: number | null
   soreness_notes: string | null
+  muscle_recovery?: MuscleRecoveryRating[]
   joint_issue_present: boolean | null
   joint_issue_notes: string | null
   pre_workout_nutrition: string | null

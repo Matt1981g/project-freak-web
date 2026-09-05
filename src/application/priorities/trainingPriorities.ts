@@ -19,6 +19,15 @@ export const TRAINING_PRIORITY_AREAS = [
 ] as const
 
 export type TrainingPriorityArea = (typeof TRAINING_PRIORITY_AREAS)[number]
+export type MuscleTrainingIntent = 'grow' | 'maintain'
+
+export type MuscleIntentMap = Record<TrainingPriorityArea, MuscleTrainingIntent>
+
+export function default_muscle_intents(): MuscleIntentMap {
+  return Object.fromEntries(
+    TRAINING_PRIORITY_AREAS.map((area) => [area, 'grow']),
+  ) as MuscleIntentMap
+}
 
 export interface TrainingPrioritySnapshot {
   effective_from_date_local: string
@@ -30,6 +39,7 @@ export interface TrainingPriorityState {
   schema_version: '1.0.0'
   configured: boolean
   current: TrainingPriorityArea[]
+  intent_by_area: MuscleIntentMap
   history: TrainingPrioritySnapshot[]
 }
 
@@ -88,6 +98,12 @@ function parse_state(value: JsonValue): TrainingPriorityState | null {
   const current = record.current
   const history = record.history
   const configured = record.configured
+  const intent_record =
+    record.intent_by_area &&
+    typeof record.intent_by_area === 'object' &&
+    !Array.isArray(record.intent_by_area)
+      ? (record.intent_by_area as Record<string, JsonValue>)
+      : null
 
   if (!Array.isArray(current) || !Array.isArray(history)) {
     return null
@@ -134,10 +150,21 @@ function parse_state(value: JsonValue): TrainingPriorityState | null {
     })
   }
 
+  const intent_by_area = default_muscle_intents()
+  if (intent_record) {
+    for (const area of TRAINING_PRIORITY_AREAS) {
+      const value = intent_record[area]
+      if (value === 'grow' || value === 'maintain') {
+        intent_by_area[area] = value
+      }
+    }
+  }
+
   return {
     schema_version: '1.0.0',
     configured: configured === true,
     current: [...current_values],
+    intent_by_area,
     history: parsed_history.sort((a, b) =>
       a.effective_from_date_local.localeCompare(b.effective_from_date_local),
     ),
@@ -155,6 +182,7 @@ export async function load_training_priorities(
       schema_version: '1.0.0',
       configured: false,
       current: [...TRAINING_PRIORITY_AREAS],
+      intent_by_area: default_muscle_intents(),
       history: [],
     }
   )
@@ -189,6 +217,7 @@ export async function save_training_priorities(
     schema_version: '1.0.0',
     configured: true,
     current: [...ordered_areas],
+    intent_by_area: existing.intent_by_area,
     history,
   }
 
@@ -201,5 +230,40 @@ export async function save_training_priorities(
   }
 
   await repository.put(setting)
+  return state
+}
+
+
+export async function save_training_intents(
+  intent_by_area: MuscleIntentMap,
+  repository: SettingsRepository,
+  context: {
+    now_iso: string
+  },
+): Promise<TrainingPriorityState> {
+  const existing = await load_training_priorities(repository)
+  const cleaned = default_muscle_intents()
+
+  for (const area of TRAINING_PRIORITY_AREAS) {
+    const value = intent_by_area[area]
+    if (value !== 'grow' && value !== 'maintain') {
+      throw new Error(`Intent for ${area} must be Grow or Maintain.`)
+    }
+    cleaned[area] = value
+  }
+
+  const state: TrainingPriorityState = {
+    ...existing,
+    intent_by_area: cleaned,
+  }
+
+  await repository.put({
+    key: TRAINING_PRIORITY_SETTING_KEY,
+    scope: 'global',
+    value_json: state as unknown as JsonValue,
+    updated_at: context.now_iso,
+    device_id: null,
+  })
+
   return state
 }

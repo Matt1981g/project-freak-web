@@ -5,6 +5,8 @@ import type {
   Exercise,
   ExerciseAlias,
   ExerciseMetrics,
+  ExerciseMuscle,
+  Muscle,
   ProgrammeBlock,
   ReadinessEntry,
   ProgrammedSession,
@@ -35,6 +37,8 @@ export interface ExerciseRepository {
   list_all(): Promise<Exercise[]>
   list_active(): Promise<Exercise[]>
   list_aliases(): Promise<ExerciseAlias[]>
+  list_muscles?(): Promise<Muscle[]>
+  list_muscle_links?(): Promise<ExerciseMuscle[]>
   put(exercise: Exercise): Promise<string>
   merge_definitions(
     source_ids: string[],

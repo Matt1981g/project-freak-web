@@ -332,6 +332,14 @@ export class DexieExerciseRepository implements ExerciseRepository {
     return this.db.exercise_aliases.toArray()
   }
 
+  list_muscles(): Promise<Muscle[]> {
+    return this.db.muscles.toArray()
+  }
+
+  list_muscle_links(): Promise<ExerciseMuscle[]> {
+    return this.db.exercise_muscles.toArray()
+  }
+
   put(exercise: Exercise): Promise<string> {
     return put_with_audit_and_outbox(
       this.db,

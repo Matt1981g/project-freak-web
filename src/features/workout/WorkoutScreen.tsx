@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import type { ExerciseMetrics, SetComponent, TrainingSet } from '../../domain/models'
+import type {
+  ExerciseMetrics,
+  MuscleRecoveryRating,
+  MuscleRecoveryStatus,
+  SetComponent,
+  TrainingSet,
+} from '../../domain/models'
 import {
   complete_live_session_exercise,
   complete_live_workout,
@@ -369,8 +375,9 @@ function ProgressionSuggestionPanel(props: {
 function ReadinessPanel(props: {
   completed_session_id: string
   readiness: LiveWorkout['readiness']
+  recovery_prompt: LiveWorkout['recovery_prompt']
 }) {
-  const { completed_session_id, readiness } = props
+  const { completed_session_id, readiness, recovery_prompt } = props
   const [form, setForm] = useState(() => ({
     bodyweight_kg: readiness?.bodyweight_kg ?? null,
     sleep_duration_minutes: readiness?.sleep_duration_minutes ?? null,
@@ -379,6 +386,7 @@ function ReadinessPanel(props: {
     motivation_pre: readiness?.motivation_pre ?? null,
     soreness_score: readiness?.soreness_score ?? null,
     soreness_notes: readiness?.soreness_notes ?? '',
+    muscle_recovery: readiness?.muscle_recovery ?? ([] as MuscleRecoveryRating[]),
     joint_issue_present: readiness?.joint_issue_present ?? null,
     joint_issue_notes: readiness?.joint_issue_notes ?? '',
     pre_workout_nutrition: readiness?.pre_workout_nutrition ?? '',
@@ -400,6 +408,29 @@ function ReadinessPanel(props: {
     setSaved(false)
   }
 
+  function update_muscle_recovery(
+    muscle: string,
+    status: MuscleRecoveryStatus,
+  ) {
+    if (!recovery_prompt) return
+
+    const next = form.muscle_recovery.filter(
+      (rating) =>
+        !(
+          rating.muscle === muscle &&
+          rating.source_session_id === recovery_prompt.source_session_id
+        ),
+    )
+    next.push({
+      muscle,
+      status,
+      source_session_id: recovery_prompt.source_session_id,
+      source_session_date_local:
+        recovery_prompt.source_session_date_local,
+    })
+    update('muscle_recovery', next)
+  }
+
   useEffect(() => {
     if (!dirty) return
 
@@ -416,6 +447,7 @@ function ReadinessPanel(props: {
         motivation_pre: form.motivation_pre,
         soreness_score: form.soreness_score,
         soreness_notes: form.soreness_notes || null,
+        muscle_recovery: form.muscle_recovery,
         joint_issue_present: form.joint_issue_present,
         joint_issue_notes: form.joint_issue_notes || null,
         pre_workout_nutrition: form.pre_workout_nutrition || null,
@@ -585,6 +617,63 @@ function ReadinessPanel(props: {
           />
         </label>
       </div>
+
+      {recovery_prompt && (
+        <div className={styles.muscleRecovery}>
+          <div className={styles.muscleRecoveryHeader}>
+            <div>
+              <span>PREVIOUS SESSION RECOVERY</span>
+              <strong>{recovery_prompt.source_session_name}</strong>
+            </div>
+            <small>
+              {recovery_prompt.source_session_date_local} · tap one state per
+              trained area
+            </small>
+          </div>
+
+          <div className={styles.muscleRecoveryList}>
+            {recovery_prompt.muscles.map((muscle) => {
+              const current = form.muscle_recovery.find(
+                (rating) =>
+                  rating.muscle === muscle &&
+                  rating.source_session_id ===
+                    recovery_prompt.source_session_id,
+              )?.status
+
+              return (
+                <div className={styles.muscleRecoveryRow} key={muscle}>
+                  <strong>{muscle}</strong>
+                  <div>
+                    {(
+                      [
+                        ['fresh', 'FRESH'],
+                        ['mild_soreness', 'MILD'],
+                        ['sore', 'SORE'],
+                        ['performance_affected', 'AFFECTED'],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button
+                        type="button"
+                        className={
+                          current === value
+                            ? value === 'performance_affected'
+                              ? styles.recoveryAffected
+                              : styles.recoverySelected
+                            : undefined
+                        }
+                        key={value}
+                        onClick={() => update_muscle_recovery(muscle, value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className={styles.readinessNotes}>
         <label>
@@ -2245,6 +2334,7 @@ export function WorkoutScreen() {
       <ReadinessPanel
         completed_session_id={workout.session.id}
         readiness={workout.readiness}
+        recovery_prompt={workout.recovery_prompt}
       />
 
       {pairing_prompt && workout.session.status !== 'completed' && (

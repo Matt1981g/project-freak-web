@@ -5,6 +5,7 @@ import {
   TRAINING_PRIORITY_AREAS,
   load_training_priorities,
   move_priority,
+  save_training_intents,
   save_training_priorities,
 } from './trainingPriorities'
 
@@ -30,6 +31,7 @@ describe('training priorities', () => {
     expect(state.configured).toBe(false)
     expect(state.current).toEqual(TRAINING_PRIORITY_AREAS)
     expect(state.history).toEqual([])
+    expect(Object.values(state.intent_by_area).every((value) => value === 'grow')).toBe(true)
   })
 
   it('moves one priority directly to a new rank', () => {
@@ -66,6 +68,20 @@ describe('training priorities', () => {
     expect(state.current).toEqual(final_order)
     expect(state.history).toHaveLength(1)
     expect(state.history[0].ordered_areas).toEqual(final_order)
+  })
+
+  it('stores Grow / Maintain intent without changing priority order', async () => {
+    const fixture = repository_fixture()
+    const initial = await load_training_priorities(fixture.repository)
+    const intents = { ...initial.intent_by_area, Chest: 'maintain' as const }
+
+    const state = await save_training_intents(intents, fixture.repository, {
+      now_iso: '2026-09-04T18:00:00.000Z',
+    })
+
+    expect(state.current).toEqual(TRAINING_PRIORITY_AREAS)
+    expect(state.intent_by_area.Chest).toBe('maintain')
+    expect(state.intent_by_area.Biceps).toBe('grow')
   })
 
   it('keeps older dated priority snapshots for future Coach Bridge context', async () => {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   TRAINING_PRIORITY_AREAS,
   move_priority,
+  type MuscleIntentMap,
   type TrainingPriorityArea,
   type TrainingPriorityState,
 } from '../../application/priorities/trainingPriorities'
@@ -16,6 +17,11 @@ export function PrioritiesScreen() {
   const [order, setOrder] = useState<TrainingPriorityArea[]>([
     ...TRAINING_PRIORITY_AREAS,
   ])
+  const [intents, setIntents] = useState<MuscleIntentMap>(() =>
+    Object.fromEntries(
+      TRAINING_PRIORITY_AREAS.map((area) => [area, 'grow']),
+    ) as MuscleIntentMap,
+  )
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,6 +34,7 @@ export function PrioritiesScreen() {
         if (!active) return
         setState(loaded)
         setOrder([...loaded.current])
+        setIntents({ ...loaded.intent_by_area })
       })
       .catch((cause) => {
         if (!active) return
@@ -45,8 +52,13 @@ export function PrioritiesScreen() {
 
   const dirty = useMemo(() => {
     if (!state) return false
-    return order.some((area, index) => area !== state.current[index])
-  }, [order, state])
+    return (
+      order.some((area, index) => area !== state.current[index]) ||
+      TRAINING_PRIORITY_AREAS.some(
+        (area) => intents[area] !== state.intent_by_area[area],
+      )
+    )
+  }, [intents, order, state])
 
   function move(from_index: number, to_index: number) {
     setOrder((current) => move_priority(current, from_index, to_index))
@@ -60,9 +72,10 @@ export function PrioritiesScreen() {
     setError(null)
 
     try {
-      const updated = await save_priority_settings(order)
+      const updated = await save_priority_settings(order, intents)
       setState(updated)
       setOrder([...updated.current])
+      setIntents({ ...updated.intent_by_area })
       setSaved(true)
     } catch (cause) {
       setError(
@@ -86,8 +99,9 @@ export function PrioritiesScreen() {
           <p className={styles.eyebrow}>PROGRAMMING INPUT</p>
           <h1>Training Priorities</h1>
           <p>
-            Rank all 12 areas. Priority 1 gets the strongest programming bias
-            when the Coach Bridge builds future training.
+            Rank all 12 areas, then mark each as Grow or Maintain. Priority
+            controls where growth resources go first; intent controls whether
+            the Coach should actively progress that area at all.
           </p>
         </div>
         <div className={styles.status}>
@@ -111,7 +125,33 @@ export function PrioritiesScreen() {
           {order.map((area, index) => (
             <article className={styles.priorityRow} key={area}>
               <div className={styles.rank}>{index + 1}</div>
-              <strong>{area}</strong>
+              <div className={styles.priorityName}>
+                <strong>{area}</strong>
+                <div className={styles.intentToggle} role="group" aria-label={`${area} training intent`}>
+                  <button
+                    type="button"
+                    className={intents[area] === 'grow' ? styles.intentActive : undefined}
+                    disabled={saving}
+                    onClick={() => {
+                      setIntents((current) => ({ ...current, [area]: 'grow' }))
+                      setSaved(false)
+                    }}
+                  >
+                    GROW
+                  </button>
+                  <button
+                    type="button"
+                    className={intents[area] === 'maintain' ? styles.intentMaintain : undefined}
+                    disabled={saving}
+                    onClick={() => {
+                      setIntents((current) => ({ ...current, [area]: 'maintain' }))
+                      setSaved(false)
+                    }}
+                  >
+                    MAINTAIN
+                  </button>
+                </div>
+              </div>
 
               <label className={styles.moveTo}>
                 <span>MOVE TO</span>

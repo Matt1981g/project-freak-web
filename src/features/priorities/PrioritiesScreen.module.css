@@ -115,9 +115,55 @@
   font-weight: 1000;
 }
 
-.priorityRow > strong {
+.priorityName {
+  display: grid;
+  gap: 7px;
+}
+
+.priorityName > strong {
   color: var(--pf-text-strong);
   font-size: 15px;
+}
+
+.intentToggle {
+  width: fit-content;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--pf-border);
+  border-radius: 9px;
+  background: var(--pf-bg);
+}
+
+.intentToggle button {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--pf-text-faint);
+  background: transparent;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.intentToggle .intentActive {
+  color: #071006;
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent);
+}
+
+.intentToggle .intentMaintain {
+  color: var(--pf-text-strong);
+  border-color: var(--pf-border);
+  background: var(--pf-panel-raised);
+}
+
+.intentToggle button:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .moveTo {
