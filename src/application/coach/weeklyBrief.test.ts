@@ -78,6 +78,7 @@ const payload: TrainingExport = {
     },
     adaptive_analysis: {
       weeks: [],
+      trend_windows: [],
       muscles: [
         {
           muscle: 'Biceps',

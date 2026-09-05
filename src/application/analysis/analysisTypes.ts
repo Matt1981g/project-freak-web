@@ -76,8 +76,37 @@ export interface AdaptiveDeloadAnalysis {
   reasons: string[]
 }
 
+export interface AnalysisTrendMuscle {
+  muscle: TrainingPriorityArea
+  priority: number
+  intent: MuscleTrainingIntent
+  direct_sets: number
+  secondary_sets: number
+  weighted_sets: number
+  frequency: number
+  failure_exposure_sets: number
+}
+
+export interface AnalysisTrendWindow {
+  weeks_requested: 4 | 8 | 12
+  weeks_available: number
+  from_date_local: string | null
+  to_date_local: string | null
+  completed_sessions: number
+  working_sets: number
+  comparable_tonnage_kg: number
+  failure_sets: number
+  average_sessions_per_week: number
+  average_working_sets_per_week: number
+  rpe: MetricAverage
+  pump: MetricAverage
+  form: MetricAverage
+  muscles: AnalysisTrendMuscle[]
+}
+
 export interface AnalysisDashboard {
   weeks: WeeklyTrainingAnalysis[]
+  trend_windows: AnalysisTrendWindow[]
   muscles: MuscleAnalysisRow[]
   mapping_coverage: MuscleMappingCoverage
   underperformance: UnderperformanceAnalysis

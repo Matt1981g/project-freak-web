@@ -304,6 +304,72 @@ export function AnalysisScreen() {
             </div>
           </section>
 
+          <section className={styles.trendsPanel}>
+            <div className={styles.panelHeading}>
+              <div>
+                <span>PHASE 15D · LONG-TERM TRENDS</span>
+                <h2>4 / 8 / 12-week training picture</h2>
+              </div>
+              <small>
+                Windows use completed training weeks currently available. Scores
+                are sample-weighted; missing weeks are not invented.
+              </small>
+            </div>
+
+            <div className={styles.trendWindowGrid}>
+              {dashboard.trend_windows.map((window) => {
+                const growth_muscles = window.muscles
+                  .filter(
+                    (muscle) =>
+                      muscle.intent === 'grow' &&
+                      (muscle.direct_sets > 0 || muscle.secondary_sets > 0),
+                  )
+                  .slice(0, 6)
+
+                return (
+                  <article className={styles.trendWindow} key={window.weeks_requested}>
+                    <div className={styles.trendWindowHeader}>
+                      <div>
+                        <span>{window.weeks_requested}-WEEK WINDOW</span>
+                        <strong>
+                          {window.weeks_available}/{window.weeks_requested} weeks available
+                        </strong>
+                      </div>
+                      <b>
+                        {window.average_working_sets_per_week.toFixed(1)}
+                        <small> SETS/WK</small>
+                      </b>
+                    </div>
+
+                    <div className={styles.trendStats}>
+                      <div><span>SESSIONS</span><strong>{window.completed_sessions}</strong></div>
+                      <div><span>TONNAGE</span><strong>{format_tonnage(window.comparable_tonnage_kg)}</strong></div>
+                      <div><span>FAIL</span><strong>{window.failure_sets}</strong></div>
+                      <div><span>RPE</span><strong>{format_average(window.rpe.value)}</strong></div>
+                      <div><span>PUMP</span><strong>{format_average(window.pump.value)}</strong></div>
+                      <div><span>FORM</span><strong>{format_average(window.form.value)}</strong></div>
+                    </div>
+
+                    <div className={styles.trendMuscles}>
+                      {growth_muscles.length === 0 ? (
+                        <small>No mapped Grow-muscle exposure yet.</small>
+                      ) : (
+                        growth_muscles.map((muscle) => (
+                          <span key={muscle.muscle}>
+                            <b>#{muscle.priority} {muscle.muscle}</b>
+                            <small>
+                              {muscle.direct_sets} direct · {muscle.secondary_sets} secondary · {muscle.frequency} exposures
+                            </small>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+
           <section className={styles.historyPanel}>
             <div className={styles.panelHeading}>
               <div>
