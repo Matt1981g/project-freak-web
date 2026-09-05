@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   build_database_backup,
+  load_data_integrity_diagnostics,
   load_storage_diagnostics,
   preview_database_backup,
   restore_database_backup,
@@ -44,6 +45,10 @@ export function BackupScreen() {
   const [error, setError] = useState<string | null>(null)
   const [diagnostics, setDiagnostics] = useState<StorageDiagnostics | null>(null)
   const [diagnosing, setDiagnosing] = useState(false)
+  const [integrity, setIntegrity] = useState<
+    Awaited<ReturnType<typeof load_data_integrity_diagnostics>> | null
+  >(null)
+  const [integrityBusy, setIntegrityBusy] = useState(false)
 
   const backupJson = useMemo(
     () => (backup ? JSON.stringify(backup, null, 2) : ''),
@@ -66,6 +71,28 @@ export function BackupScreen() {
       )
     } finally {
       setDiagnosing(false)
+    }
+  }
+
+  async function run_integrity_check() {
+    setIntegrityBusy(true)
+    setError(null)
+    try {
+      const result = await load_data_integrity_diagnostics()
+      setIntegrity(result)
+      setStatus(
+        result.status === 'clean'
+          ? 'DATA INTEGRITY CLEAN ✓'
+          : `Integrity check found ${result.error_count} errors and ${result.warning_count} warnings.`,
+      )
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Unable to run data integrity diagnostics.',
+      )
+    } finally {
+      setIntegrityBusy(false)
     }
   }
 
@@ -298,6 +325,68 @@ export function BackupScreen() {
                 </span>
               </div>
             </details>
+          </>
+        )}
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeading}>
+          <div>
+            <span>DATA INTEGRITY</span>
+            <h2>Read-only database health check</h2>
+          </div>
+          <strong>HARDENING</strong>
+        </div>
+
+        <p>
+          Checks workout, set, advanced-set, readiness and programme relationships
+          for broken references, duplicate active set numbers and contradictory
+          session states. It never repairs or deletes anything automatically.
+        </p>
+
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.primary}
+            disabled={integrityBusy}
+            onClick={() => void run_integrity_check()}
+          >
+            {integrityBusy ? 'CHECKING…' : 'RUN DATA INTEGRITY CHECK'}
+          </button>
+        </div>
+
+        {integrity && (
+          <>
+            <div
+              className={
+                integrity.status === 'clean'
+                  ? styles.integrityClean
+                  : integrity.status === 'error'
+                    ? styles.integrityError
+                    : styles.integrityWarning
+              }
+            >
+              <strong>{integrity.status.toUpperCase()}</strong>
+              <span>
+                {integrity.checked_records.toLocaleString()} records checked ·{' '}
+                {integrity.error_count} errors · {integrity.warning_count} warnings
+              </span>
+            </div>
+
+            {integrity.issues.length > 0 && (
+              <details className={styles.integrityIssues}>
+                <summary>VIEW {integrity.issues.length} ISSUE{integrity.issues.length === 1 ? '' : 'S'}</summary>
+                <div>
+                  {integrity.issues.map((issue, index) => (
+                    <article key={`${issue.code}-${issue.entity_id}-${index}`}>
+                      <span>{issue.severity.toUpperCase()} · {issue.code}</span>
+                      <strong>{issue.entity_type} · {issue.entity_id}</strong>
+                      <small>{issue.detail}</small>
+                    </article>
+                  ))}
+                </div>
+              </details>
+            )}
           </>
         )}
       </section>

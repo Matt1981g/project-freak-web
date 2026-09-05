@@ -15,6 +15,7 @@ import {
   type SupabaseBackendHealth,
   type SupabaseSyncConfig,
 } from '../data/sync'
+import { inspect_data_integrity } from '../application/diagnostics/dataIntegrity'
 import {
   build_full_backup,
   preview_backup_json,
@@ -331,6 +332,10 @@ export interface StorageDiagnostics {
   programme_blocks: number
   programmed_sessions: number
   devices: number
+}
+
+export function load_data_integrity_diagnostics() {
+  return inspect_data_integrity(projectFreakDb)
 }
 
 export async function load_storage_diagnostics(): Promise<StorageDiagnostics> {
