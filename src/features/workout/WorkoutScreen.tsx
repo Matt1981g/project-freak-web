@@ -1517,7 +1517,7 @@ function SetLoggerRow(props: {
                               load_unit,
                             ),
                           })
-                        }
+                        }}
                       />
                       <button
                         type="button"
