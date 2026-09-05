@@ -15,12 +15,23 @@ export function pounds_to_kilograms(value_lb: number): number {
   return round(value_lb / POUNDS_PER_KILOGRAM, 4)
 }
 
+export function round_load_to_step(
+  value: number,
+  unit: WeightEntryUnit,
+): number {
+  const step = load_step_for_unit(unit)
+  const rounded = Math.round((value + Number.EPSILON) / step) * step
+  return round(rounded, unit === 'kg' ? 1 : 0)
+}
+
 export function load_for_display(
   load_kg: number | null,
   unit: WeightEntryUnit,
 ): number | null {
   if (load_kg === null) return null
-  return unit === 'kg' ? load_kg : kilograms_to_pounds(load_kg)
+  const converted =
+    unit === 'kg' ? load_kg : kilograms_to_pounds(load_kg)
+  return round_load_to_step(converted, unit)
 }
 
 export function display_load_to_kilograms(

@@ -954,7 +954,7 @@ function CompletedSetCorrection(props: {
                 type="number"
                 inputMode="decimal"
                 min="0"
-                step={load_unit === 'kg' ? '0.5' : '1'}
+                step={load_step_for_unit(load_unit)}
                 value={load_for_display(load, load_unit) ?? ''}
                 onChange={(event) =>
                   setLoad(
@@ -1276,7 +1276,7 @@ function SetLoggerRow(props: {
               type="number"
               inputMode="decimal"
               min="0"
-              step={load_unit === 'kg' ? '0.5' : '1'}
+              step={load_step_for_unit(load_unit)}
               value={load_for_display(load, load_unit) ?? ''}
               disabled={completed || locked}
               onChange={(event) =>
@@ -1431,7 +1431,7 @@ function SetLoggerRow(props: {
                         type="number"
                         inputMode="decimal"
                         min="0"
-                        step={load_unit === 'kg' ? '0.5' : '1'}
+                        step={load_step_for_unit(load_unit)}
                         value={load_for_display(component.load_kg, load_unit) ?? ''}
                         disabled={completed || locked}
                         onChange={(event) =>
