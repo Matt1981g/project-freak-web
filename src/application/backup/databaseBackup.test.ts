@@ -154,6 +154,25 @@ describe('PROJECT FREAK database backup', () => {
     ).rejects.toThrow('Backup checksum failed for settings')
   })
 
+  it('upgrades a valid pre-v2 backup by adding the new synced settings table', async () => {
+    const backup = await build_full_backup(db, {
+      now_iso: NOW,
+      source_device_id: 'device-1',
+    })
+
+    backup.database.db_schema_version = 1
+    delete backup.database.tables.synced_settings
+    delete backup.checksums.tables.synced_settings
+
+    const preview = await preview_backup_json(JSON.stringify(backup))
+    expect(preview.valid).toBe(true)
+    expect(preview.db_schema_version).toBe(2)
+    expect(preview.backup.database.tables.synced_settings).toEqual([])
+    expect(preview.backup.checksums.tables.synced_settings).toMatch(
+      /^[a-f0-9]{64}$/,
+    )
+  })
+
   it('rejects backups with a missing table', async () => {
     const backup = await build_full_backup(db, {
       now_iso: NOW,

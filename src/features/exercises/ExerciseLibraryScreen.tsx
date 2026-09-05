@@ -537,9 +537,7 @@ export function ExerciseLibraryScreen() {
             <div><strong>{muscle_audit.unmapped}</strong><span>unmapped</span></div>
           </div>
           <div className={styles.mappingList}>
-            {muscle_audit.rows
-              .filter((row) => row.status !== 'explicit' || mapping_exercise_id === row.exercise_id)
-              .map((row) => (
+            {muscle_audit.rows.map((row) => (
                 <div className={styles.mappingRow} key={row.exercise_id}>
                   <div>
                     <strong>{row.canonical_name}</strong>
