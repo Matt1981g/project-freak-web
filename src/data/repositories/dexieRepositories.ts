@@ -626,6 +626,28 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
     }
   }
 
+  put_programmed_session(session: ProgrammedSession): Promise<string> {
+    return put_with_audit_and_outbox(
+      this.db,
+      this.db.programmed_sessions,
+      'programmed_session',
+      session,
+      'Programme schedule changed',
+    )
+  }
+
+  put_programmed_session_exercise(
+    exercise: ProgrammedSessionExercise,
+  ): Promise<string> {
+    return put_with_audit_and_outbox(
+      this.db,
+      this.db.programmed_session_exercises,
+      'programmed_session_exercise',
+      exercise,
+      'Programme exercise substituted',
+    )
+  }
+
   async get_latest_template_version(
     template_family_id: string,
   ): Promise<number> {
@@ -782,6 +804,10 @@ export class DexieSessionRepository implements SessionRepository {
 
   get_session(id: string): Promise<CompletedSession | undefined> {
     return this.db.completed_sessions.get(id)
+  }
+
+  get_session_exercise(id: string): Promise<SessionExercise | undefined> {
+    return this.db.session_exercises.get(id)
   }
 
   async get_by_programmed_session_id(

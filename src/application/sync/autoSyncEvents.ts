@@ -8,7 +8,10 @@ export type AutoSyncReason =
   | 'foreground_interval'
   | 'workout_completed'
   | 'workout_discarded'
+  | 'workout_changed'
   | 'programme_imported'
+  | 'programme_changed'
+  | 'setting_changed'
 
 export interface AutoSyncRequestDetail {
   reason: AutoSyncReason

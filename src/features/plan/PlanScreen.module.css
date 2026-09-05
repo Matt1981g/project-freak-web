@@ -804,3 +804,77 @@
     grid-column: span 1;
   }
 }
+
+
+.scheduleActions {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-bg);
+}
+
+.scheduleActions label {
+  display: grid;
+  gap: 5px;
+}
+
+.scheduleActions label > span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.scheduleActions input,
+.scheduleActions button,
+.restoreSessionButton {
+  min-height: 44px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.scheduleActions input {
+  width: 100%;
+  padding: 0 10px;
+  background: var(--pf-panel);
+}
+
+.scheduleActions button,
+.restoreSessionButton {
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.scheduleActions .skipButton {
+  color: var(--pf-warning);
+  border-color: var(--pf-warning-border);
+  background: var(--pf-warning-soft);
+}
+
+.restoreSessionButton {
+  width: 100%;
+  margin-bottom: 10px;
+  color: var(--pf-accent);
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent-soft);
+}
+
+@media (max-width: 640px) {
+  .scheduleActions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scheduleActions label {
+    grid-column: 1 / -1;
+  }
+}

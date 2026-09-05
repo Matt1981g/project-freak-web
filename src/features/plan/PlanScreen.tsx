@@ -5,6 +5,9 @@ import {
   load_programme_blocks,
   load_programme_sessions,
   load_programmed_session_detail,
+  reschedule_plan_session,
+  restore_plan_session,
+  skip_plan_session,
   start_programmed_session_workout,
 } from '../../app/projectFreakServices'
 import { format_local_date_display } from '../../utils/dateFormat'
@@ -51,6 +54,8 @@ export function PlanScreen() {
   >(undefined)
   const [session_detail_loading, setSessionDetailLoading] = useState(false)
   const [starting_session_id, setStartingSessionId] = useState<string | null>(null)
+  const [session_action_id, setSessionActionId] = useState<string | null>(null)
+  const [move_date_by_session, setMoveDateBySession] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
 
   const refresh_programmes = useCallback(async () => {
@@ -117,6 +122,48 @@ export function PlanScreen() {
       )
     } finally {
       setStartingSessionId(null)
+    }
+  }
+
+
+  async function refresh_open_session(session_id: string) {
+    await refresh_programmes()
+    setSessionDetail(await load_programmed_session_detail(session_id))
+  }
+
+  async function move_session(session: ProgrammedSession) {
+    const date =
+      move_date_by_session[session.id] ?? session.scheduled_date_local ?? ''
+    if (!date) {
+      setError('Choose the new session date first.')
+      return
+    }
+
+    setSessionActionId(session.id)
+    setError(null)
+    try {
+      await reschedule_plan_session(session.id, date)
+      await refresh_open_session(session.id)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to move session.')
+    } finally {
+      setSessionActionId(null)
+    }
+  }
+
+  async function change_skip_state(session: ProgrammedSession, skipped: boolean) {
+    setSessionActionId(session.id)
+    setError(null)
+    try {
+      if (skipped) await skip_plan_session(session.id)
+      else await restore_plan_session(session.id)
+      await refresh_open_session(session.id)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Unable to update session status.',
+      )
+    } finally {
+      setSessionActionId(null)
     }
   }
 
@@ -191,7 +238,7 @@ export function PlanScreen() {
                           >
                             <span>
                               {format_local_date_display(session.scheduled_date_local, 'TBC')} ·{' '}
-                              {session.name_snapshot}
+                              {session.name_snapshot} · {session.status.toUpperCase()}
                             </span>
                             <strong>{is_open ? 'Hide' : 'View session'}</strong>
                           </button>
@@ -214,24 +261,87 @@ export function PlanScreen() {
                                     </p>
                                   )}
 
-                                  <button
-                                    type="button"
-                                    className={styles.startWorkoutButton}
-                                    disabled={
-                                      starting_session_id ===
-                                      session_detail.session.id
-                                    }
-                                    onClick={() =>
-                                      void start_session(
-                                        session_detail.session.id,
-                                      )
-                                    }
-                                  >
-                                    {starting_session_id ===
-                                    session_detail.session.id
-                                      ? 'Starting workout…'
-                                      : 'Start workout'}
-                                  </button>
+                                  {session_detail.session.status === 'planned' && (
+                                    <div className={styles.scheduleActions}>
+                                      <label>
+                                        <span>MOVE SESSION</span>
+                                        <input
+                                          type="date"
+                                          value={
+                                            move_date_by_session[session_detail.session.id] ??
+                                            session_detail.session.scheduled_date_local ??
+                                            ''
+                                          }
+                                          onChange={(event) =>
+                                            setMoveDateBySession((current) => ({
+                                              ...current,
+                                              [session_detail.session.id]:
+                                                event.target.value,
+                                            }))
+                                          }
+                                        />
+                                      </label>
+                                      <button
+                                        type="button"
+                                        disabled={session_action_id === session_detail.session.id}
+                                        onClick={() => void move_session(session_detail.session)}
+                                      >
+                                        MOVE DATE
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={styles.skipButton}
+                                        disabled={session_action_id === session_detail.session.id}
+                                        onClick={() =>
+                                          void change_skip_state(
+                                            session_detail.session,
+                                            true,
+                                          )
+                                        }
+                                      >
+                                        SKIP SESSION
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {session_detail.session.status === 'skipped' && (
+                                    <button
+                                      type="button"
+                                      className={styles.restoreSessionButton}
+                                      disabled={session_action_id === session_detail.session.id}
+                                      onClick={() =>
+                                        void change_skip_state(
+                                          session_detail.session,
+                                          false,
+                                        )
+                                      }
+                                    >
+                                      RESTORE TO PLAN
+                                    </button>
+                                  )}
+
+                                  {(session_detail.session.status === 'planned' ||
+                                    session_detail.session.status === 'started') && (
+                                                                      <button
+                                                                        type="button"
+                                                                        className={styles.startWorkoutButton}
+                                                                        disabled={
+                                                                          starting_session_id ===
+                                                                          session_detail.session.id
+                                                                        }
+                                                                        onClick={() =>
+                                                                          void start_session(
+                                                                            session_detail.session.id,
+                                                                          )
+                                                                        }
+                                                                      >
+                                                                        {starting_session_id ===
+                                                                        session_detail.session.id
+                                                                          ? 'Starting workout…'
+                                                                          : 'Start workout'}
+                                                                      </button>
+                                    
+                                  )}
 
                                   <div className={styles.storedExerciseList}>
                                     {session_detail.exercises.map(

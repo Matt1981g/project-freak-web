@@ -11,6 +11,7 @@ import {
   complete_live_session_exercise,
   complete_live_workout,
   correct_history_training_set,
+  load_active_exercise_options,
   load_exercise_weight_unit_preferences,
   load_live_workout,
   save_live_exercise_scores,
@@ -18,6 +19,7 @@ import {
   save_live_recovery,
   save_live_training_set,
   save_exercise_weight_unit_preference,
+  substitute_workout_exercise,
 } from '../../app/projectFreakServices'
 import {
   add_rest_seconds,
@@ -1917,6 +1919,15 @@ export function WorkoutScreen() {
   const { completed_session_id } = useParams()
   const [workout, setWorkout] = useState<LiveWorkout | undefined>()
   const [open_exercise_id, setOpenExerciseId] = useState<string | null>(null)
+  const [active_exercises, setActiveExercises] = useState<
+    Awaited<ReturnType<typeof load_active_exercise_options>>
+  >([])
+  const [substitution_open_id, setSubstitutionOpenId] = useState<string | null>(null)
+  const [substitution_target_id, setSubstitutionTargetId] = useState('')
+  const [substitution_scope, setSubstitutionScope] = useState<
+    'today' | 'week' | 'programme'
+  >('today')
+  const [substituting, setSubstituting] = useState(false)
   const [load_unit_by_exercise, setLoadUnitByExercise] = useState<
     Record<string, WeightEntryUnit>
   >({})
@@ -1978,6 +1989,31 @@ export function WorkoutScreen() {
         )
       },
     )
+  }
+
+  async function apply_exercise_substitution(session_exercise_id: string) {
+    if (!substitution_target_id || substituting) return
+
+    setSubstituting(true)
+    setError(null)
+    try {
+      await substitute_workout_exercise(
+        session_exercise_id,
+        substitution_target_id,
+        substitution_scope,
+      )
+      setSubstitutionOpenId(null)
+      setSubstitutionTargetId('')
+      await refresh_workout()
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Unable to substitute exercise.',
+      )
+    } finally {
+      setSubstituting(false)
+    }
   }
 
   function prime_rest_audio() {
@@ -2056,9 +2092,14 @@ export function WorkoutScreen() {
   useEffect(() => {
     let active = true
 
-    void load_exercise_weight_unit_preferences()
-      .then((preferences) => {
-        if (active) setLoadUnitByExercise(preferences)
+    void Promise.all([
+      load_exercise_weight_unit_preferences(),
+      load_active_exercise_options(),
+    ])
+      .then(([preferences, exercises]) => {
+        if (!active) return
+        setLoadUnitByExercise(preferences)
+        setActiveExercises(exercises)
       })
       .catch((cause) => {
         if (!active) return
@@ -2466,6 +2507,121 @@ export function WorkoutScreen() {
                   <div className={styles.loggerPanel}>
                     {workout.session.status !== 'completed' && (
                       <>
+                        {entry.planned_exercise_id &&
+                          entry.planned_exercise_id !== exercise.exercise_id && (
+                            <div className={styles.substitutedBadge}>
+                              <span>SUBSTITUTED TODAY</span>
+                              <strong>
+                                Planned: {entry.planned_exercise_name ?? 'Original exercise'}
+                              </strong>
+                            </div>
+                          )}
+
+                        {sets.length === 0 && (
+                          <div className={styles.substitutionPanel}>
+                            <button
+                              type="button"
+                              className={styles.substitutionToggle}
+                              onClick={() => {
+                                const opening =
+                                  substitution_open_id !== exercise.id
+                                setSubstitutionOpenId(
+                                  opening ? exercise.id : null,
+                                )
+                                setSubstitutionTargetId('')
+                                setSubstitutionScope('today')
+                              }}
+                            >
+                              {substitution_open_id === exercise.id
+                                ? 'CLOSE CHANGE EXERCISE'
+                                : 'CHANGE EXERCISE'}
+                            </button>
+
+                            {substitution_open_id === exercise.id && (
+                              <div className={styles.substitutionEditor}>
+                                <label>
+                                  <span>REPLACEMENT</span>
+                                  <select
+                                    value={substitution_target_id}
+                                    onChange={(event) =>
+                                      setSubstitutionTargetId(event.target.value)
+                                    }
+                                  >
+                                    <option value="">Choose exercise…</option>
+                                    {active_exercises
+                                      .filter(
+                                        (candidate) =>
+                                          candidate.id !== exercise.exercise_id,
+                                      )
+                                      .map((candidate) => (
+                                        <option
+                                          key={candidate.id}
+                                          value={candidate.id}
+                                        >
+                                          {candidate.canonical_name}
+                                          {candidate.category
+                                            ? ` · ${candidate.category}`
+                                            : ''}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </label>
+
+                                <div
+                                  className={styles.substitutionScopes}
+                                  role="group"
+                                  aria-label="Substitution scope"
+                                >
+                                  {(
+                                    [
+                                      ['today', 'TODAY'],
+                                      ['week', 'THIS WEEK'],
+                                      ['programme', 'PROGRAMME'],
+                                    ] as const
+                                  ).map(([value, label]) => (
+                                    <button
+                                      type="button"
+                                      key={value}
+                                      className={
+                                        substitution_scope === value
+                                          ? styles.substitutionScopeActive
+                                          : undefined
+                                      }
+                                      onClick={() =>
+                                        setSubstitutionScope(value)
+                                      }
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                <small>
+                                  Today changes only this live workout. Week /
+                                  Programme also change matching future planned
+                                  exercises; the original prescription remains
+                                  traceable.
+                                </small>
+
+                                <button
+                                  type="button"
+                                  className={styles.substitutionApply}
+                                  disabled={
+                                    !substitution_target_id || substituting
+                                  }
+                                  onClick={() =>
+                                    void apply_exercise_substitution(exercise.id)
+                                  }
+                                >
+                                  {substituting
+                                    ? 'CHANGING…'
+                                    : 'USE REPLACEMENT'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <PreviousComparablePanel
                           previous={entry.previous_comparable}
                           current_name={exercise.exercise_name_snapshot}

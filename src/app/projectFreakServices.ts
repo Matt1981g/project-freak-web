@@ -35,6 +35,12 @@ import { load_exercise_history } from '../application/history/exerciseHistory'
 import { correct_completed_set } from '../application/history/correctCompletedSet'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
 import {
+  reschedule_programmed_session,
+  set_programmed_session_skipped,
+  substitute_live_exercise,
+  type ExerciseSubstitutionScope,
+} from '../application/programme/sessionAdjustments'
+import {
   load_training_priorities,
   save_training_intents,
   save_training_priorities,
@@ -105,16 +111,18 @@ export function load_exercise_weight_unit_preferences() {
   return load_weight_unit_preferences(repositories.settings)
 }
 
-export function save_exercise_weight_unit_preference(
+export async function save_exercise_weight_unit_preference(
   exercise_id: string,
   unit: WeightEntryUnit,
 ) {
-  return save_weight_unit_preference(
+  const result = await save_weight_unit_preference(
     exercise_id,
     unit,
     repositories.settings,
     new Date().toISOString(),
   )
+  request_auto_sync('setting_changed')
+  return result
 }
 
 export interface CloudSyncStatus {
@@ -494,6 +502,7 @@ export async function save_priority_settings(
     )
   }
 
+  request_auto_sync('setting_changed')
   return state
 }
 
@@ -501,13 +510,18 @@ export function load_coach_exclusions() {
   return load_coach_excluded_sessions(repositories.settings)
 }
 
-export function set_coach_session_excluded(
+export async function set_coach_session_excluded(
   session_id: string,
   excluded: boolean,
 ) {
-  return set_session_coach_excluded(session_id, excluded, repositories.settings, {
-    now_iso: new Date().toISOString(),
-  })
+  const result = await set_session_coach_excluded(
+    session_id,
+    excluded,
+    repositories.settings,
+    { now_iso: new Date().toISOString() },
+  )
+  request_auto_sync('setting_changed')
+  return result
 }
 
 export function build_coach_export(scope: TrainingExportScopeRequest) {
@@ -538,6 +552,79 @@ export function load_exercise_history_entries(exercise_id: string) {
 
 export function load_history_entries() {
   return load_workout_history(repositories.sessions)
+}
+
+export function load_active_exercise_options() {
+  return repositories.exercises.list_active()
+}
+
+export async function reschedule_plan_session(
+  programmed_session_id: string,
+  scheduled_date_local: string,
+) {
+  const result = await reschedule_programmed_session(
+    programmed_session_id,
+    scheduled_date_local,
+    repositories.programme,
+    {
+      device_id: await current_device_id(),
+      now_iso: new Date().toISOString(),
+    },
+  )
+  request_auto_sync('programme_changed')
+  return result
+}
+
+export async function skip_plan_session(programmed_session_id: string) {
+  const result = await set_programmed_session_skipped(
+    programmed_session_id,
+    true,
+    repositories.programme,
+    {
+      device_id: await current_device_id(),
+      now_iso: new Date().toISOString(),
+    },
+  )
+  request_auto_sync('programme_changed')
+  return result
+}
+
+export async function restore_plan_session(programmed_session_id: string) {
+  const result = await set_programmed_session_skipped(
+    programmed_session_id,
+    false,
+    repositories.programme,
+    {
+      device_id: await current_device_id(),
+      now_iso: new Date().toISOString(),
+    },
+  )
+  request_auto_sync('programme_changed')
+  return result
+}
+
+export async function substitute_workout_exercise(
+  session_exercise_id: string,
+  replacement_exercise_id: string,
+  scope: ExerciseSubstitutionScope,
+) {
+  const result = await substitute_live_exercise(
+    { session_exercise_id, replacement_exercise_id, scope },
+    {
+      exercises: repositories.exercises,
+      programme: repositories.programme,
+      sessions: repositories.sessions,
+    },
+    {
+      device_id: await current_device_id(),
+      now_iso: new Date().toISOString(),
+    },
+  )
+  request_auto_sync('workout_changed')
+  if (result.future_programmed_exercises_changed > 0) {
+    request_auto_sync('programme_changed')
+  }
+  return result
 }
 
 export function load_programme_blocks() {
@@ -759,11 +846,11 @@ export async function load_live_workout(completed_session_id: string) {
           ),
         )
 
-        const planned_sets =
+        const planned_detail =
           exercise.programmed_session_exercise_id === null
-            ? []
-            : planned_by_id.get(exercise.programmed_session_exercise_id)?.sets ??
-              []
+            ? undefined
+            : planned_by_id.get(exercise.programmed_session_exercise_id)
+        const planned_sets = planned_detail?.sets ?? []
         const previous_comparable = history
           ? select_previous_comparable(
               history,
@@ -795,6 +882,9 @@ export async function load_live_workout(completed_session_id: string) {
             previous_comparable,
             progression_targets,
           ),
+          planned_exercise_id: planned_detail?.exercise.exercise_id ?? null,
+          planned_exercise_name:
+            planned_detail?.exercise.exercise_name_snapshot ?? null,
           planned_sets,
           set_components_by_set_id,
         }
