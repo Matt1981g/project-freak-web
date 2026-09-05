@@ -40,6 +40,7 @@ export interface MuscleAnalysisRow {
 
 export interface MuscleMappingCoverage {
   explicit_exercises: number
+  researched_exercises: number
   category_fallback_exercises: number
   unmapped_exercises: number
 }

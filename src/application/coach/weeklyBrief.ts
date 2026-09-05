@@ -199,7 +199,7 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     ...(muscle_lines.length > 0
       ? muscle_lines
       : ['No mapped muscle exposure in the current analysed week.']),
-    `Mapping coverage: explicit ${analysis.mapping_coverage.explicit_exercises} | category fallback ${analysis.mapping_coverage.category_fallback_exercises} | unmapped ${analysis.mapping_coverage.unmapped_exercises}`,
+    `Mapping coverage: explicit ${analysis.mapping_coverage.explicit_exercises} | multi-source researched ${analysis.mapping_coverage.researched_exercises} | category fallback ${analysis.mapping_coverage.category_fallback_exercises} | unmapped ${analysis.mapping_coverage.unmapped_exercises}`,
     '',
     'UNDERPERFORMANCE',
     `Status: ${analysis.underperformance.status.toUpperCase()} | regressed exercises ${analysis.underperformance.regressed_exercises} | performance-affected recoveries ${analysis.underperformance.performance_affected_recoveries}`,

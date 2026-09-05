@@ -821,7 +821,7 @@
 
 .mappingStats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 7px;
   padding: 0 18px 14px;
 }
@@ -949,4 +949,47 @@
   .mappingRow { grid-template-columns: 1fr; }
   .mappingRow > button { width: 100%; }
   .mappingActions { grid-template-columns: 1fr; }
+}
+
+
+.researchEvidence {
+  display: grid !important;
+  gap: 5px !important;
+  margin-top: 5px;
+  padding: 7px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 8px;
+  background: var(--pf-accent-soft);
+}
+
+.researchEvidence > span {
+  color: var(--pf-accent);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.researchEvidence > div {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 5px !important;
+}
+
+.researchEvidence a {
+  color: var(--pf-text-strong);
+  font-size: 8px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--pf-accent-border);
+}
+
+.researchEvidence > small {
+  color: var(--pf-text-muted) !important;
+  font-size: 8px !important;
+  line-height: 1.4;
+}
+
+@media (max-width: 700px) {
+  .mappingStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

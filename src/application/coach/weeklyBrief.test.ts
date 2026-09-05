@@ -99,7 +99,8 @@ const payload: TrainingExport = {
       ],
       mapping_coverage: {
         explicit_exercises: 0,
-        category_fallback_exercises: 1,
+        researched_exercises: 1,
+        category_fallback_exercises: 0,
         unmapped_exercises: 0,
       },
       underperformance: {

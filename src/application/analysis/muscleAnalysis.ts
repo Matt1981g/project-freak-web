@@ -130,6 +130,7 @@ export async function load_current_week_muscle_analysis(
   )
 
   const explicit_ids = new Set<string>()
+  const researched_ids = new Set<string>()
   const fallback_ids = new Set<string>()
   const unmapped_ids = new Set<string>()
 
@@ -157,8 +158,17 @@ export async function load_current_week_muscle_analysis(
 
       if (targets.some((target) => target.source === 'explicit')) {
         explicit_ids.add(exercise.id)
+        researched_ids.delete(exercise.id)
         fallback_ids.delete(exercise.id)
-      } else if (!explicit_ids.has(exercise.id)) {
+      } else if (targets.some((target) => target.source === 'research')) {
+        if (!explicit_ids.has(exercise.id)) {
+          researched_ids.add(exercise.id)
+          fallback_ids.delete(exercise.id)
+        }
+      } else if (
+        !explicit_ids.has(exercise.id) &&
+        !researched_ids.has(exercise.id)
+      ) {
         fallback_ids.add(exercise.id)
       }
 
@@ -210,6 +220,7 @@ export async function load_current_week_muscle_analysis(
       })),
     mapping_coverage: {
       explicit_exercises: explicit_ids.size,
+      researched_exercises: researched_ids.size,
       category_fallback_exercises: fallback_ids.size,
       unmapped_exercises: unmapped_ids.size,
     },

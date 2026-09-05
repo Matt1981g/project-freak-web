@@ -18,6 +18,7 @@ export async function load_analysis_dashboard_data(
       muscles: [],
       mapping_coverage: {
         explicit_exercises: 0,
+        researched_exercises: 0,
         category_fallback_exercises: 0,
         unmapped_exercises: 0,
       },

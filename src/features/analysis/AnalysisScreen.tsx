@@ -255,13 +255,15 @@ export function AnalysisScreen() {
                 <h2>Where the work actually went</h2>
               </div>
               <small>
-                Direct = primary target. Secondary exposure uses explicit muscle
-                mappings where available, then conservative category fallbacks.
+                Direct = primary target. Mapping order is manual/database
+                explicit → high-confidence multi-source research → conservative
+                category fallback.
               </small>
             </div>
 
             <div className={styles.mappingCoverage}>
               <span>EXPLICIT {dashboard.mapping_coverage.explicit_exercises}</span>
+              <span>RESEARCHED {dashboard.mapping_coverage.researched_exercises}</span>
               <span>FALLBACK {dashboard.mapping_coverage.category_fallback_exercises}</span>
               <span>UNMAPPED {dashboard.mapping_coverage.unmapped_exercises}</span>
             </div>

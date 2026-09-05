@@ -56,3 +56,47 @@ describe('muscle mapping', () => {
     })
   })
 })
+
+
+describe('multi-source researched mappings', () => {
+  it('auto-maps common machine exercises without user input', () => {
+    const catalogue = { muscles: [], links: [] }
+
+    const examples = [
+      ['Nautilus Bicep Curl', 'biceps', 'Biceps'],
+      ['Lat Pulldown', 'lats', 'Lats'],
+      ['MTS High Row', 'back', 'Back'],
+      ['Leg Extension', 'quads', 'Quads'],
+      ['Pendulum Squat', 'quads', 'Quads'],
+      ['DB Lateral Raise', 'shoulders', 'Shoulders'],
+    ] as const
+
+    for (const [name, category, expected] of examples) {
+      const candidate = {
+        ...exercise,
+        id: name,
+        canonical_name: name,
+        category,
+      }
+      const targets = resolve_exercise_muscle_targets(candidate, catalogue)
+      expect(targets[0]).toMatchObject({
+        area: expected,
+        role: 'primary',
+        source: 'research',
+      })
+    }
+  })
+
+  it('does not auto-certify ambiguous upright-row emphasis', () => {
+    const candidate = {
+      ...exercise,
+      canonical_name: 'Cable Upright Row',
+      category: null,
+    }
+    const targets = resolve_exercise_muscle_targets(candidate, {
+      muscles: [],
+      links: [],
+    })
+    expect(targets).toEqual([])
+  })
+})

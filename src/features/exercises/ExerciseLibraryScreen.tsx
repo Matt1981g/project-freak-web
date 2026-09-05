@@ -515,25 +515,42 @@ export function ExerciseLibraryScreen() {
       )}
 
       {muscle_audit && (
-        <details className={styles.mappingAudit} open={muscle_audit.unmapped > 0}>
+        <details
+          className={styles.mappingAudit}
+          open={muscle_audit.unmapped > 0 || muscle_audit.fallback > 0}
+        >
           <summary>
             <div>
               <span className={styles.kicker}>MUSCLE MAPPING AUDIT</span>
               <strong>
-                {muscle_audit.explicit}/{muscle_audit.active_exercises} explicitly verified
+                {muscle_audit.explicit + muscle_audit.researched}/{muscle_audit.active_exercises} mapped without category guessing
               </strong>
             </div>
-            <span className={muscle_audit.unmapped > 0 ? styles.reviewTag : styles.readyBadge}>
-              {muscle_audit.unmapped > 0 ? `${muscle_audit.unmapped} UNMAPPED` : 'AUDIT READY'}
+            <span
+              className={
+                muscle_audit.unmapped > 0 || muscle_audit.fallback > 0
+                  ? styles.reviewTag
+                  : styles.readyBadge
+              }
+            >
+              {muscle_audit.unmapped > 0
+                ? `${muscle_audit.unmapped} UNMAPPED`
+                : muscle_audit.fallback > 0
+                  ? `${muscle_audit.fallback} REVIEW`
+                  : 'RESEARCH COVERED'}
             </span>
           </summary>
           <p>
-            Explicit mappings override category estimates and sync between devices.
-            FALLBACK entries are usable estimates until you confirm them.
+            PROJECT FREAK now auto-maps high-confidence movement families from
+            multiple independent exercise references. Manual mappings still win.
+            Category fallback is only used when the research rules are not strong
+            enough, so you only need to review genuine exceptions rather than
+            playing amateur anatomist.
           </p>
           <div className={styles.mappingStats}>
-            <div><strong>{muscle_audit.explicit}</strong><span>explicit</span></div>
-            <div><strong>{muscle_audit.fallback}</strong><span>fallback</span></div>
+            <div><strong>{muscle_audit.explicit}</strong><span>manual / db</span></div>
+            <div><strong>{muscle_audit.researched}</strong><span>researched</span></div>
+            <div><strong>{muscle_audit.fallback}</strong><span>review</span></div>
             <div><strong>{muscle_audit.unmapped}</strong><span>unmapped</span></div>
           </div>
           <div className={styles.mappingList}>
@@ -542,19 +559,48 @@ export function ExerciseLibraryScreen() {
                   <div>
                     <strong>{row.canonical_name}</strong>
                     <small>
-                      {row.status.toUpperCase()} · {row.category ?? 'no category'} ·{' '}
+                      {row.status === 'research'
+                        ? `RESEARCHED ${row.research_confidence?.toUpperCase() ?? ''}`
+                        : row.status.toUpperCase()}{' '}
+                      · {row.category ?? 'no category'} ·{' '}
                       {row.targets.length
-                        ? row.targets.map((target) =>
-                            `${target.area} ${target.role}`,
-                          ).join(' · ')
+                        ? row.targets
+                            .map((target) => `${target.area} ${target.role}`)
+                            .join(' · ')
                         : 'no target mapping'}
                     </small>
+                    {row.research_sources.length >= 3 && (
+                      <div className={styles.researchEvidence}>
+                        <span>
+                          {row.research_sources.length} SOURCE CROSS-CHECK
+                        </span>
+                        <div>
+                          {row.research_sources.map((source) => (
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              key={source.id}
+                            >
+                              {source.name}
+                            </a>
+                          ))}
+                        </div>
+                        {row.research_rationale && (
+                          <small>{row.research_rationale}</small>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
                     onClick={() => open_mapping_editor(row.exercise_id)}
                   >
-                    {row.status === 'explicit' ? 'EDIT' : 'VERIFY / MAP'}
+                    {row.status === 'explicit'
+                      ? 'EDIT'
+                      : row.status === 'research'
+                        ? 'OVERRIDE'
+                        : 'REVIEW / MAP'}
                   </button>
 
                   {mapping_exercise_id === row.exercise_id && (
@@ -625,9 +671,13 @@ export function ExerciseLibraryScreen() {
                   )}
                 </div>
               ))}
-            {muscle_audit.rows.every((row) => row.status === 'explicit') && (
+            {muscle_audit.rows.every(
+              (row) => row.status === 'explicit' || row.status === 'research',
+            ) && (
               <div className={styles.mappingComplete}>
-                Every active exercise has an explicit muscle mapping. Ridiculously responsible.
+                Every active exercise is covered by an explicit or
+                high-confidence multi-source mapping. You may retire from
+                recreational anatomy.
               </div>
             )}
           </div>

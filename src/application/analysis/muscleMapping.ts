@@ -12,9 +12,13 @@ import {
   type VerifiedExerciseMuscleTarget,
 } from './muscleMappingSettings'
 import type { TrainingPriorityArea } from '../priorities/trainingPriorities'
+import { researched_mapping_for_exercise } from './researchedMuscleMappings'
 
 export type MuscleTargetRole = 'primary' | 'secondary'
-export type MuscleMappingSource = 'explicit' | 'category_fallback'
+export type MuscleMappingSource =
+  | 'explicit'
+  | 'research'
+  | 'category_fallback'
 
 export interface ResolvedMuscleTarget {
   area: TrainingPriorityArea
@@ -220,6 +224,14 @@ export function resolve_exercise_muscle_targets(
       }
     }
     return [...by_area.values()]
+  }
+
+  const researched = researched_mapping_for_exercise(exercise)
+  if (researched?.confidence === 'high') {
+    return researched.targets.map((target) => ({
+      ...target,
+      source: 'research' as const,
+    }))
   }
 
   return fallback_targets(exercise)
