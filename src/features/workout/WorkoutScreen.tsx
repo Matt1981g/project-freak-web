@@ -30,6 +30,12 @@ import {
   type SetLoadPrefillSource,
 } from '../../application/workout/setLoadPrefill'
 import {
+  display_load_to_kilograms,
+  load_for_display,
+  load_step_for_unit,
+  type WeightEntryUnit,
+} from '../../application/workout/weightUnits'
+import {
   is_session_exercise_completed,
   is_training_set_completed,
 } from '../../domain/rules/completion'
@@ -648,9 +654,10 @@ function RecoveryPanel(props: {
 
 function CompletedSetCorrection(props: {
   set: TrainingSet
+  load_unit: WeightEntryUnit
   on_saved: (set: TrainingSet) => Promise<void>
 }) {
-  const { set, on_saved } = props
+  const { set, load_unit, on_saved } = props
   const [open, setOpen] = useState(false)
   const [load, setLoad] = useState<number | null>(set.load_kg)
   const [reps, setReps] = useState<number>(set.completed_reps ?? 0)
@@ -718,15 +725,20 @@ function CompletedSetCorrection(props: {
 
           <div className={styles.correctionGrid}>
             <label>
-              <span>LOAD KG</span>
+              <span>LOAD {load_unit === 'kg' ? 'KG' : 'LBS'}</span>
               <input
                 type="number"
                 inputMode="decimal"
                 min="0"
-                step="0.5"
-                value={load ?? ''}
+                step={load_unit === 'kg' ? '0.5' : '1'}
+                value={load_for_display(load, load_unit) ?? ''}
                 onChange={(event) =>
-                  setLoad(numeric_value(event.target.value))
+                  setLoad(
+                    display_load_to_kilograms(
+                      numeric_value(event.target.value),
+                      load_unit,
+                    ),
+                  )
                 }
               />
             </label>
@@ -780,6 +792,7 @@ function SetLoggerRow(props: {
   actual_set: TrainingSet | null
   initial_load_kg: number | null
   load_prefill_source: SetLoadPrefillSource
+  load_unit: WeightEntryUnit
   allow_correction?: boolean
   on_complete: () => Promise<void>
   on_corrected?: () => Promise<void>
@@ -791,6 +804,7 @@ function SetLoggerRow(props: {
     actual_set,
     initial_load_kg,
     load_prefill_source,
+    load_unit,
     allow_correction = false,
     on_complete,
     on_corrected,
@@ -910,12 +924,17 @@ function SetLoggerRow(props: {
     schedule_autosave()
   }
 
-  function adjust_load(delta: number) {
+  function adjust_load(direction: -1 | 1) {
     clear_autosave_timer()
-    const next = Math.max(0, (load_ref.current ?? 0) + delta)
-    load_ref.current = next
-    setLoad(next)
-    void queue_save({ load_kg: next })
+    const current_display = load_for_display(load_ref.current, load_unit) ?? 0
+    const next_display = Math.max(
+      0,
+      current_display + direction * load_step_for_unit(load_unit),
+    )
+    const next_kg = display_load_to_kilograms(next_display, load_unit)
+    load_ref.current = next_kg
+    setLoad(next_kg)
+    void queue_save({ load_kg: next_kg })
   }
 
   function adjust_reps(delta: number) {
@@ -956,7 +975,7 @@ function SetLoggerRow(props: {
       <div className={styles.loggerGrid}>
         <div className={styles.fieldGroup}>
           <label htmlFor={`load-${exercise.id}-${set_number}`}>
-            LOAD KG
+            LOAD {load_unit === 'kg' ? 'KG' : 'LBS'}
             {load_prefill_source === 'programme'
               ? ' · PROGRAMME'
               : load_prefill_source === 'previous_comparable'
@@ -968,7 +987,7 @@ function SetLoggerRow(props: {
               type="button"
               data-set-action="true"
               disabled={completed}
-              onClick={() => adjust_load(-2.5)}
+              onClick={() => adjust_load(-1)}
             >
               −
             </button>
@@ -977,10 +996,17 @@ function SetLoggerRow(props: {
               type="number"
               inputMode="decimal"
               min="0"
-              step="0.5"
-              value={load ?? ''}
+              step={load_unit === 'kg' ? '0.5' : '1'}
+              value={load_for_display(load, load_unit) ?? ''}
               disabled={completed}
-              onChange={(event) => change_load(numeric_value(event.target.value))}
+              onChange={(event) =>
+                change_load(
+                  display_load_to_kilograms(
+                    numeric_value(event.target.value),
+                    load_unit,
+                  ),
+                )
+              }
               onBlur={() => {
                 clear_autosave_timer()
                 void queue_save()
@@ -990,7 +1016,7 @@ function SetLoggerRow(props: {
               type="button"
               data-set-action="true"
               disabled={completed}
-              onClick={() => adjust_load(2.5)}
+              onClick={() => adjust_load(1)}
             >
               +
             </button>
@@ -1063,6 +1089,7 @@ function SetLoggerRow(props: {
       {completed && allow_correction && saved_set && (
         <CompletedSetCorrection
           set={saved_set}
+          load_unit={load_unit}
           on_saved={async (corrected) => {
             saved_set_ref.current = corrected
             setSavedSet(corrected)
@@ -1361,6 +1388,9 @@ export function WorkoutScreen() {
   const { completed_session_id } = useParams()
   const [workout, setWorkout] = useState<LiveWorkout | undefined>()
   const [open_exercise_id, setOpenExerciseId] = useState<string | null>(null)
+  const [load_unit_by_exercise, setLoadUnitByExercise] = useState<
+    Record<string, WeightEntryUnit>
+  >({})
   const [loading, setLoading] = useState(true)
   const [finishing, setFinishing] = useState(false)
   const [pairing_prompt, setPairingPrompt] = useState<PairingPrompt | null>(null)
@@ -1729,6 +1759,52 @@ export function WorkoutScreen() {
                       </>
                     )}
 
+                    <div className={styles.loadUnitBar}>
+                      <div>
+                        <span>WEIGHT ENTRY</span>
+                        <small>Totals and progression stay stored in kg</small>
+                      </div>
+                      <div
+                        className={styles.loadUnitToggle}
+                        role="group"
+                        aria-label="Weight entry unit"
+                      >
+                        <button
+                          type="button"
+                          className={
+                            (load_unit_by_exercise[exercise.exercise_id] ?? 'kg') ===
+                            'kg'
+                              ? styles.loadUnitActive
+                              : undefined
+                          }
+                          onClick={() =>
+                            setLoadUnitByExercise((current) => ({
+                              ...current,
+                              [exercise.exercise_id]: 'kg',
+                            }))
+                          }
+                        >
+                          KG
+                        </button>
+                        <button
+                          type="button"
+                          className={
+                            load_unit_by_exercise[exercise.exercise_id] === 'lb'
+                              ? styles.loadUnitActive
+                              : undefined
+                          }
+                          onClick={() =>
+                            setLoadUnitByExercise((current) => ({
+                              ...current,
+                              [exercise.exercise_id]: 'lb',
+                            }))
+                          }
+                        >
+                          LBS
+                        </button>
+                      </div>
+                    </div>
+
                     {set_numbers.map((set_number) => {
                       const planned_set =
                         planned_sets.find(
@@ -1754,6 +1830,9 @@ export function WorkoutScreen() {
                           actual_set={actual_set}
                           initial_load_kg={load_prefill.load_kg}
                           load_prefill_source={load_prefill.source}
+                          load_unit={
+                            load_unit_by_exercise[exercise.exercise_id] ?? 'kg'
+                          }
                           allow_correction={
                             workout.session.status === 'completed'
                           }

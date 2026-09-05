@@ -1,0 +1,27 @@
+import { describe, expect, it } from 'vitest'
+import {
+  display_load_to_kilograms,
+  kilograms_to_pounds,
+  load_for_display,
+  load_step_for_unit,
+  pounds_to_kilograms,
+} from './weightUnits'
+
+describe('weight unit conversion', () => {
+  it('converts pounds to kilograms for storage and metrics', () => {
+    expect(pounds_to_kilograms(100)).toBeCloseTo(45.3592, 4)
+    expect(display_load_to_kilograms(100, 'lb')).toBeCloseTo(45.3592, 4)
+  })
+
+  it('converts stored kilograms back to pounds for imperial entry', () => {
+    expect(kilograms_to_pounds(45.3592)).toBeCloseTo(100, 2)
+    expect(load_for_display(45.3592, 'lb')).toBeCloseTo(100, 2)
+  })
+
+  it('keeps kilograms unchanged and uses unit-friendly step sizes', () => {
+    expect(display_load_to_kilograms(80, 'kg')).toBe(80)
+    expect(load_for_display(80, 'kg')).toBe(80)
+    expect(load_step_for_unit('kg')).toBe(2.5)
+    expect(load_step_for_unit('lb')).toBe(5)
+  })
+})
