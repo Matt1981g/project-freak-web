@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type {
   CompletedSession,
   Exercise,
+  ExerciseMetrics,
+  ReadinessEntry,
   SessionExercise,
+  SetComponent,
   TrainingSet,
 } from '../../domain/models'
 import { ProjectFreakDatabase } from '../db/projectFreakDb'
@@ -392,6 +395,191 @@ describe('Dexie repositories', () => {
     expect((await db.sets.get(set.id))?.source_record_key).toBe(
       'source:set:1',
     )
+  })
+
+  it('atomically soft-deletes an in-progress workout graph and queues synced deletes', async () => {
+    const session = session_fixture()
+    const exercise: SessionExercise = {
+      id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: DEVICE_ID,
+      source_kind: 'user',
+      source_id: null,
+      completed_session_id: session.id,
+      programmed_session_exercise_id: null,
+      exercise_id: 'exercise-1',
+      exercise_name_snapshot: 'Leg Extension',
+      planned_order: 1,
+      actual_order: 1,
+      rotation_group_key: null,
+      rotation_position: null,
+      target_sets: 1,
+      target_rep_min: 8,
+      target_rep_max: 12,
+      rest_seconds: 60,
+      tempo: null,
+      technique_cue: null,
+      programme_notes: null,
+      started_at: NOW,
+      completed_at: null,
+      notes: null,
+    }
+    const set: TrainingSet = {
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: DEVICE_ID,
+      source_kind: 'user',
+      source_id: null,
+      completed_session_id: session.id,
+      session_exercise_id: exercise.id,
+      exercise_id: exercise.exercise_id,
+      exercise_order_snapshot: 1,
+      set_number: 1,
+      set_role: 'work',
+      structure_type: 'drop',
+      load_kg: 50,
+      load_type: 'normal',
+      rep_mode: 'total',
+      reps_as_recorded: '10',
+      primary_reps_completed: 10,
+      left_reps_completed: null,
+      right_reps_completed: null,
+      completed_reps: 10,
+      partial_reps: null,
+      duration_seconds: null,
+      failure_status: 'none',
+      left_failure_status: null,
+      right_failure_status: null,
+      actual_rest_seconds: 60,
+      set_load_kg_reps: 700,
+      set_load_method: 'kg_reps_full_reps_only_v1',
+      notes: null,
+      completed_at: NOW,
+      source_record_key: null,
+    }
+    const component: SetComponent = {
+      id: '12121212-1212-4212-8212-121212121212',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: DEVICE_ID,
+      source_kind: 'user',
+      source_id: null,
+      set_id: set.id,
+      sequence: 1,
+      component_type: 'drop',
+      load_kg: 40,
+      load_type: 'normal',
+      reps_completed_full: 5,
+      reps_partial: null,
+      duration_seconds: null,
+      failure_status: 'none',
+      counts_toward_comparable_tonnage: true,
+      notes: null,
+    }
+    const metrics: ExerciseMetrics = {
+      id: '13131313-1313-4313-8313-131313131313',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: DEVICE_ID,
+      source_kind: 'user',
+      source_id: null,
+      session_exercise_id: exercise.id,
+      rpe: 8,
+      pump: 7,
+      form: 9,
+      where_felt_text: null,
+      where_felt_tags: [],
+      legacy_tension: null,
+      legacy_mmc: null,
+      notes: null,
+    }
+    const readiness: ReadinessEntry = {
+      id: '14141414-1414-4414-8414-141414141414',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: DEVICE_ID,
+      source_kind: 'user',
+      source_id: null,
+      completed_session_id: session.id,
+      bodyweight_kg: 110,
+      sleep_duration_minutes: null,
+      sleep_score: null,
+      energy_pre: null,
+      motivation_pre: null,
+      soreness_score: null,
+      soreness_notes: null,
+      joint_issue_present: null,
+      joint_issue_notes: null,
+      pre_workout_nutrition: null,
+      intra_workout_nutrition: null,
+      intra_hydration_ml: null,
+      post_workout_intake: null,
+      session_fatigue: null,
+      breathlessness: null,
+      energy_stability: null,
+      notes: null,
+    }
+
+    await db.completed_sessions.add(session)
+    await db.session_exercises.add(exercise)
+    await db.sets.add(set)
+    await db.set_components.add(component)
+    await db.exercise_metrics.add(metrics)
+    await db.readiness_entries.add(readiness)
+
+    const deleted_at = '2026-09-04T16:00:00.000Z'
+    await expect(
+      repositories.sessions.discard_session_graph?.(
+        session.id,
+        DEVICE_ID,
+        deleted_at,
+      ),
+    ).resolves.toBe(true)
+
+    expect((await db.completed_sessions.get(session.id))?.deleted_at).toBe(
+      deleted_at,
+    )
+    expect((await db.session_exercises.get(exercise.id))?.deleted_at).toBe(
+      deleted_at,
+    )
+    expect((await db.sets.get(set.id))?.deleted_at).toBe(deleted_at)
+    expect((await db.set_components.get(component.id))?.deleted_at).toBe(
+      deleted_at,
+    )
+    expect((await db.exercise_metrics.get(metrics.id))?.deleted_at).toBe(
+      deleted_at,
+    )
+    expect((await db.readiness_entries.get(readiness.id))?.deleted_at).toBe(
+      deleted_at,
+    )
+
+    expect(await repositories.sessions.list_sessions_descending()).toEqual([])
+    expect(
+      await repositories.sessions.list_session_exercises(session.id),
+    ).toEqual([])
+
+    const outbox = await db.sync_outbox.toArray()
+    expect(outbox).toHaveLength(6)
+    expect(outbox.every((entry) => entry.operation === 'delete')).toBe(true)
+
+    const audit = await db.audit_events.toArray()
+    expect(audit).toHaveLength(6)
+    expect(audit.every((entry) => entry.action === 'soft_delete')).toBe(true)
+    expect(
+      audit.every((entry) => entry.reason === 'Discarded in-progress workout'),
+    ).toBe(true)
   })
 
   it('lists completed sessions newest first', async () => {

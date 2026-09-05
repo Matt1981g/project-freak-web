@@ -205,6 +205,24 @@
   text-decoration: none;
 }
 
+.discardButton {
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--pf-danger-border);
+  border-radius: 11px;
+  color: var(--pf-danger);
+  background: var(--pf-danger-soft);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.discardButton:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
 .coachExcludeButton,
 .coachIncludeButton {
   min-height: 46px;
@@ -248,6 +266,12 @@
   border: 1px solid var(--pf-danger-border);
   color: var(--pf-danger);
   background: var(--pf-danger-soft);
+}
+
+@media (max-width: 900px) {
+  .discardButton {
+    display: none;
+  }
 }
 
 @media (max-width: 560px) {

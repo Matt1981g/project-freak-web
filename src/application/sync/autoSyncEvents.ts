@@ -7,6 +7,7 @@ export type AutoSyncReason =
   | 'online'
   | 'foreground_interval'
   | 'workout_completed'
+  | 'workout_discarded'
   | 'programme_imported'
 
 export interface AutoSyncRequestDetail {

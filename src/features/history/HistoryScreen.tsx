@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import {
+  discard_live_workout,
   load_coach_exclusions,
   load_history_entries,
   set_coach_session_excluded,
@@ -40,6 +41,7 @@ export function HistoryScreen() {
     () => new Set(),
   )
   const [coachSavingId, setCoachSavingId] = useState<string | null>(null)
+  const [discardingId, setDiscardingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -161,6 +163,51 @@ export function HistoryScreen() {
                     ? 'VIEW WORKOUT'
                     : 'RESUME WORKOUT'}
                 </Link>
+
+                {entry.session.status === 'in_progress' &&
+                  entry.session.source_kind !== 'historical_import' && (
+                    <button
+                      type="button"
+                      className={styles.discardButton}
+                      disabled={discardingId === entry.session.id}
+                      onClick={() => {
+                        const confirmed = window.confirm(
+                          `Discard "${entry.session.session_name}"?\n\nThis will remove the in-progress workout, its sets, advanced-set components, ratings and readiness data from PROJECT FREAK and sync that deletion to your other devices.\n\nCompleted workout history is protected and cannot be discarded here.`,
+                        )
+                        if (!confirmed) return
+
+                        setDiscardingId(entry.session.id)
+                        setError(null)
+
+                        void discard_live_workout(entry.session.id)
+                          .then((discarded) => {
+                            if (!discarded) {
+                              throw new Error(
+                                'Workout was already discarded or could not be found.',
+                              )
+                            }
+                            setEntries((current) =>
+                              current.filter(
+                                (candidate) =>
+                                  candidate.session.id !== entry.session.id,
+                              ),
+                            )
+                          })
+                          .catch((cause) => {
+                            setError(
+                              cause instanceof Error
+                                ? cause.message
+                                : 'Unable to discard workout.',
+                            )
+                          })
+                          .finally(() => setDiscardingId(null))
+                      }}
+                    >
+                      {discardingId === entry.session.id
+                        ? 'DISCARDING…'
+                        : 'DISCARD WORKOUT'}
+                    </button>
+                  )}
 
                 {entry.session.status === 'completed' &&
                   entry.session.source_kind !== 'historical_import' && (

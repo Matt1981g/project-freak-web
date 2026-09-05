@@ -892,6 +892,180 @@ export class DexieSessionRepository implements SessionRepository {
     }
   }
 
+  async discard_session_graph(
+    completed_session_id: string,
+    device_id: string,
+    timestamp: string,
+  ): Promise<boolean> {
+    return this.db.transaction(
+      'rw',
+      [
+        this.db.completed_sessions,
+        this.db.readiness_entries,
+        this.db.session_exercises,
+        this.db.sets,
+        this.db.set_components,
+        this.db.exercise_metrics,
+        this.db.audit_events,
+        this.db.sync_outbox,
+      ],
+      async () => {
+        const session = await this.db.completed_sessions.get(
+          completed_session_id,
+        )
+        if (!session || session.deleted_at !== null) {
+          return false
+        }
+
+        if (session.status === 'completed') {
+          throw new Error(
+            'Completed workouts cannot be discarded with this action.',
+          )
+        }
+
+        if (session.source_kind === 'historical_import') {
+          throw new Error('Historical workouts cannot be discarded here.')
+        }
+
+        const exercises = (
+          await this.db.session_exercises
+            .where('completed_session_id')
+            .equals(completed_session_id)
+            .toArray()
+        ).filter((exercise) => exercise.deleted_at === null)
+
+        const sets = (
+          await this.db.sets
+            .where('completed_session_id')
+            .equals(completed_session_id)
+            .toArray()
+        ).filter((set) => set.deleted_at === null)
+
+        const components =
+          sets.length === 0
+            ? []
+            : (
+                await this.db.set_components
+                  .where('set_id')
+                  .anyOf(sets.map((set) => set.id))
+                  .toArray()
+              ).filter((component) => component.deleted_at === null)
+
+        const metrics =
+          exercises.length === 0
+            ? []
+            : (
+                await this.db.exercise_metrics
+                  .where('session_exercise_id')
+                  .anyOf(exercises.map((exercise) => exercise.id))
+                  .toArray()
+              ).filter((entry) => entry.deleted_at === null)
+
+        const readiness = await this.db.readiness_entries
+          .where('completed_session_id')
+          .equals(completed_session_id)
+          .filter((entry) => entry.deleted_at === null)
+          .first()
+
+        function soft_delete<T extends MutableEntity>(entity: T): T {
+          return {
+            ...entity,
+            deleted_at: timestamp,
+            updated_at: timestamp,
+            revision: entity.revision + 1,
+            device_id,
+          }
+        }
+
+        const deleted_session = soft_delete(session)
+        const deleted_exercises = exercises.map(soft_delete)
+        const deleted_sets = sets.map(soft_delete)
+        const deleted_components = components.map(soft_delete)
+        const deleted_metrics = metrics.map(soft_delete)
+        const deleted_readiness = readiness ? soft_delete(readiness) : null
+
+        await this.db.completed_sessions.put(deleted_session)
+        if (deleted_exercises.length > 0) {
+          await this.db.session_exercises.bulkPut(deleted_exercises)
+        }
+        if (deleted_sets.length > 0) {
+          await this.db.sets.bulkPut(deleted_sets)
+        }
+        if (deleted_components.length > 0) {
+          await this.db.set_components.bulkPut(deleted_components)
+        }
+        if (deleted_metrics.length > 0) {
+          await this.db.exercise_metrics.bulkPut(deleted_metrics)
+        }
+        if (deleted_readiness) {
+          await this.db.readiness_entries.put(deleted_readiness)
+        }
+
+        const changes: Array<{
+          entity_type: string
+          before: MutableEntity
+          after: MutableEntity
+        }> = [
+          {
+            entity_type: 'completed_session',
+            before: session,
+            after: deleted_session,
+          },
+          ...exercises.map((before, index) => ({
+            entity_type: 'session_exercise',
+            before,
+            after: deleted_exercises[index],
+          })),
+          ...sets.map((before, index) => ({
+            entity_type: 'set',
+            before,
+            after: deleted_sets[index],
+          })),
+          ...components.map((before, index) => ({
+            entity_type: 'set_component',
+            before,
+            after: deleted_components[index],
+          })),
+          ...metrics.map((before, index) => ({
+            entity_type: 'exercise_metrics',
+            before,
+            after: deleted_metrics[index],
+          })),
+          ...(readiness && deleted_readiness
+            ? [
+                {
+                  entity_type: 'readiness_entry',
+                  before: readiness,
+                  after: deleted_readiness,
+                },
+              ]
+            : []),
+        ]
+
+        await this.db.audit_events.bulkAdd(
+          changes.map(({ entity_type, before, after }) => {
+            const audit = create_audit_event(
+              entity_type,
+              after,
+              before,
+              'soft_delete',
+            )
+            audit.reason = 'Discarded in-progress workout'
+            return audit
+          }),
+        )
+
+        await this.db.sync_outbox.bulkAdd(
+          changes.map(({ entity_type, after }) =>
+            create_sync_outbox_entry(entity_type, after),
+          ),
+        )
+
+        return true
+      },
+    )
+  }
+
   put_exercise_metrics(metrics: ExerciseMetrics): Promise<string> {
     return put_with_audit_and_outbox(
       this.db,

@@ -119,6 +119,11 @@ export interface SessionRepository {
   put_set(set: TrainingSet, reason?: string | null): Promise<string>
   put_set_components(components: SetComponent[]): Promise<void>
   put_exercise_metrics(metrics: ExerciseMetrics): Promise<string>
+  discard_session_graph?(
+    completed_session_id: string,
+    device_id: string,
+    timestamp: string,
+  ): Promise<boolean>
 }
 
 export interface RepositoryBundle {

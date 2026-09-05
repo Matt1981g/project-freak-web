@@ -765,6 +765,26 @@ export async function save_live_training_set(input: {
   })
 }
 
+export async function discard_live_workout(
+  completed_session_id: string,
+) {
+  if (!repositories.sessions.discard_session_graph) {
+    throw new Error('Discard workout is not available in this database.')
+  }
+
+  const discarded = await repositories.sessions.discard_session_graph(
+    completed_session_id,
+    await current_device_id(),
+    new Date().toISOString(),
+  )
+
+  if (discarded) {
+    request_auto_sync('workout_discarded')
+  }
+
+  return discarded
+}
+
 export async function complete_live_workout(
   completed_session_id: string,
 ) {
