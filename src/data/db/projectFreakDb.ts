@@ -25,6 +25,7 @@ import type {
   Setting,
   SyncOutbox,
   SyncState,
+  SyncedSetting,
   TemplateExercise,
   TemplateSet,
   TemplateSetComponent,
@@ -36,6 +37,7 @@ import {
   PROJECT_FREAK_DB_NAME,
   PROJECT_FREAK_DB_SCHEMA_VERSION,
   PROJECT_FREAK_SCHEMA_V1,
+  PROJECT_FREAK_SCHEMA_V2,
 } from './schema'
 
 export class ProjectFreakDatabase extends Dexie {
@@ -43,6 +45,7 @@ export class ProjectFreakDatabase extends Dexie {
   migration_history!: Table<MigrationHistory, number>
   devices!: Table<Device, string>
   settings!: Table<Setting, string>
+  synced_settings!: Table<SyncedSetting, string>
 
   exercises!: Table<Exercise, string>
   exercise_aliases!: Table<ExerciseAlias, string>
@@ -79,14 +82,28 @@ export class ProjectFreakDatabase extends Dexie {
   constructor(database_name = PROJECT_FREAK_DB_NAME) {
     super(database_name)
 
+    this.version(1).stores(PROJECT_FREAK_SCHEMA_V1)
     this.version(PROJECT_FREAK_DB_SCHEMA_VERSION).stores(
-      PROJECT_FREAK_SCHEMA_V1,
+      PROJECT_FREAK_SCHEMA_V2,
     )
   }
 
   async ensure_schema_metadata(): Promise<SchemaMeta> {
     const existing = await this.schema_meta.get('main')
     if (existing) {
+      if (
+        existing.db_schema_version !== PROJECT_FREAK_DB_SCHEMA_VERSION ||
+        existing.data_contract_version !== PROJECT_FREAK_DATA_CONTRACT_VERSION
+      ) {
+        const updated: SchemaMeta = {
+          ...existing,
+          db_schema_version: PROJECT_FREAK_DB_SCHEMA_VERSION,
+          data_contract_version: PROJECT_FREAK_DATA_CONTRACT_VERSION,
+          updated_at: new Date().toISOString(),
+        }
+        await this.schema_meta.put(updated)
+        return updated
+      }
       return existing
     }
 

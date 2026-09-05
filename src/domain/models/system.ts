@@ -1,4 +1,4 @@
-import type { JsonValue } from './common'
+import type { JsonValue, MutableEntity } from './common'
 
 export interface SchemaMeta {
   key: 'main'
@@ -31,4 +31,11 @@ export interface Setting {
   value_json: JsonValue
   updated_at: string
   device_id: string | null
+}
+
+
+export interface SyncedSetting extends MutableEntity {
+  key: string
+  scope: 'global'
+  value_json: JsonValue
 }

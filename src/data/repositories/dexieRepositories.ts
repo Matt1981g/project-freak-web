@@ -19,6 +19,7 @@ import type {
   Setting,
   SyncOutbox,
   SyncState,
+  SyncedSetting,
   SetComponent,
   TemplateExercise,
   TemplateSet,
@@ -62,6 +63,7 @@ type SyncableEntity =
   | TrainingSet
   | SetComponent
   | ExerciseMetrics
+  | SyncedSetting
 
 async function put_with_audit_and_outbox<T extends SyncableEntity>(
   db: ProjectFreakDatabase,
@@ -136,6 +138,8 @@ function sync_table_for_entity_type(
       return db.set_components as unknown as Table<MutableEntity, string>
     case 'exercise_metrics':
       return db.exercise_metrics as unknown as Table<MutableEntity, string>
+    case 'user_setting':
+      return db.synced_settings as unknown as Table<MutableEntity, string>
     default:
       throw new Error(`Unsupported sync entity type: ${entity_type}`)
   }
@@ -296,12 +300,87 @@ export class DexieSettingsRepository implements SettingsRepository {
     this.db = db
   }
 
-  get(key: string): Promise<Setting | undefined> {
-    return this.db.settings.get(key)
+  private setting_from_synced(entity: SyncedSetting): Setting {
+    return {
+      key: entity.key,
+      scope: entity.scope,
+      value_json: entity.value_json,
+      updated_at: entity.updated_at,
+      device_id: entity.device_id,
+    }
+  }
+
+  async get(key: string): Promise<Setting | undefined> {
+    const synced = await this.db.synced_settings.get(key)
+    if (synced && synced.deleted_at === null) {
+      return this.setting_from_synced(synced)
+    }
+
+    const legacy = await this.db.settings.get(key)
+    if (!legacy) return undefined
+
+    // One-time lazy promotion keeps existing installs compatible while making
+    // important global settings cloud-syncable without asking the user to
+    // recreate them.
+    if (legacy.scope === 'global') {
+      await this.put(legacy)
+      const promoted = await this.db.synced_settings.get(key)
+      return promoted ? this.setting_from_synced(promoted) : legacy
+    }
+
+    return legacy
   }
 
   async put(setting: Setting): Promise<string> {
-    await this.db.settings.put(setting)
+    if (setting.scope === 'device') {
+      await this.db.settings.put(setting)
+      return setting.key
+    }
+
+    const existing = await this.db.synced_settings.get(setting.key)
+    const local_device = await this.db.devices.toCollection().first()
+    const device_id =
+      setting.device_id ??
+      existing?.device_id ??
+      local_device?.id ??
+      'project-freak-settings'
+
+    const entity: SyncedSetting = {
+      id: setting.key,
+      key: setting.key,
+      scope: 'global',
+      value_json: setting.value_json,
+      created_at: existing?.created_at ?? setting.updated_at,
+      updated_at: setting.updated_at,
+      deleted_at: null,
+      revision: (existing?.revision ?? 0) + 1,
+      device_id,
+      source_kind: 'user',
+      source_id: null,
+    }
+
+    await this.db.transaction(
+      'rw',
+      this.db.synced_settings,
+      this.db.audit_events,
+      this.db.sync_outbox,
+      async () => {
+        await this.db.synced_settings.put(entity)
+
+        const audit_event = create_audit_event(
+          'user_setting',
+          entity,
+          existing ?? null,
+          existing ? 'update' : 'create',
+        )
+        audit_event.reason = 'Global setting changed'
+        await this.db.audit_events.add(audit_event)
+        await this.db.sync_outbox.add(
+          create_sync_outbox_entry('user_setting', entity),
+        )
+      },
+    )
+
     return setting.key
   }
 }
