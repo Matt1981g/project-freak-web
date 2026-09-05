@@ -1,4 +1,4 @@
-const CACHE_NAME = 'project-freak-shell-v3'
+const CACHE_NAME = 'project-freak-shell-v4-brand'
 
 function app_url(path = '') {
   return new URL(path, self.registration.scope).href
@@ -11,8 +11,8 @@ function fetch_fresh(request) {
 const CORE_ASSETS = [
   app_url(),
   app_url('manifest.webmanifest'),
-  app_url('pwa-icon.svg'),
-  app_url('favicon.svg'),
+  app_url('pf-icon-v2.svg'),
+  app_url('pf-favicon-v2.svg'),
 ]
 
 self.addEventListener('install', (event) => {

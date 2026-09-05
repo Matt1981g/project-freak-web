@@ -1,12 +1,12 @@
 :root {
-  --pf-bg: #090b09;
-  --pf-panel: #111411;
-  --pf-panel-raised: #171b17;
-  --pf-border: #252b25;
+  --pf-bg: #060806;
+  --pf-panel: #0d110e;
+  --pf-panel-raised: #141a15;
+  --pf-border: #283129;
   --pf-text-strong: #f4f7f2;
   --pf-text: #d8ddd5;
-  --pf-text-muted: #929b8e;
-  --pf-text-faint: #697166;
+  --pf-text-muted: #9aa49c;
+  --pf-text-faint: #707a72;
   --pf-accent: #bdff00;
   --pf-accent-soft: rgba(189, 255, 0, 0.11);
   --pf-accent-border: rgba(189, 255, 0, 0.42);
@@ -73,4 +73,21 @@ summary:focus-visible {
 
 #root {
   min-height: 100svh;
+}
+
+
+body {
+  color-scheme: dark;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+select, textarea {
+  color: var(--pf-text);
+}
+
+::placeholder {
+  color: #596159;
 }

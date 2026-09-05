@@ -37,12 +37,20 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="brand-mark" aria-hidden="true">
-          PF
-        </div>
-        <div className="brand-copy">
-          <span>PROJECT FREAK</span>
-          <small>LOCAL TRAINING DATABASE</small>
+        <div className="brand-lockup">
+          <img
+            className="brand-mark"
+            src="./pf-icon-v2.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <div className="brand-copy">
+            <span className="brand-title">
+              <b>PROJECT</b>
+              <strong>FREAK</strong>
+            </span>
+            <small>DISCIPLINE DRIVES RESULTS</small>
+          </div>
         </div>
         <nav className="app-nav app-nav-desktop" aria-label="Primary">
           <NavLink to="/plan" className={nav_class}>

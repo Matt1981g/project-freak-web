@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Project Freak PF">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050706"/>
+      <stop offset=".58" stop-color="#0b100d"/>
+      <stop offset="1" stop-color="#111712"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".28" stop-color="#bfc6c1"/>
+      <stop offset=".52" stop-color="#666e69"/>
+      <stop offset=".72" stop-color="#e8ece9"/>
+      <stop offset="1" stop-color="#8a928d"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d7ff59"/>
+      <stop offset=".38" stop-color="#bdff00"/>
+      <stop offset="1" stop-color="#6fdc00"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff9a2f"/>
+      <stop offset=".42" stop-color="#ff6a00"/>
+      <stop offset="1" stop-color="#ff3c00"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="texture" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency=".82" numOctaves="3" seed="9" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="table" tableValues="0 .18"/></feComponentTransfer>
+      <feBlend in="SourceGraphic" mode="multiply"/>
+    </filter>
+  </defs>
+  <rect x="12" y="12" width="488" height="488" rx="108" fill="url(#bg)" stroke="#323a34" stroke-width="8"/>
+  <path d="M26 350 L177 45" stroke="#ff6a00" stroke-width="8" opacity=".78"/>
+  <path d="M344 466 L486 184" stroke="#bdff00" stroke-width="5" opacity=".16" filter="url(#glow)"/>
+  <g filter="url(#texture)">
+    <!-- metallic P -->
+    <path fill="url(#metal)" d="M92 109h176c47 0 76 26 76 67 0 35-19 58-57 71l-69 24-35 75H96l51-111h88c15 0 25-8 25-20 0-11-8-17-23-17H168l-83 181H31z"/>
+    <!-- neon F -->
+    <path fill="url(#green)" d="M235 241h206l-31 66H288l-22 47h116l-30 64H207z"/>
+    <path fill="url(#green)" d="M300 132h166l-31 66H269z"/>
+  </g>
+  <path d="M221 338 L333 105" stroke="url(#orange)" stroke-width="10" stroke-linecap="square" filter="url(#glow)"/>
+  <path d="M62 444h244" stroke="#bdff00" stroke-width="3" opacity=".28"/>
+</svg>
