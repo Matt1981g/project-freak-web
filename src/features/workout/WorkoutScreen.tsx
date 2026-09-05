@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import type { ExerciseMetrics, TrainingSet } from '../../domain/models'
+import type { ExerciseMetrics, SetComponent, TrainingSet } from '../../domain/models'
 import {
   complete_live_session_exercise,
   complete_live_workout,
@@ -50,6 +50,135 @@ type LiveWorkout = NonNullable<
 type LiveExercise = LiveWorkout['exercises'][number]
 type PlannedSet = LiveExercise['planned_sets'][number]
 type ScoreKey = 'rpe' | 'pump' | 'form'
+type ComponentDraft = {
+  sequence: number
+  component_type: SetComponent['component_type']
+  load_kg: number | null
+  reps_completed_full: number | null
+  reps_partial: number | null
+  failed_next_rep: boolean
+  counts_toward_comparable_tonnage: boolean
+  notes: string | null
+}
+
+type WakeLockSentinelLike = {
+  release: () => Promise<void>
+  released?: boolean
+}
+
+type NavigatorWithWakeLock = Navigator & {
+  wakeLock?: {
+    request: (type: 'screen') => Promise<WakeLockSentinelLike>
+  }
+}
+
+type AudioWindow = Window &
+  typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext
+  }
+
+const SCORE_DESCRIPTIONS: Record<ScoreKey, readonly string[]> = {
+  rpe: [
+    'Very easy · 9+ reps left',
+    'Easy · about 8 reps left',
+    'Easy-moderate · about 7 reps left',
+    'Moderate · about 6 reps left',
+    'Working · about 5 reps left',
+    'Challenging · about 4 reps left',
+    'Hard · about 3 good reps left',
+    'Very hard · about 2 good reps left',
+    'Near limit · about 1 good rep left',
+    '0 RIR · no good rep left',
+  ],
+  pump: [
+    'Nothing happening',
+    'Barely noticeable',
+    'Slight pump',
+    'Warming up',
+    'Clearly pumped',
+    'Solid pump',
+    'Very full',
+    'Strong pump',
+    'Skin-tight',
+    'Sleeves considering legal action',
+  ],
+  form: [
+    'Form has left the building',
+    'Major breakdown',
+    'Very compromised',
+    'Poor · load is winning',
+    'Technique deteriorated',
+    'Noticeable compromise',
+    'Some drift',
+    'Good · minor technique drift',
+    'Very clean · tiny deviation',
+    'Textbook',
+  ],
+}
+
+function score_description(key: ScoreKey, value: number): string {
+  return SCORE_DESCRIPTIONS[key][Math.max(1, Math.min(10, value)) - 1]
+}
+
+function component_label(
+  component_type: SetComponent['component_type'],
+  sequence: number,
+): string {
+  if (component_type === 'drop') return `DROP ${sequence}`
+  if (component_type === 'rest_pause') return `REST-PAUSE ${sequence}`
+  if (component_type === 'myo_cluster') return `MYO CLUSTER ${sequence}`
+  if (component_type === 'partials') return 'PARTIALS'
+  return `COMPONENT ${sequence}`
+}
+
+function component_initial_load(
+  planned: PlannedSet['components'][number],
+  primary_load_kg: number | null,
+): number | null {
+  if (planned.target_load_kg !== null) return planned.target_load_kg
+  if (planned.load_relation === 'same_as_primary') return primary_load_kg
+  if (
+    planned.load_relation === 'percentage_of_primary' &&
+    planned.target_load_percent !== null &&
+    primary_load_kg !== null
+  ) {
+    return Math.round(primary_load_kg * (planned.target_load_percent / 100) * 2) / 2
+  }
+  return null
+}
+
+function build_component_drafts(
+  planned_set: PlannedSet | null,
+  actual_components: readonly SetComponent[],
+  primary_load_kg: number | null,
+): ComponentDraft[] {
+  if (!planned_set) return []
+
+  return [...planned_set.components]
+    .sort((a, b) => a.sequence - b.sequence)
+    .map((planned) => {
+      const actual = actual_components.find(
+        (component) =>
+          component.sequence === planned.sequence &&
+          component.component_type === planned.component_type,
+      )
+
+      return {
+        sequence: planned.sequence,
+        component_type: planned.component_type,
+        load_kg:
+          actual?.load_kg ?? component_initial_load(planned, primary_load_kg),
+        reps_completed_full: actual?.reps_completed_full ?? null,
+        reps_partial: actual?.reps_partial ?? null,
+        failed_next_rep:
+          actual?.failure_status === 'attempted_next_rep_failed',
+        counts_toward_comparable_tonnage:
+          planned.component_type !== 'partials',
+        notes: planned.notes,
+      }
+    })
+}
+
 
 type ActiveRestTimer = RestTimerState & {
   exercise_id: string
@@ -792,9 +921,11 @@ function SetLoggerRow(props: {
   set_number: number
   planned_set: PlannedSet | null
   actual_set: TrainingSet | null
+  actual_components: SetComponent[]
   initial_load_kg: number | null
   load_prefill_source: SetLoadPrefillSource
   load_unit: WeightEntryUnit
+  locked: boolean
   allow_correction?: boolean
   on_complete: () => Promise<void>
   on_corrected?: () => Promise<void>
@@ -804,9 +935,11 @@ function SetLoggerRow(props: {
     set_number,
     planned_set,
     actual_set,
+    actual_components,
     initial_load_kg,
     load_prefill_source,
     load_unit,
+    locked,
     allow_correction = false,
     on_complete,
     on_corrected,
@@ -819,11 +952,15 @@ function SetLoggerRow(props: {
   const [failed, setFailed] = useState(
     actual_set?.failure_status === 'attempted_next_rep_failed',
   )
+  const [components, setComponents] = useState<ComponentDraft[]>(() =>
+    build_component_drafts(planned_set, actual_components, initial_load_kg),
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const load_ref = useRef(load)
   const reps_ref = useRef(reps)
   const failed_ref = useRef(failed)
+  const components_ref = useRef(components)
   const saved_set_ref = useRef<TrainingSet | null>(saved_set)
   const autosave_timer_ref = useRef<number | null>(null)
   const save_chain_ref = useRef<Promise<void>>(Promise.resolve())
@@ -853,6 +990,7 @@ function SetLoggerRow(props: {
     load_kg?: number | null
     completed_reps?: number | null
     failed_next_rep?: boolean
+    components?: ComponentDraft[]
   }) {
     if (completed) return Promise.resolve()
 
@@ -867,6 +1005,10 @@ function SetLoggerRow(props: {
       options && 'failed_next_rep' in options
         ? options.failed_next_rep ?? false
         : failed_ref.current
+    const component_values =
+      options && 'components' in options
+        ? options.components ?? []
+        : components_ref.current
 
     pending_saves_ref.current += 1
     setSaving(true)
@@ -883,6 +1025,7 @@ function SetLoggerRow(props: {
           completed_reps,
           failed_next_rep,
           complete,
+          components: component_values,
         })
         saved_set_ref.current = updated
         setSavedSet(updated)
@@ -955,13 +1098,45 @@ function SetLoggerRow(props: {
     void queue_save({ failed_next_rep: next })
   }
 
+  function change_component(
+    index: number,
+    patch: Partial<ComponentDraft>,
+  ) {
+    const next = components_ref.current.map((component, component_index) =>
+      component_index === index ? { ...component, ...patch } : component,
+    )
+    components_ref.current = next
+    setComponents(next)
+    schedule_autosave()
+  }
+
+  function component_entries_complete(): boolean {
+    return components_ref.current.every((component) =>
+      component.component_type === 'partials'
+        ? component.reps_partial !== null
+        : component.reps_completed_full !== null,
+    )
+  }
+
   function complete_set() {
     clear_autosave_timer()
+    if (!component_entries_complete()) {
+      setError('Complete every programmed drop / rest-pause / myo / partial entry first.')
+      return
+    }
     void queue_save({ complete: true })
   }
 
   return (
-    <div className={completed ? styles.setRowComplete : styles.setRow}>
+    <div
+      className={
+        completed
+          ? styles.setRowComplete
+          : locked
+            ? styles.setRowLocked
+            : styles.setRow
+      }
+    >
       <div className={styles.setHeading}>
         <div>
           <strong>SET {set_number}</strong>
@@ -971,8 +1146,18 @@ function SetLoggerRow(props: {
               : rep_target(exercise.target_rep_min, exercise.target_rep_max)}
           </span>
         </div>
-        {completed && <span className={styles.doneBadge}>DONE</span>}
+        {completed ? (
+          <span className={styles.doneBadge}>DONE</span>
+        ) : locked ? (
+          <span className={styles.lockedBadge}>LOCKED</span>
+        ) : null}
       </div>
+
+      {locked && (
+        <div className={styles.lockedSetNotice}>
+          Complete Set {set_number - 1} before logging this set.
+        </div>
+      )}
 
       <div className={styles.loggerGrid}>
         <div className={styles.fieldGroup}>
@@ -988,7 +1173,7 @@ function SetLoggerRow(props: {
             <button
               type="button"
               data-set-action="true"
-              disabled={completed}
+              disabled={completed || locked}
               onClick={() => adjust_load(-1)}
             >
               −
@@ -1000,7 +1185,7 @@ function SetLoggerRow(props: {
               min="0"
               step={load_unit === 'kg' ? '0.5' : '1'}
               value={load_for_display(load, load_unit) ?? ''}
-              disabled={completed}
+              disabled={completed || locked}
               onChange={(event) =>
                 change_load(
                   display_load_to_kilograms(
@@ -1017,7 +1202,7 @@ function SetLoggerRow(props: {
             <button
               type="button"
               data-set-action="true"
-              disabled={completed}
+              disabled={completed || locked}
               onClick={() => adjust_load(1)}
             >
               +
@@ -1031,7 +1216,7 @@ function SetLoggerRow(props: {
             <button
               type="button"
               data-set-action="true"
-              disabled={completed}
+              disabled={completed || locked}
               onClick={() => adjust_reps(-1)}
             >
               −
@@ -1043,7 +1228,7 @@ function SetLoggerRow(props: {
               min="0"
               step="1"
               value={reps ?? ''}
-              disabled={completed}
+              disabled={completed || locked}
               onChange={(event) => change_reps(numeric_value(event.target.value))}
               onBlur={() => {
                 clear_autosave_timer()
@@ -1053,7 +1238,7 @@ function SetLoggerRow(props: {
             <button
               type="button"
               data-set-action="true"
-              disabled={completed}
+              disabled={completed || locked}
               onClick={() => adjust_reps(1)}
             >
               +
@@ -1062,12 +1247,235 @@ function SetLoggerRow(props: {
         </div>
       </div>
 
+      {planned_set && planned_set.components.length > 0 && (
+        <div className={styles.advancedSetPanel}>
+          <div className={styles.advancedSetHeader}>
+            <div>
+              <span>ADVANCED SET</span>
+              <strong>{target?.structure_type.replaceAll('_', ' ').toUpperCase()}</strong>
+            </div>
+            <small>Log every programmed component before completing the set.</small>
+          </div>
+
+          {components.map((component, index) => {
+            const planned_component = planned_set.components.find(
+              (item) =>
+                item.sequence === component.sequence &&
+                item.component_type === component.component_type,
+            )
+            const rep_value =
+              component.component_type === 'partials'
+                ? component.reps_partial
+                : component.reps_completed_full
+
+            return (
+              <div
+                className={styles.advancedComponent}
+                key={`${component.component_type}-${component.sequence}`}
+              >
+                <div className={styles.advancedComponentHeading}>
+                  <div>
+                    <strong>
+                      {component_label(
+                        component.component_type,
+                        component.sequence,
+                      )}
+                    </strong>
+                    <span>
+                      {planned_component
+                        ? rep_target(
+                            planned_component.target_rep_min,
+                            planned_component.target_rep_max,
+                          )
+                        : 'reps open'}
+                      {planned_component?.target_load_percent !== null &&
+                      planned_component?.target_load_percent !== undefined
+                        ? ` · ${planned_component.target_load_percent}% primary load`
+                        : ''}
+                    </span>
+                  </div>
+                  {planned_component?.failure_target !== 'none' && (
+                    <small>FAILURE {planned_component?.failure_target.toUpperCase()}</small>
+                  )}
+                </div>
+
+                {planned_component?.notes && (
+                  <p className={styles.advancedComponentNote}>
+                    {planned_component.notes}
+                  </p>
+                )}
+
+                <div className={styles.loggerGrid}>
+                  <div className={styles.fieldGroup}>
+                    <label
+                      htmlFor={`component-load-${exercise.id}-${set_number}-${index}`}
+                    >
+                      LOAD {load_unit === 'kg' ? 'KG' : 'LBS'}
+                    </label>
+                    <div className={styles.stepper}>
+                      <button
+                        type="button"
+                        data-set-action="true"
+                        disabled={completed || locked}
+                        onClick={() => {
+                          const current_display =
+                            load_for_display(component.load_kg, load_unit) ?? 0
+                          change_component(index, {
+                            load_kg: display_load_to_kilograms(
+                              Math.max(
+                                0,
+                                current_display - load_step_for_unit(load_unit),
+                              ),
+                              load_unit,
+                            ),
+                          })
+                        }}
+                      >
+                        −
+                      </button>
+                      <input
+                        id={`component-load-${exercise.id}-${set_number}-${index}`}
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step={load_unit === 'kg' ? '0.5' : '1'}
+                        value={load_for_display(component.load_kg, load_unit) ?? ''}
+                        disabled={completed || locked}
+                        onChange={(event) =>
+                          change_component(index, {
+                            load_kg: display_load_to_kilograms(
+                              numeric_value(event.target.value),
+                              load_unit,
+                            ),
+                          })
+                        }
+                      />
+                      <button
+                        type="button"
+                        data-set-action="true"
+                        disabled={completed || locked}
+                        onClick={() => {
+                          const current_display =
+                            load_for_display(component.load_kg, load_unit) ?? 0
+                          change_component(index, {
+                            load_kg: display_load_to_kilograms(
+                              current_display + load_step_for_unit(load_unit),
+                              load_unit,
+                            ),
+                          })
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={styles.fieldGroup}>
+                    <label
+                      htmlFor={`component-reps-${exercise.id}-${set_number}-${index}`}
+                    >
+                      {component.component_type === 'partials'
+                        ? 'PARTIAL REPS'
+                        : 'REPS'}
+                    </label>
+                    <div className={styles.stepper}>
+                      <button
+                        type="button"
+                        data-set-action="true"
+                        disabled={completed || locked}
+                        onClick={() =>
+                          change_component(
+                            index,
+                            component.component_type === 'partials'
+                              ? {
+                                  reps_partial: Math.max(
+                                    0,
+                                    (component.reps_partial ?? 0) - 1,
+                                  ),
+                                }
+                              : {
+                                  reps_completed_full: Math.max(
+                                    0,
+                                    (component.reps_completed_full ?? 0) - 1,
+                                  ),
+                                },
+                          )
+                        }
+                      >
+                        −
+                      </button>
+                      <input
+                        id={`component-reps-${exercise.id}-${set_number}-${index}`}
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        step="1"
+                        value={rep_value ?? ''}
+                        disabled={completed || locked}
+                        onChange={(event) => {
+                          const next = numeric_value(event.target.value)
+                          change_component(
+                            index,
+                            component.component_type === 'partials'
+                              ? { reps_partial: next }
+                              : { reps_completed_full: next },
+                          )
+                        }}
+                      />
+                      <button
+                        type="button"
+                        data-set-action="true"
+                        disabled={completed || locked}
+                        onClick={() =>
+                          change_component(
+                            index,
+                            component.component_type === 'partials'
+                              ? {
+                                  reps_partial:
+                                    (component.reps_partial ?? 0) + 1,
+                                }
+                              : {
+                                  reps_completed_full:
+                                    (component.reps_completed_full ?? 0) + 1,
+                                },
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  data-set-action="true"
+                  className={
+                    component.failed_next_rep
+                      ? styles.componentFailureOn
+                      : styles.componentFailureOff
+                  }
+                  disabled={completed || locked || rep_value === null}
+                  onClick={() =>
+                    change_component(index, {
+                      failed_next_rep: !component.failed_next_rep,
+                    })
+                  }
+                >
+                  {component.failed_next_rep ? 'COMPONENT FAIL ✓' : 'COMPONENT FAIL'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <div className={styles.setActions}>
         <button
           type="button"
           data-set-action="true"
           className={failed ? styles.failureOn : styles.failureOff}
-          disabled={completed || reps === null}
+          disabled={completed || locked || reps === null}
           onClick={toggle_failure}
         >
           {failed ? 'FAIL ✓' : 'FAIL'}
@@ -1076,7 +1484,16 @@ function SetLoggerRow(props: {
           type="button"
           data-set-action="true"
           className={styles.completeSetButton}
-          disabled={completed || reps === null}
+          disabled={
+            completed ||
+            locked ||
+            reps === null ||
+            !components.every((component) =>
+              component.component_type === 'partials'
+                ? component.reps_partial !== null
+                : component.reps_completed_full !== null,
+            )
+          }
           onClick={complete_set}
         >
           {completed ? 'SET COMPLETE' : 'COMPLETE SET'}
@@ -1247,6 +1664,25 @@ function ExerciseScoringPanel(props: {
           <span>1</span>
           <span>10</span>
         </div>
+        <strong className={styles.scoreDescription}>
+          {score_description(key, value)}
+        </strong>
+        <details className={styles.scoreKey}>
+          <summary>VIEW {label} SCALE</summary>
+          <div>
+            {SCORE_DESCRIPTIONS[key].map((description, index) => (
+              <span key={index + 1}>
+                <b>{index + 1}</b>
+                {description}
+              </span>
+            ))}
+          </div>
+          {key === 'rpe' && (
+            <small>
+              RPE 10 means 0 RIR. It does not require a failed rep attempt.
+            </small>
+          )}
+        </details>
       </div>
     )
   }
@@ -1400,6 +1836,12 @@ export function WorkoutScreen() {
     load_stored_rest_timer(completed_session_id),
   )
   const [rest_now_ms, setRestNowMs] = useState(() => Date.now())
+  const [wake_lock_state, setWakeLockState] = useState<
+    'idle' | 'active' | 'unavailable'
+  >('idle')
+  const wake_lock_ref = useRef<WakeLockSentinelLike | null>(null)
+  const audio_context_ref = useRef<AudioContext | null>(null)
+  const last_rest_remaining_ref = useRef<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refresh_workout = useCallback(async () => {
@@ -1447,6 +1889,60 @@ export function WorkoutScreen() {
     )
   }
 
+  function prime_rest_audio() {
+    if (typeof window === 'undefined') return
+
+    const audio_window = window as AudioWindow
+    const AudioContextConstructor =
+      audio_window.AudioContext ?? audio_window.webkitAudioContext
+    if (!AudioContextConstructor) return
+
+    try {
+      const context =
+        audio_context_ref.current ?? new AudioContextConstructor()
+      audio_context_ref.current = context
+      if (context.state === 'suspended') {
+        void context.resume()
+      }
+    } catch {
+      // Audio is best-effort. The visual timer remains authoritative.
+    }
+  }
+
+  function play_rest_complete_beep() {
+    prime_rest_audio()
+    const context = audio_context_ref.current
+    if (!context || context.state === 'closed') return
+
+    const play_tone = (delay_seconds: number, frequency: number) => {
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      const start = context.currentTime + delay_seconds
+      const end = start + 0.12
+
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(frequency, start)
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.14, start + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, end)
+
+      oscillator.connect(gain)
+      gain.connect(context.destination)
+      oscillator.start(start)
+      oscillator.stop(end)
+    }
+
+    try {
+      play_tone(0, 880)
+      play_tone(0.18, 1046)
+      if ('vibrate' in navigator) {
+        navigator.vibrate?.([100, 70, 100])
+      }
+    } catch {
+      // Some iOS audio states may still suppress sound; visual GO remains.
+    }
+  }
+
   async function finish_workout() {
     if (!completed_session_id || finishing) return
 
@@ -1488,6 +1984,54 @@ export function WorkoutScreen() {
   }, [])
 
   useEffect(() => {
+    if (workout?.session.status !== 'in_progress') {
+      setWakeLockState('idle')
+      void wake_lock_ref.current?.release().catch(() => undefined)
+      wake_lock_ref.current = null
+      return
+    }
+
+    let cancelled = false
+    const wake_lock = (navigator as NavigatorWithWakeLock).wakeLock
+
+    if (!wake_lock) {
+      setWakeLockState('unavailable')
+      return
+    }
+
+    async function acquire() {
+      if (cancelled || document.visibilityState !== 'visible') return
+      if (wake_lock_ref.current && !wake_lock_ref.current.released) return
+
+      try {
+        wake_lock_ref.current = await wake_lock!.request('screen')
+        if (!cancelled) setWakeLockState('active')
+      } catch {
+        if (!cancelled) setWakeLockState('unavailable')
+      }
+    }
+
+    void acquire()
+
+    const on_visibility_change = () => {
+      if (document.visibilityState === 'visible') {
+        void acquire()
+      } else {
+        wake_lock_ref.current = null
+      }
+    }
+
+    document.addEventListener('visibilitychange', on_visibility_change)
+
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', on_visibility_change)
+      void wake_lock_ref.current?.release().catch(() => undefined)
+      wake_lock_ref.current = null
+    }
+  }, [workout?.session.id, workout?.session.status])
+
+  useEffect(() => {
     void refresh_workout()
   }, [refresh_workout])
 
@@ -1500,6 +2044,27 @@ export function WorkoutScreen() {
 
     return () => window.clearInterval(tick)
   }, [rest_timer])
+
+  useEffect(() => {
+    if (!rest_timer) {
+      last_rest_remaining_ref.current = null
+      return
+    }
+
+    const remaining = rest_seconds_remaining(rest_timer, rest_now_ms)
+    const previous = last_rest_remaining_ref.current
+
+    if (
+      previous !== null &&
+      previous > 0 &&
+      remaining === 0 &&
+      rest_timer.ends_at_ms !== null
+    ) {
+      play_rest_complete_beep()
+    }
+
+    last_rest_remaining_ref.current = remaining
+  }, [rest_now_ms, rest_timer])
 
   useEffect(() => {
     if (!completed_session_id) return
@@ -1622,7 +2187,7 @@ export function WorkoutScreen() {
   }))
 
   return (
-    <div className={styles.screen}>
+    <div className={styles.screen} onPointerDown={prime_rest_audio}>
       <section className={styles.heading}>
         <div>
           <p className={styles.eyebrow}>WORKOUT</p>
@@ -1631,9 +2196,26 @@ export function WorkoutScreen() {
             Log the completed reps. FAIL means the next attempted rep did not complete.
           </p>
         </div>
-        <span className={styles.statusBadge}>
-          {workout.session.status.replaceAll('_', ' ')}
-        </span>
+        <div className={styles.workoutStatusStack}>
+          <span className={styles.statusBadge}>
+            {workout.session.status.replaceAll('_', ' ')}
+          </span>
+          {workout.session.status === 'in_progress' && (
+            <small
+              className={
+                wake_lock_state === 'active'
+                  ? styles.wakeActive
+                  : styles.wakeUnavailable
+              }
+            >
+              {wake_lock_state === 'active'
+                ? 'SCREEN AWAKE ✓'
+                : wake_lock_state === 'unavailable'
+                  ? 'WAKE LOCK UNAVAILABLE'
+                  : 'KEEPING SCREEN AWAKE…'}
+            </small>
+          )}
+        </div>
       </section>
 
       <section className={styles.sessionMeta}>
@@ -1849,6 +2431,16 @@ export function WorkoutScreen() {
                         ) ?? null
                       const actual_set =
                         sets.find((set) => set.set_number === set_number) ?? null
+                      const previous_set =
+                        set_number > 1
+                          ? sets.find(
+                              (set) => set.set_number === set_number - 1,
+                            ) ?? null
+                          : null
+                      const locked =
+                        set_number > 1 &&
+                        (previous_set === null ||
+                          !is_training_set_completed(previous_set))
                       const load_prefill = select_set_load_prefill({
                         existing_set: actual_set,
                         programmed_load_kg:
@@ -1865,11 +2457,17 @@ export function WorkoutScreen() {
                           set_number={set_number}
                           planned_set={planned_set}
                           actual_set={actual_set}
+                          actual_components={
+                            actual_set
+                              ? entry.set_components_by_set_id[actual_set.id] ?? []
+                              : []
+                          }
                           initial_load_kg={load_prefill.load_kg}
                           load_prefill_source={load_prefill.source}
                           load_unit={
                             load_unit_by_exercise[exercise.exercise_id] ?? 'kg'
                           }
+                          locked={locked}
                           allow_correction={
                             workout.session.status === 'completed'
                           }

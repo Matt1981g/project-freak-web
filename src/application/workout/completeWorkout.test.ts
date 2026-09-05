@@ -119,6 +119,7 @@ function repository_fixture(options: {
   sets: TrainingSet[]
 }) {
   let saved_session: CompletedSession | undefined
+  const saved_exercises: SessionExercise[] = []
 
   const repository: SessionRepository = {
     get_session: async () => undefined,
@@ -136,13 +137,20 @@ function repository_fixture(options: {
       saved_session = session
       return session.id
     }),
-    put_session_exercise: async (exercise) => exercise.id,
+    put_session_exercise: async (exercise) => {
+      saved_exercises.push(exercise)
+      return exercise.id
+    },
     put_set: async (set) => set.id,
     put_set_components: async (_components: SetComponent[]) => undefined,
     put_exercise_metrics: async (metrics: ExerciseMetrics) => metrics.id,
   }
 
-  return { repository, saved_session: () => saved_session }
+  return {
+    repository,
+    saved_session: () => saved_session,
+    saved_exercises: () => saved_exercises,
+  }
 }
 
 describe('complete workout', () => {
@@ -241,6 +249,44 @@ describe('complete workout', () => {
     ).rejects.toThrow('1 remaining')
 
     expect(fixture.saved_session()).toBeUndefined()
+  })
+
+  it('records actual exercise order from first-start timestamps when finishing', async () => {
+    const first_planned = {
+      ...exercise_fixture('a'),
+      planned_order: 1,
+      actual_order: 1,
+      started_at: '2026-09-04T17:20:00.000Z',
+    }
+    const second_planned = {
+      ...exercise_fixture('b'),
+      planned_order: 2,
+      actual_order: 2,
+      started_at: '2026-09-04T17:05:00.000Z',
+    }
+    const fixture = repository_fixture({
+      exercises: [first_planned, second_planned],
+      sets: [set_fixture('set-1', 500)],
+    })
+
+    await complete_workout_session(
+      session_fixture(),
+      fixture.repository,
+      {
+        device_id: DEVICE_ID,
+        now_iso: FINISH,
+      },
+    )
+
+    expect(
+      fixture.saved_exercises().map((exercise) => ({
+        id: exercise.id,
+        actual_order: exercise.actual_order,
+      })),
+    ).toEqual([
+      { id: 'b', actual_order: 1 },
+      { id: 'a', actual_order: 2 },
+    ])
   })
 
   it('marks the workout completed with duration and total volume', async () => {

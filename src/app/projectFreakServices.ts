@@ -663,6 +663,16 @@ export async function load_live_workout(completed_session_id: string) {
             repositories.sessions,
           ),
         ])
+        const set_components_by_set_id = Object.fromEntries(
+          await Promise.all(
+            sets.map(async (set) => [
+              set.id,
+              repositories.sessions.list_set_components
+                ? await repositories.sessions.list_set_components(set.id)
+                : [],
+            ]),
+          ),
+        )
 
         const planned_sets =
           exercise.programmed_session_exercise_id === null
@@ -701,6 +711,7 @@ export async function load_live_workout(completed_session_id: string) {
             progression_targets,
           ),
           planned_sets,
+          set_components_by_set_id,
         }
       }),
     ),
@@ -746,6 +757,7 @@ export async function save_live_training_set(input: {
   completed_reps: number | null
   failed_next_rep: boolean
   complete: boolean
+  components?: Parameters<typeof save_training_set>[0]['components']
 }) {
   return save_training_set(input, repositories.sessions, {
     device_id: await current_device_id(),

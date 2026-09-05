@@ -36,7 +36,6 @@ function duration_seconds(
   return Math.max(0, Math.round((completed - started) / 1000))
 }
 
-
 function source_clock_seconds(value: string | null): number | null {
   if (!value) return null
 
@@ -96,12 +95,58 @@ export function build_workout_summary(
   }
 }
 
+function actual_sequence(exercises: readonly SessionExercise[]): SessionExercise[] {
+  return [...exercises].sort((left, right) => {
+    const left_started = left.started_at ?? left.completed_at
+    const right_started = right.started_at ?? right.completed_at
+
+    if (left_started && right_started && left_started !== right_started) {
+      return left_started.localeCompare(right_started)
+    }
+    if (left_started && !right_started) return -1
+    if (!left_started && right_started) return 1
+
+    const left_plan = left.planned_order ?? left.actual_order
+    const right_plan = right.planned_order ?? right.actual_order
+    return left_plan - right_plan
+  })
+}
+
+async function persist_actual_exercise_order(
+  exercises: readonly SessionExercise[],
+  repository: SessionRepository,
+  context: CompleteWorkoutContext,
+): Promise<SessionExercise[]> {
+  const ordered = actual_sequence(exercises)
+  const result: SessionExercise[] = []
+
+  for (const [index, exercise] of ordered.entries()) {
+    const actual_order = index + 1
+    if (exercise.actual_order === actual_order) {
+      result.push(exercise)
+      continue
+    }
+
+    const updated: SessionExercise = {
+      ...exercise,
+      actual_order,
+      updated_at: context.now_iso,
+      revision: exercise.revision + 1,
+      device_id: context.device_id,
+    }
+    await repository.put_session_exercise(updated)
+    result.push(updated)
+  }
+
+  return result
+}
+
 export async function complete_workout_session(
   session: CompletedSession,
   repository: SessionRepository,
   context: CompleteWorkoutContext,
 ): Promise<{ session: CompletedSession; summary: WorkoutSummary }> {
-  const exercises = await repository.list_session_exercises(session.id)
+  let exercises = await repository.list_session_exercises(session.id)
 
   if (exercises.length === 0) {
     throw new Error('A workout with no exercises cannot be completed.')
@@ -124,6 +169,12 @@ export async function complete_workout_session(
       summary: build_workout_summary(session, exercises, sets),
     }
   }
+
+  exercises = await persist_actual_exercise_order(
+    exercises,
+    repository,
+    context,
+  )
 
   const completed: CompletedSession = {
     ...session,

@@ -71,28 +71,34 @@ export async function complete_live_exercise(
   repository: SessionRepository,
   context: ExerciseCompletionContext,
 ): Promise<SessionExercise> {
-  if (exercise.completed_at !== null) {
-    return exercise
+  const current =
+    (await repository.list_session_exercises(exercise.completed_session_id)).find(
+      (candidate) => candidate.id === exercise.id,
+    ) ?? exercise
+
+  if (current.completed_at !== null) {
+    return current
   }
 
-  const sets = await repository.list_sets_for_session_exercise(exercise.id)
+  const sets = await repository.list_sets_for_session_exercise(current.id)
   const completed_sets = sets.filter((set) => set.completed_at !== null)
 
   if (
-    exercise.target_sets !== null &&
-    completed_sets.length < exercise.target_sets
+    current.target_sets !== null &&
+    completed_sets.length < current.target_sets
   ) {
     throw new Error(
-      `Complete all ${exercise.target_sets} programmed sets before completing the exercise.`,
+      `Complete all ${current.target_sets} programmed sets before completing the exercise.`,
     )
   }
 
   const completed: SessionExercise = {
-    ...exercise,
-    started_at: exercise.started_at ?? completed_sets[0]?.completed_at ?? context.now_iso,
+    ...current,
+    started_at:
+      current.started_at ?? completed_sets[0]?.completed_at ?? context.now_iso,
     completed_at: context.now_iso,
     updated_at: context.now_iso,
-    revision: exercise.revision + 1,
+    revision: current.revision + 1,
     device_id: context.device_id,
   }
 
