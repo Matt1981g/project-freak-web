@@ -56,6 +56,7 @@ type ComponentDraft = {
   load_kg: number | null
   reps_completed_full: number | null
   reps_partial: number | null
+  duration_seconds: number | null
   failed_next_rep: boolean
   counts_toward_comparable_tonnage: boolean
   notes: string | null
@@ -170,6 +171,7 @@ function build_component_drafts(
           actual?.load_kg ?? component_initial_load(planned, primary_load_kg),
         reps_completed_full: actual?.reps_completed_full ?? null,
         reps_partial: actual?.reps_partial ?? null,
+        duration_seconds: actual?.duration_seconds ?? null,
         failed_next_rep:
           actual?.failure_status === 'attempted_next_rep_failed',
         counts_toward_comparable_tonnage:
