@@ -43,7 +43,6 @@ import {
   adjust_display_load_by_step,
   display_load_to_kilograms,
   load_for_display,
-  load_step_for_unit,
   type WeightEntryUnit,
 } from '../../application/workout/weightUnits'
 import {
