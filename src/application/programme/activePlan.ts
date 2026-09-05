@@ -49,10 +49,7 @@ function programme_windows_overlap(
 function is_superseded(
   block: ProgrammeBlock,
   blocks: readonly ProgrammeBlock[],
-  actuals: readonly CompletedSession[],
 ): boolean {
-  if (has_started_actual(block, actuals)) return false
-
   return blocks.some(
     (candidate) =>
       candidate.id !== block.id &&
@@ -153,7 +150,7 @@ export function select_active_plan_programmes(
       continue
     }
 
-    if (is_superseded(block, blocks, actuals)) continue
+    if (is_superseded(block, blocks)) continue
     if (changed_before_block_started(block, actuals, context)) continue
 
     const sessions = (sessions_by_block.get(block.id) ?? []).filter((session) =>

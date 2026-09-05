@@ -192,39 +192,41 @@ describe('active plan selection', () => {
     expect(result.programmes[0].block.id).toBe('replacement')
   })
 
-  it('does not hide an overlapping older microcycle after that older block has actually started', () => {
+  it('hides the older overlapping block even if one of its sessions was already completed', () => {
     const oldBlock = block(
       'old-week',
       '2026-09-07',
       '2026-09-12',
-      '2026-09-04T12:00:00.000Z',
+      '2026-09-04T16:00:00.000Z',
     )
     const replacement = block(
       'replacement',
       '2026-09-07',
       '2026-09-13',
-      '2026-09-07T10:00:00.000Z',
+      '2026-09-05T15:29:00.000Z',
     )
-    const mon = planned('old-mon', oldBlock.id)
+    const oldMon = planned('old-mon', oldBlock.id)
 
     const result = select_active_plan_programmes(
       [oldBlock, replacement],
       new Map([
-        [oldBlock.id, [mon, planned('old-tue', oldBlock.id, '2026-09-08')]],
-        [replacement.id, [planned('new-tue', replacement.id, '2026-09-08')]],
+        [oldBlock.id, [oldMon, planned('old-tue', oldBlock.id, '2026-09-08')]],
+        [replacement.id, [planned('new-mon', replacement.id)]],
       ]),
       [
         actual(
-          'old-mon-actual',
-          mon.id,
+          'completed-old-session',
+          oldMon.id,
           oldBlock.id,
-          '2026-09-07',
-          '2026-09-07T08:00:00.000Z',
+          '2026-09-04',
+          '2026-09-04T17:02:00.000Z',
         ),
       ],
-      { today_local: '2026-09-07', latest_programming_input_at: null },
+      { today_local: '2026-09-05', latest_programming_input_at: null },
     )
 
-    expect(result.programmes.map((entry) => entry.block.id)).toContain('old-week')
+    expect(result.programmes).toHaveLength(1)
+    expect(result.programmes[0].block.id).toBe('replacement')
   })
+
 })
