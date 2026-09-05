@@ -49,6 +49,11 @@ import {
 } from '../application/workout/exerciseCompletion'
 import { save_training_set } from '../application/workout/logSet'
 import {
+  load_exercise_weight_unit_preferences as load_weight_unit_preferences,
+  save_exercise_weight_unit_preference as save_weight_unit_preference,
+} from '../application/workout/weightUnitPreferences'
+import type { WeightEntryUnit } from '../application/workout/weightUnits'
+import {
   save_session_readiness,
   save_session_recovery,
 } from '../application/workout/readiness'
@@ -89,6 +94,22 @@ async function current_device_id(): Promise<string> {
 }
 
 
+
+export function load_exercise_weight_unit_preferences() {
+  return load_weight_unit_preferences(repositories.settings)
+}
+
+export function save_exercise_weight_unit_preference(
+  exercise_id: string,
+  unit: WeightEntryUnit,
+) {
+  return save_weight_unit_preference(
+    exercise_id,
+    unit,
+    repositories.settings,
+    new Date().toISOString(),
+  )
+}
 
 export interface CloudSyncStatus {
   configured: boolean

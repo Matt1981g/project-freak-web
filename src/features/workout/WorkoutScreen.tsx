@@ -5,11 +5,13 @@ import {
   complete_live_session_exercise,
   complete_live_workout,
   correct_history_training_set,
+  load_exercise_weight_unit_preferences,
   load_live_workout,
   save_live_exercise_scores,
   save_live_readiness,
   save_live_recovery,
   save_live_training_set,
+  save_exercise_weight_unit_preference,
 } from '../../app/projectFreakServices'
 import {
   add_rest_seconds,
@@ -1425,6 +1427,26 @@ export function WorkoutScreen() {
     }
   }, [completed_session_id])
 
+  function change_exercise_load_unit(
+    exercise_id: string,
+    unit: WeightEntryUnit,
+  ) {
+    setLoadUnitByExercise((current) => ({
+      ...current,
+      [exercise_id]: unit,
+    }))
+
+    void save_exercise_weight_unit_preference(exercise_id, unit).catch(
+      (cause) => {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : 'Unable to remember weight unit preference.',
+        )
+      },
+    )
+  }
+
   async function finish_workout() {
     if (!completed_session_id || finishing) return
 
@@ -1443,6 +1465,27 @@ export function WorkoutScreen() {
       setFinishing(false)
     }
   }
+
+  useEffect(() => {
+    let active = true
+
+    void load_exercise_weight_unit_preferences()
+      .then((preferences) => {
+        if (active) setLoadUnitByExercise(preferences)
+      })
+      .catch((cause) => {
+        if (!active) return
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : 'Unable to load saved weight unit preferences.',
+        )
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     void refresh_workout()
@@ -1762,7 +1805,7 @@ export function WorkoutScreen() {
                     <div className={styles.loadUnitBar}>
                       <div>
                         <span>WEIGHT ENTRY</span>
-                        <small>Totals and progression stay stored in kg</small>
+                        <small>Remembered per exercise · totals stay in kg</small>
                       </div>
                       <div
                         className={styles.loadUnitToggle}
@@ -1778,10 +1821,7 @@ export function WorkoutScreen() {
                               : undefined
                           }
                           onClick={() =>
-                            setLoadUnitByExercise((current) => ({
-                              ...current,
-                              [exercise.exercise_id]: 'kg',
-                            }))
+                            change_exercise_load_unit(exercise.exercise_id, 'kg')
                           }
                         >
                           KG
@@ -1794,10 +1834,7 @@ export function WorkoutScreen() {
                               : undefined
                           }
                           onClick={() =>
-                            setLoadUnitByExercise((current) => ({
-                              ...current,
-                              [exercise.exercise_id]: 'lb',
-                            }))
+                            change_exercise_load_unit(exercise.exercise_id, 'lb')
                           }
                         >
                           LBS
