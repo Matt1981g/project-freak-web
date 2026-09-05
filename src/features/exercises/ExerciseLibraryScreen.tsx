@@ -562,7 +562,7 @@ export function ExerciseLibraryScreen() {
                       {row.status === 'research'
                         ? `RESEARCHED ${row.research_confidence?.toUpperCase() ?? ''}`
                         : row.status.toUpperCase()}{' '}
-                      · {row.category ?? 'no category'} ·{' '}
+                      {row.category ? ` · ${row.category}` : ''} ·{' '}
                       {row.targets.length
                         ? row.targets
                             .map((target) => `${target.area} ${target.role}`)

@@ -1320,8 +1320,10 @@
   border-radius: 50%;
   appearance: none;
   -webkit-appearance: none;
-  background: var(--pf-accent);
-  box-shadow: 0 0 0 2px var(--pf-accent-border);
+  background: var(--pf-orange);
+  box-shadow:
+    0 0 0 2px var(--pf-orange-border),
+    0 0 12px var(--pf-orange-glow);
 }
 
 .scoreSlider::-moz-range-track {
@@ -1336,8 +1338,10 @@
   height: 30px;
   border: 3px solid #071006;
   border-radius: 50%;
-  background: var(--pf-accent);
-  box-shadow: 0 0 0 2px var(--pf-accent-border);
+  background: var(--pf-orange);
+  box-shadow:
+    0 0 0 2px var(--pf-orange-border),
+    0 0 12px var(--pf-orange-glow);
 }
 
 .scoreSlider:disabled {
