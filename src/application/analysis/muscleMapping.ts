@@ -26,7 +26,7 @@ export interface ResolvedMuscleTarget {
 export interface MuscleMappingCatalogue {
   muscles: Muscle[]
   links: ExerciseMuscle[]
-  verified: Record<string, VerifiedExerciseMuscleTarget[]>
+  verified?: Record<string, VerifiedExerciseMuscleTarget[]>
 }
 
 const CATEGORY_FALLBACK: Record<
@@ -170,7 +170,7 @@ export function resolve_exercise_muscle_targets(
   exercise: Exercise,
   catalogue: MuscleMappingCatalogue,
 ): ResolvedMuscleTarget[] {
-  const verified = catalogue.verified[exercise.id]
+  const verified = catalogue.verified?.[exercise.id]
   if (verified?.length) {
     return verified.map((target) => ({
       ...target,
