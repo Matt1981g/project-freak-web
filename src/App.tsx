@@ -1,4 +1,11 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router'
+import { useState } from 'react'
+import {
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router'
 import { AnalysisScreen } from './features/analysis/AnalysisScreen'
 import { DailySessionPrompt } from './features/home/DailySessionPrompt'
 import { BackupScreen } from './features/backup/BackupScreen'
@@ -15,6 +22,18 @@ import { WorkoutScreen } from './features/workout/WorkoutScreen'
 import './App.css'
 
 function App() {
+  const location = useLocation()
+  const [mobile_more_open, setMobileMoreOpen] = useState(false)
+  const secondary_mobile_active = [
+    '/priorities',
+    '/coach',
+    '/backup',
+    '/exercises',
+  ].some((path) => location.pathname.startsWith(path))
+
+  const nav_class = ({ isActive }: { isActive: boolean }) =>
+    isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -25,72 +44,98 @@ function App() {
           <span>PROJECT FREAK</span>
           <small>LOCAL TRAINING DATABASE</small>
         </div>
-        <nav className="app-nav" aria-label="Primary">
-          <NavLink
-            to="/plan"
-            className={({ isActive }) =>
-              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
-            }
-          >
+        <nav className="app-nav app-nav-desktop" aria-label="Primary">
+          <NavLink to="/plan" className={nav_class}>
             Plan
           </NavLink>
-          <NavLink
-            to="/history"
-            className={({ isActive }) =>
-              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
-            }
-          >
+          <NavLink to="/history" className={nav_class}>
             History
           </NavLink>
-          <NavLink
-            to="/analysis"
-            className={({ isActive }) =>
-              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
-            }
-          >
+          <NavLink to="/analysis" className={nav_class}>
             Analysis
           </NavLink>
-          <NavLink
-            to="/priorities"
-            className={({ isActive }) =>
-              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
-            }
-          >
+          <NavLink to="/priorities" className={nav_class}>
             Priorities
           </NavLink>
-          <NavLink
-            to="/coach"
-            className={({ isActive }) =>
-              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
-            }
-          >
+          <NavLink to="/coach" className={nav_class}>
             Coach
           </NavLink>
-          <NavLink
-            to="/sync"
-            className={({ isActive }) =>
-              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
-            }
-          >
+          <NavLink to="/sync" className={nav_class}>
             Sync
           </NavLink>
-          <NavLink
-            to="/backup"
-            className={({ isActive }) =>
-              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
-            }
-          >
+          <NavLink to="/backup" className={nav_class}>
             Backup
           </NavLink>
-          <NavLink
-            to="/exercises"
-            className={({ isActive }) =>
-              isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
-            }
-          >
+          <NavLink to="/exercises" className={nav_class}>
             Exercises
           </NavLink>
         </nav>
+
+        <nav className="app-nav app-nav-mobile" aria-label="Primary mobile">
+          <NavLink to="/plan" className={nav_class}>
+            Plan
+          </NavLink>
+          <NavLink to="/history" className={nav_class}>
+            History
+          </NavLink>
+          <NavLink to="/analysis" className={nav_class}>
+            Analysis
+          </NavLink>
+          <NavLink to="/sync" className={nav_class}>
+            Sync
+          </NavLink>
+          <button
+            type="button"
+            className={
+              mobile_more_open || secondary_mobile_active
+                ? 'app-nav-more app-nav-more-active'
+                : 'app-nav-more'
+            }
+            aria-label={mobile_more_open ? 'Close more menu' : 'Open more menu'}
+            aria-expanded={mobile_more_open}
+            aria-controls="app-mobile-more-menu"
+            onClick={() => setMobileMoreOpen((current) => !current)}
+          >
+            +
+          </button>
+        </nav>
+
+        {mobile_more_open && (
+          <nav
+            id="app-mobile-more-menu"
+            className="app-mobile-more"
+            aria-label="More"
+          >
+            <NavLink
+              to="/priorities"
+              className={nav_class}
+              onClick={() => setMobileMoreOpen(false)}
+            >
+              Priorities
+            </NavLink>
+            <NavLink
+              to="/coach"
+              className={nav_class}
+              onClick={() => setMobileMoreOpen(false)}
+            >
+              Coach
+            </NavLink>
+            <NavLink
+              to="/backup"
+              className={nav_class}
+              onClick={() => setMobileMoreOpen(false)}
+            >
+              Backup
+            </NavLink>
+            <NavLink
+              to="/exercises"
+              className={nav_class}
+              onClick={() => setMobileMoreOpen(false)}
+            >
+              Exercises
+            </NavLink>
+          </nav>
+        )}
         <PwaInstallControl />
         <div className="phase-chip">PHASE 15</div>
       </header>

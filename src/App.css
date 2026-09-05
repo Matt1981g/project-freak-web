@@ -58,6 +58,39 @@
   align-items: center;
 }
 
+.app-nav-mobile,
+.app-mobile-more {
+  display: none;
+}
+
+.app-nav-more {
+  min-width: 0;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--pf-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-nav-more:hover {
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+}
+
+.app-nav-more-active {
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  border-color: var(--pf-accent-border);
+}
+
 .app-nav-link {
   min-height: 38px;
   display: inline-flex;
@@ -149,15 +182,19 @@
     display: none;
   }
 
-  .app-nav {
+  .app-nav-desktop {
+    display: none;
+  }
+
+  .app-nav-mobile {
     position: static;
     grid-column: 1 / -1;
     grid-row: 2;
     width: 100%;
     z-index: auto;
     display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: 4px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
     padding: 6px;
     border: 1px solid var(--pf-border);
     border-radius: 16px;
@@ -165,12 +202,41 @@
     backdrop-filter: blur(16px);
   }
 
-  .app-nav-link {
+  .app-nav-mobile .app-nav-link {
     justify-content: center;
     min-width: 0;
-    min-height: 42px;
-    padding-inline: 2px;
-    font-size: 7px;
+    min-height: 44px;
+    padding-inline: 4px;
+    font-size: 11px;
+  }
+
+  .app-nav-more {
+    min-width: 0;
+    min-height: 44px;
+    padding: 0;
+    font-size: 28px;
+  }
+
+  .app-mobile-more {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    padding: 6px;
+    border: 1px solid var(--pf-accent-border);
+    border-radius: 14px;
+    background: rgba(10, 12, 10, 0.98);
+    backdrop-filter: blur(16px);
+  }
+
+  .app-mobile-more .app-nav-link {
+    justify-content: center;
+    min-width: 0;
+    min-height: 44px;
+    padding-inline: 4px;
+    font-size: 10px;
   }
 
   .pwa-install-button,
