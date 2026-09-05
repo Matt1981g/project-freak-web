@@ -7,6 +7,7 @@ import type {
   ExerciseAlias,
   ExerciseMetrics,
   ExerciseMuscle,
+  Muscle,
   MutableEntity,
   ProgrammeBlock,
   ReadinessEntry,
