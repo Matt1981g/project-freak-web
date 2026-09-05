@@ -165,27 +165,31 @@ export function resolve_exercise_muscle_targets(
   const muscles_by_id = new Map(
     catalogue.muscles.map((muscle) => [muscle.id, muscle]),
   )
-  const explicit = catalogue.links
-    .filter(
-      (link) =>
-        link.exercise_id === exercise.id &&
-        (link.role === 'primary' || link.role === 'secondary'),
-    )
-    .map((link) => {
+  const explicit: ResolvedMuscleTarget[] = catalogue.links.flatMap(
+    (link) => {
+      if (
+        link.exercise_id !== exercise.id ||
+        (link.role !== 'primary' && link.role !== 'secondary')
+      ) {
+        return []
+      }
+
       const muscle = muscles_by_id.get(link.muscle_id)
       const area = muscle ? muscle_area_from_name(muscle.name) : null
-      if (!area) return null
+      if (!area) return []
 
-      return {
-        area,
-        role: link.role as MuscleTargetRole,
-        allocation_weight:
-          link.allocation_weight ??
-          (link.role === 'primary' ? 1 : 0.5),
-        source: 'explicit' as const,
-      }
-    })
-    .filter((target): target is ResolvedMuscleTarget => target !== null)
+      return [
+        {
+          area,
+          role: link.role,
+          allocation_weight:
+            link.allocation_weight ??
+            (link.role === 'primary' ? 1 : 0.5),
+          source: 'explicit' as const,
+        },
+      ]
+    },
+  )
 
   if (explicit.length > 0) {
     const by_area = new Map<TrainingPriorityArea, ResolvedMuscleTarget>()
