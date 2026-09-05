@@ -40,6 +40,7 @@ import {
   type SetLoadPrefillSource,
 } from '../../application/workout/setLoadPrefill'
 import {
+  adjust_display_load_by_step,
   display_load_to_kilograms,
   load_for_display,
   load_step_for_unit,
@@ -293,6 +294,14 @@ function numeric_value(value: string): number | null {
   if (value.trim() === '') return null
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function load_input_value(value: number | null): string {
+  return value === null ? '' : String(value)
+}
+
+function component_load_key(component: ComponentDraft): string {
+  return `${component.component_type}:${component.sequence}`
 }
 
 function PreviousComparablePanel(props: {
@@ -884,6 +893,10 @@ function CompletedSetCorrection(props: {
   const { set, load_unit, on_saved } = props
   const [open, setOpen] = useState(false)
   const [load, setLoad] = useState<number | null>(set.load_kg)
+  const [load_entry, setLoadEntry] = useState(() =>
+    load_input_value(load_for_display(set.load_kg, load_unit)),
+  )
+  const previous_load_unit_ref = useRef(load_unit)
   const [reps, setReps] = useState<number>(set.completed_reps ?? 0)
   const [failed, setFailed] = useState(
     set.failure_status === 'attempted_next_rep_failed',
@@ -895,8 +908,15 @@ function CompletedSetCorrection(props: {
     return null
   }
 
+  useEffect(() => {
+    if (previous_load_unit_ref.current === load_unit) return
+    previous_load_unit_ref.current = load_unit
+    setLoadEntry(load_input_value(load_for_display(load, load_unit)))
+  }, [load, load_unit])
+
   function cancel() {
     setLoad(set.load_kg)
+    setLoadEntry(load_input_value(load_for_display(set.load_kg, load_unit)))
     setReps(set.completed_reps ?? 0)
     setFailed(set.failure_status === 'attempted_next_rep_failed')
     setError(null)
@@ -954,16 +974,18 @@ function CompletedSetCorrection(props: {
                 type="number"
                 inputMode="decimal"
                 min="0"
-                step={load_step_for_unit(load_unit)}
-                value={load_for_display(load, load_unit) ?? ''}
-                onChange={(event) =>
+                step="any"
+                value={load_entry}
+                onChange={(event) => {
+                  const raw = event.target.value
+                  setLoadEntry(raw)
                   setLoad(
                     display_load_to_kilograms(
-                      numeric_value(event.target.value),
+                      numeric_value(raw),
                       load_unit,
                     ),
                   )
-                }
+                }}
               />
             </label>
             <label>
@@ -1048,6 +1070,20 @@ function SetLoggerRow(props: {
   const [components, setComponents] = useState<ComponentDraft[]>(() =>
     build_component_drafts(planned_set, actual_components, initial_load_kg),
   )
+  const [load_entry, setLoadEntry] = useState(() =>
+    load_input_value(load_for_display(initial_load_kg, load_unit)),
+  )
+  const [component_load_entries, setComponentLoadEntries] = useState<
+    Record<string, string>
+  >(() =>
+    Object.fromEntries(
+      components.map((component) => [
+        component_load_key(component),
+        load_input_value(load_for_display(component.load_kg, load_unit)),
+      ]),
+    ),
+  )
+  const previous_load_unit_ref = useRef(load_unit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const load_ref = useRef(load)
@@ -1070,6 +1106,23 @@ function SetLoggerRow(props: {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (previous_load_unit_ref.current === load_unit) return
+    previous_load_unit_ref.current = load_unit
+
+    setLoadEntry(
+      load_input_value(load_for_display(load_ref.current, load_unit)),
+    )
+    setComponentLoadEntries(
+      Object.fromEntries(
+        components_ref.current.map((component) => [
+          component_load_key(component),
+          load_input_value(load_for_display(component.load_kg, load_unit)),
+        ]),
+      ),
+    )
+  }, [load_unit])
 
   function clear_autosave_timer() {
     if (autosave_timer_ref.current !== null) {
@@ -1156,6 +1209,13 @@ function SetLoggerRow(props: {
     schedule_autosave()
   }
 
+  function change_load_entry(raw: string) {
+    setLoadEntry(raw)
+    change_load(
+      display_load_to_kilograms(numeric_value(raw), load_unit),
+    )
+  }
+
   function change_reps(value: number | null) {
     reps_ref.current = value
     setReps(value)
@@ -1164,12 +1224,17 @@ function SetLoggerRow(props: {
 
   function adjust_load(direction: -1 | 1) {
     clear_autosave_timer()
-    const current_display = load_for_display(load_ref.current, load_unit) ?? 0
-    const next_display = Math.max(
-      0,
-      current_display + direction * load_step_for_unit(load_unit),
+    const current_display =
+      numeric_value(load_entry) ??
+      load_for_display(load_ref.current, load_unit) ??
+      0
+    const next_display = adjust_display_load_by_step(
+      current_display,
+      load_unit,
+      direction,
     )
     const next_kg = display_load_to_kilograms(next_display, load_unit)
+    setLoadEntry(load_input_value(next_display))
     load_ref.current = next_kg
     setLoad(next_kg)
     void queue_save({ load_kg: next_kg })
@@ -1276,17 +1341,10 @@ function SetLoggerRow(props: {
               type="number"
               inputMode="decimal"
               min="0"
-              step={load_step_for_unit(load_unit)}
-              value={load_for_display(load, load_unit) ?? ''}
+              step="any"
+              value={load_entry}
               disabled={completed || locked}
-              onChange={(event) =>
-                change_load(
-                  display_load_to_kilograms(
-                    numeric_value(event.target.value),
-                    load_unit,
-                  ),
-                )
-              }
+              onChange={(event) => change_load_entry(event.target.value)}
               onBlur={() => {
                 clear_autosave_timer()
                 void queue_save()
@@ -1411,14 +1469,23 @@ function SetLoggerRow(props: {
                         data-set-action="true"
                         disabled={completed || locked}
                         onClick={() => {
+                          const key = component_load_key(component)
                           const current_display =
-                            load_for_display(component.load_kg, load_unit) ?? 0
+                            numeric_value(component_load_entries[key] ?? '') ??
+                            load_for_display(component.load_kg, load_unit) ??
+                            0
+                          const next_display = adjust_display_load_by_step(
+                            current_display,
+                            load_unit,
+                            -1,
+                          )
+                          setComponentLoadEntries((current) => ({
+                            ...current,
+                            [key]: load_input_value(next_display),
+                          }))
                           change_component(index, {
                             load_kg: display_load_to_kilograms(
-                              Math.max(
-                                0,
-                                current_display - load_step_for_unit(load_unit),
-                              ),
+                              next_display,
                               load_unit,
                             ),
                           })
@@ -1431,13 +1498,22 @@ function SetLoggerRow(props: {
                         type="number"
                         inputMode="decimal"
                         min="0"
-                        step={load_step_for_unit(load_unit)}
-                        value={load_for_display(component.load_kg, load_unit) ?? ''}
+                        step="any"
+                        value={
+                          component_load_entries[component_load_key(component)] ??
+                          ''
+                        }
                         disabled={completed || locked}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          const key = component_load_key(component)
+                          const raw = event.target.value
+                          setComponentLoadEntries((current) => ({
+                            ...current,
+                            [key]: raw,
+                          }))
                           change_component(index, {
                             load_kg: display_load_to_kilograms(
-                              numeric_value(event.target.value),
+                              numeric_value(raw),
                               load_unit,
                             ),
                           })
@@ -1448,11 +1524,23 @@ function SetLoggerRow(props: {
                         data-set-action="true"
                         disabled={completed || locked}
                         onClick={() => {
+                          const key = component_load_key(component)
                           const current_display =
-                            load_for_display(component.load_kg, load_unit) ?? 0
+                            numeric_value(component_load_entries[key] ?? '') ??
+                            load_for_display(component.load_kg, load_unit) ??
+                            0
+                          const next_display = adjust_display_load_by_step(
+                            current_display,
+                            load_unit,
+                            1,
+                          )
+                          setComponentLoadEntries((current) => ({
+                            ...current,
+                            [key]: load_input_value(next_display),
+                          }))
                           change_component(index, {
                             load_kg: display_load_to_kilograms(
-                              current_display + load_step_for_unit(load_unit),
+                              next_display,
                               load_unit,
                             ),
                           })

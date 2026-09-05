@@ -21,7 +21,7 @@ export function round_load_to_step(
 ): number {
   const step = load_step_for_unit(unit)
   const rounded = Math.round((value + Number.EPSILON) / step) * step
-  return round(rounded, unit === 'kg' ? 1 : 0)
+  return round(rounded, unit === 'kg' ? 2 : 0)
 }
 
 export function load_for_display(
@@ -43,5 +43,14 @@ export function display_load_to_kilograms(
 }
 
 export function load_step_for_unit(unit: WeightEntryUnit): number {
-  return unit === 'kg' ? 2.5 : 5
+  return unit === 'kg' ? 1.25 : 5
+}
+
+export function adjust_display_load_by_step(
+  value: number,
+  unit: WeightEntryUnit,
+  direction: -1 | 1,
+): number {
+  const next = Math.max(0, value + direction * load_step_for_unit(unit))
+  return round(next, unit === 'kg' ? 2 : 0)
 }
