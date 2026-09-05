@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { ProgrammeBlock, ProgrammedSession } from '../../domain/models'
 import {
-  load_programme_blocks,
-  load_programme_sessions,
+  load_active_plan_programmes,
   load_programmed_session_detail,
   reschedule_plan_session,
   restore_plan_session,
@@ -47,6 +46,7 @@ function date_span(block: ProgrammeBlock): string {
 export function PlanScreen() {
   const navigate = useNavigate()
   const [stored, setStored] = useState<StoredProgrammeSummary[]>([])
+  const [hidden_blocks, setHiddenBlocks] = useState(0)
   const [loading, setLoading] = useState(true)
   const [open_session_id, setOpenSessionId] = useState<string | null>(null)
   const [session_detail, setSessionDetail] = useState<
@@ -61,14 +61,9 @@ export function PlanScreen() {
   const refresh_programmes = useCallback(async () => {
     setLoading(true)
     try {
-      const blocks = await load_programme_blocks()
-      const summaries = await Promise.all(
-        blocks.map(async (block) => ({
-          block,
-          sessions: await load_programme_sessions(block.id),
-        })),
-      )
-      setStored(summaries)
+      const result = await load_active_plan_programmes()
+      setStored(result.programmes)
+      setHiddenBlocks(result.hidden_blocks)
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Unable to load programmes.',
@@ -175,33 +170,40 @@ export function PlanScreen() {
           <p className={styles.eyebrow}>PLAN</p>
           <h1>Programme</h1>
           <p className={styles.intro}>
-            Review the programme blocks stored on this device, open each session
-            prescription and start training from the plan you have already approved.
+            Current actionable training only. Completed workouts move to History,
+            while expired, stale and superseded prescriptions stay archived in the
+            database without cluttering your live plan.
           </p>
         </div>
         <div className={styles.countCard}>
           <strong>{loading ? '…' : stored.length}</strong>
-          <span>blocks</span>
+          <span>active blocks</span>
         </div>
       </section>
 
       <section className={styles.storedSection}>
         <div className={styles.sectionHeader}>
           <div>
-            <span className={styles.kicker}>LOCAL DATABASE</span>
-            <h2>Programme blocks</h2>
+            <span className={styles.kicker}>ACTIVE PLAN</span>
+            <h2>Current programme</h2>
           </div>
-          <span>{loading ? 'Loading…' : `${stored.length} stored`}</span>
+          <span>
+            {loading
+              ? 'Loading…'
+              : hidden_blocks > 0
+                ? `${hidden_blocks} archived/hidden`
+                : `${stored.length} active`}
+          </span>
         </div>
 
         {loading ? (
           <div className={styles.emptyState}>Loading programmes…</div>
         ) : stored.length === 0 ? (
           <div className={styles.emptyState}>
-            <strong>No programme imported yet.</strong>
+            <strong>No actionable sessions in Plan.</strong>
             <span>
-              The historical training database is safe. Programme data lives in
-              separate versioned stores.
+              Completed actual workouts are in History. Expired, stale and
+              superseded programme records remain preserved in the database.
             </span>
           </div>
         ) : (

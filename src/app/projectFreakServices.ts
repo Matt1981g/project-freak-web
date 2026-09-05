@@ -42,6 +42,7 @@ import {
   type ExerciseSubstitutionScope,
 } from '../application/programme/sessionAdjustments'
 import {
+  TRAINING_PRIORITY_SETTING_KEY,
   load_training_priorities,
   save_training_intents,
   save_training_priorities,
@@ -82,9 +83,11 @@ import {
 } from '../application/analysis/muscleMapping'
 import { audit_exercise_muscle_mappings } from '../application/analysis/muscleMappingAudit'
 import {
+  EXERCISE_MUSCLE_MAPPING_SETTING_KEY,
   save_verified_exercise_muscle_mapping,
   type VerifiedExerciseMuscleTarget,
 } from '../application/analysis/muscleMappingSettings'
+import { select_active_plan_programmes } from '../application/programme/activePlan'
 import {
   archive_exercise,
   consolidate_exercises,
@@ -109,6 +112,32 @@ function current_platform(): string {
 async function current_device_id(): Promise<string> {
   const device = await repositories.devices.ensure_local(current_platform())
   return device.id
+}
+
+async function set_programmed_status(
+  programmed_session_id: string | null,
+  status: import('../domain/models').ProgrammedSession['status'],
+  now_iso: string,
+  device_id: string,
+) {
+  if (!programmed_session_id || !repositories.programme.put_programmed_session) {
+    return false
+  }
+
+  const detail =
+    await repositories.programme.get_programmed_session_detail(
+      programmed_session_id,
+    )
+  if (!detail || detail.session.status === status) return false
+
+  await repositories.programme.put_programmed_session({
+    ...detail.session,
+    status,
+    updated_at: now_iso,
+    revision: detail.session.revision + 1,
+    device_id,
+  })
+  return true
 }
 
 
@@ -662,6 +691,40 @@ export function load_programme_blocks() {
   return repositories.programme.list_blocks()
 }
 
+export async function load_active_plan_programmes() {
+  const [blocks, actuals, priority_setting, mapping_setting] = await Promise.all([
+    repositories.programme.list_blocks(),
+    repositories.sessions.list_sessions_descending(),
+    repositories.settings.get(TRAINING_PRIORITY_SETTING_KEY),
+    repositories.settings.get(EXERCISE_MUSCLE_MAPPING_SETTING_KEY),
+  ])
+
+  const sessions_by_block = new Map(
+    await Promise.all(
+      blocks.map(async (block) => [
+        block.id,
+        await repositories.programme.list_programmed_sessions_for_block(block.id),
+      ] as const),
+    ),
+  )
+
+  const programming_input_timestamps = [
+    priority_setting?.updated_at ?? null,
+    mapping_setting?.updated_at ?? null,
+  ].filter((value): value is string => value !== null)
+
+  return select_active_plan_programmes(
+    blocks,
+    sessions_by_block,
+    actuals,
+    {
+      today_local: current_local_date(),
+      latest_programming_input_at:
+        programming_input_timestamps.sort().at(-1) ?? null,
+    },
+  )
+}
+
 export function export_programme_exercise_catalogue() {
   return build_programme_exercise_catalogue_json(repositories.exercises)
 }
@@ -751,12 +814,23 @@ export async function start_programmed_session_workout(
     throw new Error('Programmed session was not found.')
   }
 
-  return start_programmed_workout(detail, repositories.sessions, {
-    device_id: await current_device_id(),
-    now_iso: new Date().toISOString(),
+  const device_id = await current_device_id()
+  const now_iso = new Date().toISOString()
+  const result = await start_programmed_workout(detail, repositories.sessions, {
+    device_id,
+    now_iso,
     local_date: current_local_date(),
     timezone: current_timezone(),
   })
+
+  const programme_changed = await set_programmed_status(
+    programmed_session_id,
+    'started',
+    now_iso,
+    device_id,
+  )
+  if (programme_changed) request_auto_sync('programme_changed')
+  return result
 }
 
 async function load_previous_muscle_recovery_prompt(
@@ -981,14 +1055,24 @@ export async function discard_live_workout(
     throw new Error('Discard workout is not available in this database.')
   }
 
+  const session = await repositories.sessions.get_session(completed_session_id)
+  const device_id = await current_device_id()
+  const now_iso = new Date().toISOString()
   const discarded = await repositories.sessions.discard_session_graph(
     completed_session_id,
-    await current_device_id(),
-    new Date().toISOString(),
+    device_id,
+    now_iso,
   )
 
   if (discarded) {
+    const programme_changed = await set_programmed_status(
+      session?.programmed_session_id ?? null,
+      'planned',
+      now_iso,
+      device_id,
+    )
     request_auto_sync('workout_discarded')
+    if (programme_changed) request_auto_sync('programme_changed')
   }
 
   return discarded
@@ -1002,16 +1086,26 @@ export async function complete_live_workout(
     throw new Error('Workout session was not found.')
   }
 
+  const device_id = await current_device_id()
+  const now_iso = new Date().toISOString()
   const result = await complete_workout_session(
     session,
     repositories.sessions,
     {
-      device_id: await current_device_id(),
-      now_iso: new Date().toISOString(),
+      device_id,
+      now_iso,
     },
   )
 
+  const programme_changed = await set_programmed_status(
+    result.session.programmed_session_id,
+    'completed',
+    now_iso,
+    device_id,
+  )
+
   request_auto_sync('workout_completed')
+  if (programme_changed) request_auto_sync('programme_changed')
   return result
 }
 
