@@ -146,7 +146,10 @@ export async function load_adaptive_training_analysis(
 
   const [exercise_definitions, catalogue] = await Promise.all([
     repositories.exercises.list_all(),
-    load_muscle_mapping_catalogue(repositories.exercises),
+    load_muscle_mapping_catalogue(
+      repositories.exercises,
+      repositories.settings,
+    ),
   ])
   const exercise_by_id = new Map(
     exercise_definitions.map((exercise) => [exercise.id, exercise]),

@@ -3,7 +3,14 @@ import type {
   ExerciseMuscle,
   Muscle,
 } from '../../domain/models'
-import type { ExerciseRepository } from '../../data/repositories/contracts'
+import type {
+  ExerciseRepository,
+  SettingsRepository,
+} from '../../data/repositories/contracts'
+import {
+  load_verified_exercise_muscle_mappings,
+  type VerifiedExerciseMuscleTarget,
+} from './muscleMappingSettings'
 import type { TrainingPriorityArea } from '../priorities/trainingPriorities'
 
 export type MuscleTargetRole = 'primary' | 'secondary'
@@ -19,6 +26,7 @@ export interface ResolvedMuscleTarget {
 export interface MuscleMappingCatalogue {
   muscles: Muscle[]
   links: ExerciseMuscle[]
+  verified: Record<string, VerifiedExerciseMuscleTarget[]>
 }
 
 const CATEGORY_FALLBACK: Record<
@@ -162,6 +170,14 @@ export function resolve_exercise_muscle_targets(
   exercise: Exercise,
   catalogue: MuscleMappingCatalogue,
 ): ResolvedMuscleTarget[] {
+  const verified = catalogue.verified[exercise.id]
+  if (verified?.length) {
+    return verified.map((target) => ({
+      ...target,
+      source: 'explicit' as const,
+    }))
+  }
+
   const muscles_by_id = new Map(
     catalogue.muscles.map((muscle) => [muscle.id, muscle]),
   )
@@ -211,11 +227,15 @@ export function resolve_exercise_muscle_targets(
 
 export async function load_muscle_mapping_catalogue(
   repository: ExerciseRepository,
+  settings?: SettingsRepository,
 ): Promise<MuscleMappingCatalogue> {
-  const [muscles, links] = await Promise.all([
+  const [muscles, links, verified_state] = await Promise.all([
     repository.list_muscles?.() ?? Promise.resolve([]),
     repository.list_muscle_links?.() ?? Promise.resolve([]),
+    settings
+      ? load_verified_exercise_muscle_mappings(settings)
+      : Promise.resolve({ schema_version: '1.0.0' as const, mappings: {} }),
   ])
 
-  return { muscles, links }
+  return { muscles, links, verified: verified_state.mappings }
 }

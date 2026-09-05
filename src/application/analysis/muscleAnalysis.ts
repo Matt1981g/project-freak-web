@@ -116,7 +116,10 @@ export async function load_current_week_muscle_analysis(
   const [sessions, exercises, catalogue] = await Promise.all([
     repositories.sessions.list_sessions_descending(),
     repositories.exercises.list_all(),
-    load_muscle_mapping_catalogue(repositories.exercises),
+    load_muscle_mapping_catalogue(
+      repositories.exercises,
+      repositories.settings,
+    ),
   ])
   const exercise_by_id = new Map(exercises.map((exercise) => [exercise.id, exercise]))
   const completed = sessions.filter(

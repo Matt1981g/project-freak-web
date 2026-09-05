@@ -79,6 +79,11 @@ import {
   load_muscle_mapping_catalogue,
   resolve_exercise_muscle_targets,
 } from '../application/analysis/muscleMapping'
+import { audit_exercise_muscle_mappings } from '../application/analysis/muscleMappingAudit'
+import {
+  save_verified_exercise_muscle_mapping,
+  type VerifiedExerciseMuscleTarget,
+} from '../application/analysis/muscleMappingSettings'
 import {
   archive_exercise,
   consolidate_exercises,
@@ -440,6 +445,27 @@ export function load_exercise_library_audit() {
   return audit_exercise_library(repositories.exercises)
 }
 
+export function load_muscle_mapping_audit() {
+  return audit_exercise_muscle_mappings(
+    repositories.exercises,
+    repositories.settings,
+  )
+}
+
+export async function save_exercise_muscle_mapping(
+  exercise_id: string,
+  targets: readonly VerifiedExerciseMuscleTarget[],
+) {
+  const result = await save_verified_exercise_muscle_mapping(
+    exercise_id,
+    targets,
+    repositories.settings,
+    new Date().toISOString(),
+  )
+  request_auto_sync('setting_changed')
+  return result
+}
+
 export async function archive_exercise_definition(exercise_id: string) {
   return archive_exercise(
     repositories.exercises,
@@ -753,7 +779,10 @@ async function load_previous_muscle_recovery_prompt(
 
   const [session_exercises, catalogue] = await Promise.all([
     repositories.sessions.list_session_exercises(previous.id),
-    load_muscle_mapping_catalogue(repositories.exercises),
+    load_muscle_mapping_catalogue(
+      repositories.exercises,
+      repositories.settings,
+    ),
   ])
 
   const targets = new Map<string, { primary: boolean; weight: number }>()

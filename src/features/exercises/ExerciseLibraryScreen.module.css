@@ -789,3 +789,164 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+.mappingAudit {
+  margin-bottom: 14px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 18px;
+  background: var(--pf-panel);
+  overflow: hidden;
+}
+
+.mappingAudit > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mappingAudit > summary::-webkit-details-marker { display: none; }
+.mappingAudit > summary > div { display: grid; gap: 3px; }
+.mappingAudit > summary strong { color: var(--pf-text-strong); font-size: 15px; }
+.mappingAudit > p {
+  margin: 0;
+  padding: 0 18px 14px;
+  color: var(--pf-text-muted);
+  font-size: 11px;
+}
+
+.mappingStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  padding: 0 18px 14px;
+}
+
+.mappingStats div {
+  padding: 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  background: var(--pf-bg);
+}
+
+.mappingStats strong,
+.mappingStats span { display: block; }
+.mappingStats strong { color: var(--pf-text-strong); font-size: 20px; }
+.mappingStats span { color: var(--pf-text-faint); font-size: 8px; font-weight: 900; text-transform: uppercase; }
+
+.mappingList { display: grid; gap: 7px; padding: 0 18px 18px; }
+.mappingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 11px;
+  background: var(--pf-bg);
+}
+
+.mappingRow > div:first-child { display: grid; gap: 3px; }
+.mappingRow > div:first-child strong { color: var(--pf-text-strong); font-size: 12px; }
+.mappingRow > div:first-child small { color: var(--pf-text-muted); font-size: 9px; }
+.mappingRow > button {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 9px;
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  font: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mappingEditor {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--pf-border);
+}
+
+.mappingEditor label,
+.secondaryPicker { display: grid; gap: 5px; }
+.mappingEditor label > span,
+.secondaryPicker > span {
+  color: var(--pf-text-faint);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+.mappingEditor select {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 9px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel);
+  font: inherit;
+}
+.secondaryPicker > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.secondaryPicker button {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--pf-border);
+  border-radius: 8px;
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.secondaryPicker .secondaryActive {
+  color: #071006;
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent);
+}
+.mappingActions {
+  display: grid;
+  grid-template-columns: 0.35fr 1fr;
+  gap: 7px;
+}
+.mappingActions button {
+  min-height: 42px;
+  border: 1px solid var(--pf-border);
+  border-radius: 9px;
+  color: var(--pf-text-muted);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.mappingActions .mappingSave {
+  color: #071006;
+  border-color: var(--pf-accent-border);
+  background: var(--pf-accent);
+}
+.mappingComplete {
+  padding: 12px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 10px;
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+@media (max-width: 700px) {
+  .mappingRow { grid-template-columns: 1fr; }
+  .mappingRow > button { width: 100%; }
+  .mappingActions { grid-template-columns: 1fr; }
+}

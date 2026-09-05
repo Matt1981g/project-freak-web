@@ -2,6 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import type { Exercise } from '../../domain/models'
 import type { ExerciseLibraryAudit } from '../../application/exercises/exerciseLibraryAudit'
+import {
+  TRAINING_PRIORITY_AREAS,
+  type TrainingPriorityArea,
+} from '../../application/priorities/trainingPriorities'
+import type { MuscleMappingAudit } from '../../application/analysis/muscleMappingAudit'
+import type { VerifiedExerciseMuscleTarget } from '../../application/analysis/muscleMappingSettings'
 import type { ExerciseAliasCandidateGroup } from '../../domain/rules/exerciseAliases'
 import type { HistoricalImportPreview } from '../../importers/historical'
 import {
@@ -11,9 +17,11 @@ import {
   load_exercise_alias_candidates,
   load_exercise_library,
   load_exercise_library_audit,
+  load_muscle_mapping_audit,
   preview_historical_workbook,
   rename_exercise_definition,
   restore_exercise_definition,
+  save_exercise_muscle_mapping,
 } from '../../app/projectFreakServices'
 import styles from './ExerciseLibraryScreen.module.css'
 
@@ -41,6 +49,11 @@ export function ExerciseLibraryScreen() {
   >([])
   const [library_audit, setLibraryAudit] =
     useState<ExerciseLibraryAudit | null>(null)
+  const [muscle_audit, setMuscleAudit] =
+    useState<MuscleMappingAudit | null>(null)
+  const [mapping_exercise_id, setMappingExerciseId] = useState<string | null>(null)
+  const [mapping_primary, setMappingPrimary] = useState<TrainingPriorityArea>('Biceps')
+  const [mapping_secondary, setMappingSecondary] = useState<TrainingPriorityArea[]>([])
   const [loading, setLoading] = useState(true)
   const [busy_id, setBusyId] = useState<string | null>(null)
   const [renaming_id, setRenamingId] = useState<string | null>(null)
@@ -58,17 +71,19 @@ export function ExerciseLibraryScreen() {
     setError(null)
 
     try {
-      const [library, candidates, audit] = await Promise.all([
+      const [library, candidates, audit, muscleAudit] = await Promise.all([
         load_exercise_library({
           search,
           include_archived,
         }),
         load_exercise_alias_candidates(),
         load_exercise_library_audit(),
+        load_muscle_mapping_audit(),
       ])
       setExercises(library)
       setAliasCandidates(candidates)
       setLibraryAudit(audit)
+      setMuscleAudit(muscleAudit)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load exercises.')
     } finally {
@@ -83,6 +98,47 @@ export function ExerciseLibraryScreen() {
 
     return () => window.clearTimeout(timeout)
   }, [refresh])
+
+  function open_mapping_editor(exercise_id: string) {
+    const row = muscle_audit?.rows.find((item) => item.exercise_id === exercise_id)
+    const primary =
+      row?.targets.find((target) => target.role === 'primary')?.area ?? 'Biceps'
+    const secondary =
+      row?.targets
+        .filter((target) => target.role === 'secondary')
+        .map((target) => target.area) ?? []
+    setMappingExerciseId(exercise_id)
+    setMappingPrimary(primary)
+    setMappingSecondary(secondary)
+  }
+
+  async function save_mapping(exercise_id: string) {
+    setBusyId(exercise_id)
+    setError(null)
+    setNotice(null)
+    try {
+      const targets: VerifiedExerciseMuscleTarget[] = [
+        { area: mapping_primary, role: 'primary', allocation_weight: 1 },
+        ...mapping_secondary
+          .filter((area) => area !== mapping_primary)
+          .map((area) => ({
+            area,
+            role: 'secondary' as const,
+            allocation_weight: 0.5,
+          })),
+      ]
+      await save_exercise_muscle_mapping(exercise_id, targets)
+      setMappingExerciseId(null)
+      setNotice('Explicit muscle mapping saved and queued for cross-device sync.')
+      await refresh()
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Unable to save muscle mapping.',
+      )
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   async function change_archive_state(exercise: Exercise) {
     setBusyId(exercise.id)
@@ -456,6 +512,128 @@ export function ExerciseLibraryScreen() {
             definitions remain available for historical traceability.
           </p>
         </section>
+      )}
+
+      {muscle_audit && (
+        <details className={styles.mappingAudit} open={muscle_audit.unmapped > 0}>
+          <summary>
+            <div>
+              <span className={styles.kicker}>MUSCLE MAPPING AUDIT</span>
+              <strong>
+                {muscle_audit.explicit}/{muscle_audit.active_exercises} explicitly verified
+              </strong>
+            </div>
+            <span className={muscle_audit.unmapped > 0 ? styles.reviewTag : styles.readyBadge}>
+              {muscle_audit.unmapped > 0 ? `${muscle_audit.unmapped} UNMAPPED` : 'AUDIT READY'}
+            </span>
+          </summary>
+          <p>
+            Explicit mappings override category estimates and sync between devices.
+            FALLBACK entries are usable estimates until you confirm them.
+          </p>
+          <div className={styles.mappingStats}>
+            <div><strong>{muscle_audit.explicit}</strong><span>explicit</span></div>
+            <div><strong>{muscle_audit.fallback}</strong><span>fallback</span></div>
+            <div><strong>{muscle_audit.unmapped}</strong><span>unmapped</span></div>
+          </div>
+          <div className={styles.mappingList}>
+            {muscle_audit.rows
+              .filter((row) => row.status !== 'explicit' || mapping_exercise_id === row.exercise_id)
+              .map((row) => (
+                <div className={styles.mappingRow} key={row.exercise_id}>
+                  <div>
+                    <strong>{row.canonical_name}</strong>
+                    <small>
+                      {row.status.toUpperCase()} · {row.category ?? 'no category'} ·{' '}
+                      {row.targets.length
+                        ? row.targets.map((target) =>
+                            `${target.area} ${target.role}`,
+                          ).join(' · ')
+                        : 'no target mapping'}
+                    </small>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => open_mapping_editor(row.exercise_id)}
+                  >
+                    {row.status === 'explicit' ? 'EDIT' : 'VERIFY / MAP'}
+                  </button>
+
+                  {mapping_exercise_id === row.exercise_id && (
+                    <div className={styles.mappingEditor}>
+                      <label>
+                        <span>PRIMARY MUSCLE</span>
+                        <select
+                          value={mapping_primary}
+                          onChange={(event) => {
+                            const value = event.target.value as TrainingPriorityArea
+                            setMappingPrimary(value)
+                            setMappingSecondary((current) =>
+                              current.filter((area) => area !== value),
+                            )
+                          }}
+                        >
+                          {TRAINING_PRIORITY_AREAS.map((area) => (
+                            <option value={area} key={area}>{area}</option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div className={styles.secondaryPicker}>
+                        <span>SECONDARY MUSCLES</span>
+                        <div>
+                          {TRAINING_PRIORITY_AREAS
+                            .filter((area) => area !== mapping_primary)
+                            .map((area) => (
+                              <button
+                                type="button"
+                                key={area}
+                                className={
+                                  mapping_secondary.includes(area)
+                                    ? styles.secondaryActive
+                                    : undefined
+                                }
+                                onClick={() =>
+                                  setMappingSecondary((current) =>
+                                    current.includes(area)
+                                      ? current.filter((item) => item !== area)
+                                      : [...current, area],
+                                  )
+                                }
+                              >
+                                {area}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+
+                      <div className={styles.mappingActions}>
+                        <button
+                          type="button"
+                          onClick={() => setMappingExerciseId(null)}
+                        >
+                          CANCEL
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.mappingSave}
+                          disabled={busy_id === row.exercise_id}
+                          onClick={() => void save_mapping(row.exercise_id)}
+                        >
+                          {busy_id === row.exercise_id ? 'SAVING…' : 'SAVE EXPLICIT MAPPING'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            {muscle_audit.rows.every((row) => row.status === 'explicit') && (
+              <div className={styles.mappingComplete}>
+                Every active exercise has an explicit muscle mapping. Ridiculously responsible.
+              </div>
+            )}
+          </div>
+        </details>
       )}
 
       {merge_selection.length > 0 && (
