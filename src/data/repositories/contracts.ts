@@ -84,8 +84,8 @@ export interface ProgrammeRepository {
   get_programmed_session_detail(
     programmed_session_id: string,
   ): Promise<ProgrammedSessionDetail | undefined>
-  put_programmed_session(session: ProgrammedSession): Promise<string>
-  put_programmed_session_exercise(
+  put_programmed_session?(session: ProgrammedSession): Promise<string>
+  put_programmed_session_exercise?(
     exercise: ProgrammedSessionExercise,
   ): Promise<string>
   get_latest_template_version(template_family_id: string): Promise<number>
@@ -101,7 +101,7 @@ export interface ReadinessRepository {
 
 export interface SessionRepository {
   get_session(id: string): Promise<CompletedSession | undefined>
-  get_session_exercise(id: string): Promise<SessionExercise | undefined>
+  get_session_exercise?(id: string): Promise<SessionExercise | undefined>
   get_by_programmed_session_id(
     programmed_session_id: string,
   ): Promise<CompletedSession | undefined>

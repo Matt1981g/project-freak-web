@@ -69,6 +69,10 @@ export async function reschedule_programmed_session(
     throw new Error('Choose a valid session date.')
   }
 
+  if (!programme.put_programmed_session) {
+    throw new Error('Programme editing is not available in this database.')
+  }
+
   const detail = await programme.get_programmed_session_detail(
     programmed_session_id,
   )
@@ -94,6 +98,10 @@ export async function set_programmed_session_skipped(
   programme: ProgrammeRepository,
   context: AdjustmentContext,
 ): Promise<ProgrammedSession> {
+  if (!programme.put_programmed_session) {
+    throw new Error('Programme editing is not available in this database.')
+  }
+
   const detail = await programme.get_programmed_session_detail(
     programmed_session_id,
   )
@@ -133,6 +141,13 @@ export async function substitute_live_exercise(
   session_exercise: SessionExercise
   future_programmed_exercises_changed: number
 }> {
+  if (!repositories.sessions.get_session_exercise) {
+    throw new Error('Workout substitution is not available in this database.')
+  }
+  if (!repositories.programme.put_programmed_session_exercise) {
+    throw new Error('Programme substitution is not available in this database.')
+  }
+
   const appearance = await repositories.sessions.get_session_exercise(
     input.session_exercise_id,
   )
