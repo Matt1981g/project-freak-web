@@ -1,7 +1,8 @@
 .app-shell {
   min-height: 100svh;
   background:
-    radial-gradient(circle at 12% -10%, rgba(166, 255, 0, 0.08), transparent 32%),
+    radial-gradient(circle at 12% -10%, var(--pf-accent-glow), transparent 31%),
+    radial-gradient(circle at 92% -14%, var(--pf-orange-soft), transparent 24%),
     var(--pf-bg);
 }
 
@@ -27,8 +28,18 @@
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: var(--pf-accent);
+  background:
+    linear-gradient(
+      135deg,
+      var(--pf-accent) 0%,
+      var(--pf-accent) 78%,
+      var(--pf-orange) 78%,
+      var(--pf-orange) 100%
+    );
   color: #071006;
+  box-shadow:
+    0 0 18px var(--pf-accent-glow),
+    0 0 8px var(--pf-orange-glow);
   font-weight: 1000;
   letter-spacing: -0.05em;
 }
@@ -117,6 +128,7 @@
   color: var(--pf-accent);
   background: var(--pf-accent-soft);
   border-color: var(--pf-accent-border);
+  box-shadow: inset 0 -2px 0 var(--pf-accent), 0 0 10px rgba(189, 255, 0, 0.05);
 }
 
 .pwa-install-button,
@@ -157,10 +169,11 @@
 
 .phase-chip {
   padding: 7px 10px;
-  border: 1px solid var(--pf-accent-border);
+  border: 1px solid var(--pf-orange-border);
   border-radius: 999px;
-  color: var(--pf-accent);
-  background: var(--pf-accent-soft);
+  color: var(--pf-orange);
+  background: var(--pf-orange-soft);
+  box-shadow: 0 0 10px var(--pf-orange-glow);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.1em;

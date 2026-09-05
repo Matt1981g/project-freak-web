@@ -7,9 +7,14 @@
   --pf-text: #d8ddd5;
   --pf-text-muted: #929b8e;
   --pf-text-faint: #697166;
-  --pf-accent: #a6ff00;
-  --pf-accent-soft: rgba(166, 255, 0, 0.09);
-  --pf-accent-border: rgba(166, 255, 0, 0.32);
+  --pf-accent: #bdff00;
+  --pf-accent-soft: rgba(189, 255, 0, 0.11);
+  --pf-accent-border: rgba(189, 255, 0, 0.42);
+  --pf-accent-glow: rgba(189, 255, 0, 0.18);
+  --pf-orange: #ff6a00;
+  --pf-orange-soft: rgba(255, 106, 0, 0.08);
+  --pf-orange-border: rgba(255, 106, 0, 0.34);
+  --pf-orange-glow: rgba(255, 106, 0, 0.16);
   --pf-danger: #ff6b6b;
   --pf-danger-soft: rgba(255, 107, 107, 0.08);
   --pf-danger-border: rgba(255, 107, 107, 0.28);
