@@ -23,26 +23,36 @@ function is_final_actual(session: CompletedSession): boolean {
   return session.status === 'completed' || session.status === 'abandoned'
 }
 
-function same_programme_window(
+function programme_windows_overlap(
   left: ProgrammeBlock,
   right: ProgrammeBlock,
 ): boolean {
   if (left.block_type === 'custom' || right.block_type === 'custom') {
     return false
   }
+  if (left.block_type !== right.block_type) return false
+  if (
+    !left.start_date_local ||
+    !left.end_date_local ||
+    !right.start_date_local ||
+    !right.end_date_local
+  ) {
+    return false
+  }
 
   return (
-    left.start_date_local !== null &&
-    left.end_date_local !== null &&
-    left.start_date_local === right.start_date_local &&
-    left.end_date_local === right.end_date_local
+    left.start_date_local <= right.end_date_local &&
+    right.start_date_local <= left.end_date_local
   )
 }
 
 function is_superseded(
   block: ProgrammeBlock,
   blocks: readonly ProgrammeBlock[],
+  actuals: readonly CompletedSession[],
 ): boolean {
+  if (has_started_actual(block, actuals)) return false
+
   return blocks.some(
     (candidate) =>
       candidate.id !== block.id &&
@@ -50,7 +60,7 @@ function is_superseded(
       candidate.status !== 'archived' &&
       candidate.status !== 'completed' &&
       candidate.created_at > block.created_at &&
-      same_programme_window(block, candidate),
+      programme_windows_overlap(block, candidate),
   )
 }
 
@@ -143,7 +153,7 @@ export function select_active_plan_programmes(
       continue
     }
 
-    if (is_superseded(block, blocks)) continue
+    if (is_superseded(block, blocks, actuals)) continue
     if (changed_before_block_started(block, actuals, context)) continue
 
     const sessions = (sessions_by_block.get(block.id) ?? []).filter((session) =>
