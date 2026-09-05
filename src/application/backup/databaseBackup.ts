@@ -2,6 +2,7 @@ import type { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
 import {
   PROJECT_FREAK_DATA_CONTRACT_VERSION,
   PROJECT_FREAK_DB_SCHEMA_VERSION,
+  PROJECT_FREAK_SCHEMA_V1,
   PROJECT_FREAK_STORE_NAMES,
 } from '../../data/db/schema'
 
@@ -388,7 +389,12 @@ export async function preview_backup_json(
   ) {
     throw new Error('Backup database schema version is invalid.')
   }
-  if (db_schema_version !== PROJECT_FREAK_DB_SCHEMA_VERSION) {
+  const upgrading_v1_backup =
+    db_schema_version === 1 && PROJECT_FREAK_DB_SCHEMA_VERSION === 2
+  if (
+    db_schema_version !== PROJECT_FREAK_DB_SCHEMA_VERSION &&
+    !upgrading_v1_backup
+  ) {
     throw new Error(
       `Backup database schema v${db_schema_version} is not compatible with this app (v${PROJECT_FREAK_DB_SCHEMA_VERSION}).`,
     )
@@ -403,7 +409,9 @@ export async function preview_backup_json(
   assert_object(parsed.database.tables, 'Backup database tables')
 
   const actual_names = exact_store_names(parsed.database.tables)
-  const expected_names = expected_store_names()
+  const expected_names = upgrading_v1_backup
+    ? Object.keys(PROJECT_FREAK_SCHEMA_V1).sort()
+    : expected_store_names()
   if (JSON.stringify(actual_names) !== JSON.stringify(expected_names)) {
     const missing = expected_names.filter((name) => !actual_names.includes(name))
     const extra = actual_names.filter((name) => !expected_names.includes(name))
@@ -432,7 +440,7 @@ export async function preview_backup_json(
   const table_counts: Record<string, number> = {}
   let total_records = 0
 
-  for (const table_name of PROJECT_FREAK_STORE_NAMES) {
+  for (const table_name of expected_names) {
     const raw_records = parsed.database.tables[table_name]
     if (!Array.isArray(raw_records)) {
       throw new Error(`Backup table ${table_name} must be an array.`)
@@ -465,6 +473,12 @@ export async function preview_backup_json(
     total_records += records.length
   }
 
+  if (upgrading_v1_backup) {
+    tables.synced_settings = []
+    checksums.synced_settings = await table_checksum([])
+    table_counts.synced_settings = 0
+  }
+
   const backup: ProjectFreakBackup = {
     format: BACKUP_FORMAT,
     schema_version: BACKUP_SCHEMA_VERSION,
@@ -476,7 +490,7 @@ export async function preview_backup_json(
         ? parsed.source_device_id
         : null,
     database: {
-      db_schema_version,
+      db_schema_version: PROJECT_FREAK_DB_SCHEMA_VERSION,
       data_contract_version: parsed.database.data_contract_version as string,
       tables,
     },
@@ -490,7 +504,7 @@ export async function preview_backup_json(
     valid: true,
     created_at: backup.created_at,
     source_device_id: backup.source_device_id,
-    db_schema_version,
+    db_schema_version: backup.database.db_schema_version,
     data_contract_version: backup.database.data_contract_version,
     table_counts,
     total_records,
