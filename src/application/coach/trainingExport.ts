@@ -10,6 +10,7 @@ import type {
   RepositoryBundle,
 } from '../../data/repositories/contracts'
 import { load_training_priorities } from '../priorities/trainingPriorities'
+import { load_analysis_dashboard_data } from '../analysis/dashboard'
 import { load_coach_excluded_sessions } from './coachExclusions'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
@@ -79,6 +80,11 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
       'Review readiness and recovery',
       'Review actual rest where useful',
       'Review weekly volume and frequency',
+      'Review direct and secondary muscle exposure, frequency and failure exposure',
+      'Review Grow/Maintain intent; priority order ranks growth resources within Grow areas',
+      'Review muscle-specific next-session recovery feedback',
+      'Review underperformance signals and their underlying evidence',
+      'Review the adaptive deload recommendation and confidence',
       'Use historical performance supplied in this export',
       'Respect the current PROJECT FREAK training priority order',
     ],
@@ -90,6 +96,11 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
       'Do not rewrite historical actuals',
       'Use advanced set methods only when justified by the evidence',
       'Leave target_load_kg null when the evidence does not justify a specific load',
+      'For Maintain areas, use the minimum effective work needed to preserve muscle and performance rather than chasing progression for its own sake',
+      'For Grow areas, allocate recoverable growth work according to the supplied priority order',
+      'Treat category-fallback secondary muscle exposure as estimated rather than exact',
+      'Do not force a deload from a single weak signal; use the supplied adaptive recommendation, confidence and underlying evidence together',
+      'If the adaptive recommendation is deload with moderate or high confidence, reduce fatigue rather than blindly progressing volume or load unless stronger contrary evidence exists',
       'Optimise for hypertrophy rather than strength for its own sake',
     ],
     next_block: {
@@ -108,7 +119,9 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
     required_output: [
       'Concise review of the completed week',
       'Key programming changes and reasons',
+      'Muscle allocation decisions for Grow versus Maintain areas',
       'Recovery or performance concerns',
+      'Explicit deload / continue / fatigue-reduction decision with reasons',
       'A valid PROJECT FREAK programme-import JSON for the next Monday-Sunday block',
     ],
     programme_output: {
@@ -178,6 +191,7 @@ export interface TrainingExport {
   coach_instructions: TrainingExportCoachInstructions
   coach_context: {
     training_priorities: Awaited<ReturnType<typeof load_training_priorities>>
+    adaptive_analysis: Awaited<ReturnType<typeof load_analysis_dashboard_data>>
     exercise_catalogue: Array<{
       id: string
       canonical_name: string
@@ -460,11 +474,18 @@ export async function build_training_export(
   context: TrainingExportContext,
   request: TrainingExportScopeRequest,
 ): Promise<TrainingExport> {
-  const [priorities, active_exercises, aliases, exclusions] = await Promise.all([
+  const [
+    priorities,
+    active_exercises,
+    aliases,
+    exclusions,
+    adaptive_analysis,
+  ] = await Promise.all([
     load_training_priorities(repositories.settings),
     repositories.exercises.list_active(),
     repositories.exercises.list_aliases(),
     load_coach_excluded_sessions(repositories.settings),
+    load_analysis_dashboard_data(repositories),
   ])
   const excluded_ids = new Set(exclusions.session_ids)
   const exercise_filter =
@@ -592,6 +613,7 @@ export async function build_training_export(
     coach_instructions: build_coach_instructions(),
     coach_context: {
       training_priorities: priorities,
+      adaptive_analysis,
       exercise_catalogue: active_exercises.map((exercise) => ({
         id: exercise.id,
         canonical_name: exercise.canonical_name,

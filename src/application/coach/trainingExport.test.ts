@@ -218,6 +218,8 @@ function repositories(): RepositoryBundle {
       get_by_id: async () => exercise_definition,
       list_all: async () => [exercise_definition],
       list_active: async () => [exercise_definition],
+      list_muscles: async () => [],
+      list_muscle_links: async () => [],
       list_aliases: async () => [
         {
           id: 'alias-1',
@@ -386,6 +388,12 @@ describe('build_training_export scopes', () => {
     })
     expect(payload.sessions.map((item) => item.id)).toEqual([active.id])
     expect(payload.sessions[0].status).toBe('in_progress')
+    expect(payload.coach_context.adaptive_analysis).toBeDefined()
+    expect(
+      payload.coach_instructions.review_requirements,
+    ).toContain(
+      'Review direct and secondary muscle exposure, frequency and failure exposure',
+    )
   })
 
   it('resolves merged aliases for Exercise scope', async () => {

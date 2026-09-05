@@ -118,6 +118,12 @@ function readiness_description(
     .filter(([, value]) => value !== null)
     .map(([label, value, suffix]) => `${label} ${value}${suffix}`)
 
+  for (const recovery of readiness.muscle_recovery ?? []) {
+    available.push(
+      `${recovery.muscle} recovery ${recovery.status.replaceAll('_', ' ')}`,
+    )
+  }
+
   if (readiness.joint_issue_present !== null) {
     available.push(
       readiness.joint_issue_present
@@ -131,8 +137,25 @@ function readiness_description(
 
 export function build_weekly_coaching_brief(payload: TrainingExport): string {
   const priorities = payload.coach_context.training_priorities.current
-    .map((area, index) => `${index + 1}. ${area}`)
+    .map(
+      (area, index) =>
+        `${index + 1}. ${area} [${payload.coach_context.training_priorities.intent_by_area[area].toUpperCase()}]`,
+    )
     .join(' | ')
+
+  const analysis = payload.coach_context.adaptive_analysis
+  const muscle_lines = analysis.muscles
+    .filter(
+      (muscle) =>
+        muscle.direct_sets > 0 ||
+        muscle.secondary_sets > 0 ||
+        muscle.recovery_samples > 0 ||
+        muscle.underperformance_exercises > 0,
+    )
+    .map(
+      (muscle) =>
+        `#${muscle.priority} ${muscle.muscle} [${muscle.intent.toUpperCase()}] | Direct ${muscle.direct_sets} | Secondary ${muscle.secondary_sets} | Freq ${muscle.frequency} | Failure ${muscle.failure_exposure_sets} | RPE ${format_score(muscle.rpe.value)} | Pump ${format_score(muscle.pump.value)} | Form ${format_score(muscle.form.value)} | Recovery ${muscle.recovery_status?.replaceAll('_', ' ') ?? '—'} | Regressions ${muscle.underperformance_exercises}`,
+    )
 
   const total_sets = payload.sessions.reduce(
     (total, session) =>
@@ -169,8 +192,27 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     `Recorded sets: ${total_sets}`,
     `Comparable volume: ${format_number(total_volume)} kg`,
     '',
-    'TRAINING PRIORITIES',
+    'TRAINING PRIORITIES + INTENT',
     priorities || 'Not configured',
+    '',
+    'MUSCLE ANALYSIS',
+    ...(muscle_lines.length > 0
+      ? muscle_lines
+      : ['No mapped muscle exposure in the current analysed week.']),
+    `Mapping coverage: explicit ${analysis.mapping_coverage.explicit_exercises} | category fallback ${analysis.mapping_coverage.category_fallback_exercises} | unmapped ${analysis.mapping_coverage.unmapped_exercises}`,
+    '',
+    'UNDERPERFORMANCE',
+    `Status: ${analysis.underperformance.status.toUpperCase()} | regressed exercises ${analysis.underperformance.regressed_exercises} | performance-affected recoveries ${analysis.underperformance.performance_affected_recoveries}`,
+    ...(analysis.underperformance.signals.length > 0
+      ? analysis.underperformance.signals.map(
+          (signal) =>
+            `- [${signal.severity.toUpperCase()}] ${signal.label}: ${signal.detail}`,
+        )
+      : ['- No repeated underperformance signal detected.']),
+    '',
+    'ADAPTIVE DELOAD',
+    `Recommendation: ${analysis.deload.recommendation.replaceAll('_', ' ').toUpperCase()} | score ${analysis.deload.score} | confidence ${analysis.deload.confidence.toUpperCase()}`,
+    ...analysis.deload.reasons.map((reason) => `- ${reason}`),
     '',
     'SESSION DETAIL',
   ]
@@ -236,7 +278,8 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     `Exercise appearances without programmed targets: ${missing_targets}`,
     '',
     'COACH HANDOFF',
-    'Use this brief for rapid review and the accompanying PROJECT FREAK JSON for exact set structures, IDs, aliases, provenance and programme-import-safe exercise references.',
+    'Use this brief for rapid review and the accompanying PROJECT FREAK JSON for exact set structures, IDs, aliases, provenance, muscle analysis and programme-import-safe exercise references.',
+    'Use Grow/Maintain intent, muscle recovery, underperformance evidence and the adaptive deload recommendation as decision support; do not turn one weak signal into an automatic programme rewrite.',
     'The next programme JSON is the prescription. Historical performance is evidence, not an instruction to blindly repeat the previous load.',
   )
 

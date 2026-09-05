@@ -76,6 +76,44 @@ const payload: TrainingExport = {
       },
       history: [],
     },
+    adaptive_analysis: {
+      weeks: [],
+      muscles: [
+        {
+          muscle: 'Biceps',
+          priority: 1,
+          intent: 'grow',
+          direct_sets: 2,
+          secondary_sets: 0,
+          weighted_sets: 2,
+          frequency: 1,
+          failure_exposure_sets: 1,
+          rpe: { value: 9, samples: 1 },
+          pump: { value: 8, samples: 1 },
+          form: { value: 10, samples: 1 },
+          recovery_status: null,
+          recovery_samples: 0,
+          underperformance_exercises: 0,
+        },
+      ],
+      mapping_coverage: {
+        explicit_exercises: 0,
+        category_fallback_exercises: 1,
+        unmapped_exercises: 0,
+      },
+      underperformance: {
+        status: 'clear',
+        signals: [],
+        regressed_exercises: 0,
+        performance_affected_recoveries: 0,
+      },
+      deload: {
+        recommendation: 'continue',
+        score: 0,
+        confidence: 'moderate',
+        reasons: ['No repeated performance or recovery breakdown is currently detected.'],
+      },
+    },
     exercise_catalogue: [],
     exercise_aliases: [],
   },
@@ -181,7 +219,11 @@ describe('build_weekly_coaching_brief', () => {
     expect(brief).toContain('PROJECT FREAK — WEEKLY COACHING BRIEF')
     expect(brief).toContain('Scope: 2026-08-29 to 2026-09-04')
     expect(brief).toContain('Comparable volume: 990 kg')
-    expect(brief).toContain('1. Biceps | 2. Quads')
+    expect(brief).toContain('1. Biceps [GROW] | 2. Quads [GROW]')
+    expect(brief).toContain('MUSCLE ANALYSIS')
+    expect(brief).toContain('#1 Biceps [GROW] | Direct 2')
+    expect(brief).toContain('ADAPTIVE DELOAD')
+    expect(brief).toContain('Recommendation: CONTINUE')
     expect(brief).toContain('Nautilus Bicep Curl [exercise-1]')
     expect(brief).toContain('2 sets | 8–12 reps | 90s rest')
     expect(brief).toContain('S1 45 kg × 12 | S2 45 kg × 10F')
