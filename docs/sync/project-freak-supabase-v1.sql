@@ -60,7 +60,7 @@ as $$
     'exercise_metrics',
     'user_setting'
   );
-$;
+$$;
 
 -- Change rows contain complete entity snapshots, not deltas. Keeping only the
 -- newest snapshot per entity preserves convergence while bounding change-log growth.
@@ -71,7 +71,7 @@ returns integer
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_keep integer := greatest(1, least(coalesce(p_keep_latest_per_entity, 1), 10));
@@ -101,7 +101,7 @@ begin
 
   return v_deleted;
 end;
-$;
+$$;
 
 create or replace function public.project_freak_push_mutations(p_mutations jsonb)
 returns jsonb
