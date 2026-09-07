@@ -240,7 +240,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "minLength": 1
         },
         "rotation_position": {
           "type": [
@@ -316,7 +317,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "minLength": 1
         },
         "name": {
           "type": "string",
@@ -362,7 +364,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "minLength": 1
         },
         "name": {
           "type": "string",
