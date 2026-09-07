@@ -17,6 +17,14 @@ interface StoredProgrammeSummary {
   sessions: ProgrammedSession[]
 }
 
+function adaptive_current_week_note(notes: string | null): string | null {
+  if (!notes) return null
+  const line = notes
+    .split('\n')
+    .find((value) => value.startsWith('Adaptive current week · '))
+  return line ? line.replace('Adaptive current week · ', '') : null
+}
+
 function rep_target(
   minimum: number | null | undefined,
   maximum: number | null | undefined,
@@ -394,46 +402,56 @@ export function PlanScreen() {
                                               <span>Type</span>
                                               <span>Failure</span>
                                             </div>
-                                            {sets.map(({ set, components }) => (
-                                              <div
-                                                className={styles.storedSetRow}
-                                                key={set.id}
-                                              >
-                                                <strong>S{set.set_number}</strong>
-                                                <span>
-                                                  {rep_target(
-                                                    set.target_rep_min,
-                                                    set.target_rep_max,
+                                            {sets.map(({ set, components }) => {
+                                              const adaptive_note =
+                                                adaptive_current_week_note(set.notes)
+
+                                              return (
+                                                <div
+                                                  className={styles.storedSetRow}
+                                                  key={set.id}
+                                                >
+                                                  <strong>S{set.set_number}</strong>
+                                                  <span>
+                                                    {rep_target(
+                                                      set.target_rep_min,
+                                                      set.target_rep_max,
+                                                    )}
+                                                  </span>
+                                                  <span>
+                                                    {set.target_load_kg !== null
+                                                      ? `${set.target_load_kg} kg`
+                                                      : 'load open'}
+                                                  </span>
+                                                  <span>
+                                                    {set.structure_type.replaceAll(
+                                                      '_',
+                                                      ' ',
+                                                    )}
+                                                  </span>
+                                                  <span>
+                                                    {set.failure_target === 'none'
+                                                      ? 'no failure target'
+                                                      : `failure ${set.failure_target}`}
+                                                  </span>
+                                                  {adaptive_note && (
+                                                    <small>
+                                                      LIVE ADAPTATION · {adaptive_note}
+                                                    </small>
                                                   )}
-                                                </span>
-                                                <span>
-                                                  {set.target_load_kg !== null
-                                                    ? `${set.target_load_kg} kg`
-                                                    : 'load open'}
-                                                </span>
-                                                <span>
-                                                  {set.structure_type.replaceAll(
-                                                    '_',
-                                                    ' ',
+                                                  {!adaptive_note && components.length > 0 && (
+                                                    <small>
+                                                      {components
+                                                        .map(
+                                                          (component) =>
+                                                            `${component.sequence}. ${component.component_type.replaceAll('_', ' ')}`,
+                                                        )
+                                                        .join(' · ')}
+                                                    </small>
                                                   )}
-                                                </span>
-                                                <span>
-                                                  {set.failure_target === 'none'
-                                                    ? 'no failure target'
-                                                    : `failure ${set.failure_target}`}
-                                                </span>
-                                                {components.length > 0 && (
-                                                  <small>
-                                                    {components
-                                                      .map(
-                                                        (component) =>
-                                                          `${component.sequence}. ${component.component_type.replaceAll('_', ' ')}`,
-                                                      )
-                                                      .join(' · ')}
-                                                  </small>
-                                                )}
-                                              </div>
-                                            ))}
+                                                </div>
+                                              )
+                                            })}
                                           </div>
                                         </article>
                                       ),

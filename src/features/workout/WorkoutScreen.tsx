@@ -2089,6 +2089,9 @@ export function WorkoutScreen() {
   >({})
   const [loading, setLoading] = useState(true)
   const [finishing, setFinishing] = useState(false)
+  const [adaptive_review, setAdaptiveReview] = useState<
+    Awaited<ReturnType<typeof complete_live_workout>>['adaptive_current_week'] | null
+  >(null)
   const [pairing_prompt, setPairingPrompt] = useState<PairingPrompt | null>(null)
   const [rest_timer, setRestTimer] = useState<ActiveRestTimer | null>(() =>
     load_stored_rest_timer(completed_session_id),
@@ -2233,7 +2236,8 @@ export function WorkoutScreen() {
     setError(null)
 
     try {
-      await complete_live_workout(completed_session_id)
+      const completed = await complete_live_workout(completed_session_id)
+      setAdaptiveReview(completed.adaptive_current_week)
       setOpenExerciseId(null)
       await refresh_workout()
     } catch (cause) {
@@ -3051,7 +3055,64 @@ export function WorkoutScreen() {
             </div>
           </div>
         </section>
-      ) : all_exercises_complete ? (
+      )}
+
+      {workout.session.status === 'completed' && adaptive_review && (
+        <section
+          className={
+            adaptive_review.status === 'updated'
+              ? styles.adaptiveWeekUpdated
+              : adaptive_review.status === 'error'
+                ? styles.adaptiveWeekError
+                : styles.adaptiveWeekReview
+          }
+        >
+          <div className={styles.adaptiveWeekHeader}>
+            <div>
+              <span>ADAPTIVE CURRENT WEEK</span>
+              <h2>
+                {adaptive_review.status === 'updated'
+                  ? 'Remaining week updated'
+                  : adaptive_review.status === 'error'
+                    ? 'Adaptive review error'
+                    : 'Remaining week reviewed'}
+              </h2>
+            </div>
+            <strong>
+              {adaptive_review.status === 'updated'
+                ? 'LIVE ✓'
+                : adaptive_review.status === 'error'
+                  ? '!'
+                  : 'NO CHANGE'}
+            </strong>
+          </div>
+          <p>{adaptive_review.message}</p>
+
+          {adaptive_review.changes.length > 0 && (
+            <div className={styles.adaptiveWeekChanges}>
+              {adaptive_review.changes.map((change) => (
+                <div
+                  key={`${change.programmed_session_id}-${change.exercise_id}-${change.set_number}`}
+                >
+                  <span>
+                    {format_local_date_display(change.scheduled_date_local)} · SET {change.set_number}
+                  </span>
+                  <strong>{change.exercise_name}</strong>
+                  <small>
+                    {change.previous_load_kg === null
+                      ? 'load open'
+                      : `${change.previous_load_kg} kg`}
+                    {' → '}
+                    {change.target_load_kg} kg · {change.verdict.replaceAll('_', ' ')}
+                  </small>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {workout.session.status !== 'completed' && all_exercises_complete ? (
         <section className={styles.finishPanel}>
           <div>
             <span>ALL EXERCISES COMPLETE</span>

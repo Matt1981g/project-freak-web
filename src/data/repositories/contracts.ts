@@ -88,6 +88,9 @@ export interface ProgrammeRepository {
   put_programmed_session_exercise?(
     exercise: ProgrammedSessionExercise,
   ): Promise<string>
+  put_programmed_session_set?(
+    set: ProgrammedSessionSet,
+  ): Promise<string>
   get_latest_template_version(template_family_id: string): Promise<number>
   commit_import(
     entities: ProgrammeImportEntities,

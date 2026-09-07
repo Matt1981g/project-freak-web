@@ -88,6 +88,7 @@ import {
   type VerifiedExerciseMuscleTarget,
 } from '../application/analysis/muscleMappingSettings'
 import { select_active_plan_programmes } from '../application/programme/activePlan'
+import { adapt_current_week_after_session } from '../application/programme/adaptiveCurrentWeek'
 import {
   archive_exercise,
   consolidate_exercises,
@@ -1104,9 +1105,40 @@ export async function complete_live_workout(
     device_id,
   )
 
+  let adaptive_current_week
+  try {
+    adaptive_current_week = await adapt_current_week_after_session(
+      result.session,
+      repositories,
+      { device_id, now_iso },
+    )
+  } catch (cause) {
+    adaptive_current_week = {
+      status: 'error' as const,
+      source_session_id: result.session.id,
+      source_session_date_local: result.session.session_date_local,
+      reviewed_exercises: 0,
+      reviewed_future_sessions: 0,
+      changes: [],
+      message:
+        cause instanceof Error
+          ? `Workout saved, but adaptive current week failed: ${cause.message}`
+          : 'Workout saved, but adaptive current week failed.',
+    }
+  }
+
   request_auto_sync('workout_completed')
-  if (programme_changed) request_auto_sync('programme_changed')
-  return result
+  if (
+    programme_changed ||
+    adaptive_current_week.changes.length > 0
+  ) {
+    request_auto_sync('programme_changed')
+  }
+
+  return {
+    ...result,
+    adaptive_current_week,
+  }
 }
 
 export async function save_live_exercise_scores(

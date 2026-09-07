@@ -648,6 +648,18 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
     )
   }
 
+  put_programmed_session_set(
+    set: ProgrammedSessionSet,
+  ): Promise<string> {
+    return put_with_audit_and_outbox(
+      this.db,
+      this.db.programmed_session_sets,
+      'programmed_session_set',
+      set,
+      'Adaptive current week target changed',
+    )
+  }
+
   async get_latest_template_version(
     template_family_id: string,
   ): Promise<number> {
