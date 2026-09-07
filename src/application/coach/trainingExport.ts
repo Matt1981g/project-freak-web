@@ -15,7 +15,7 @@ import { load_coach_excluded_sessions } from './coachExclusions'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
 export const TRAINING_EXPORT_SCHEMA_VERSION = '1.0.0' as const
-export const COACH_INSTRUCTIONS_VERSION = '1.0.0' as const
+export const COACH_INSTRUCTIONS_VERSION = '1.1.0' as const
 
 export type TrainingExportScopeType =
   | 'today'
@@ -90,6 +90,8 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
     ],
     rules: [
       'Do not call increased load progress if execution or target-muscle stimulus deteriorated',
+      'Treat PF_ADAPTIVE_CHALLENGE and PF_COACH_CHALLENGE targets as stretch prescriptions, not established baselines. Missing a harder challenge once is not regression by itself; compare against pre-challenge actual performance, Form, target-muscle stimulus and repeated evidence.',
+      'When deliberately prescribing a harder-than-proven load or rep target in the next programme, include PF_COACH_CHALLENGE in that programmed set notes so PROJECT FREAK can identify the stretch attempt.',
       'Do not fabricate missing loads, reps, scores or historical information',
       'Use only exercise IDs supplied in coach_context.exercise_catalogue',
       'Use coach_context.exercise_aliases to resolve historical names without rewriting history',

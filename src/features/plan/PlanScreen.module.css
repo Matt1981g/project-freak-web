@@ -878,3 +878,9 @@
     grid-column: 1 / -1;
   }
 }
+
+.changedTarget {
+  color: var(--pf-danger) !important;
+  font-weight: 1000;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--pf-danger) 45%, transparent);
+}

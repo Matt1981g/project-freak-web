@@ -281,6 +281,7 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     'Use this brief for rapid review and the accompanying PROJECT FREAK JSON for exact set structures, IDs, aliases, provenance, muscle analysis and programme-import-safe exercise references.',
     'Use Grow/Maintain intent, muscle recovery, underperformance evidence and the adaptive deload recommendation as decision support; do not turn one weak signal into an automatic programme rewrite.',
     'The next programme JSON is the prescription. Historical performance is evidence, not an instruction to blindly repeat the previous load.',
+    'Challenge rule: PF_ADAPTIVE_CHALLENGE and PF_COACH_CHALLENGE are deliberate stretch prescriptions. A one-off miss against the harder target is not regression by itself; judge the athlete against the pre-challenge baseline, execution, stimulus, recovery and repeated evidence.',
   )
 
   return lines.join('\n')

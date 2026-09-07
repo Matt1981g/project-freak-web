@@ -14,6 +14,10 @@ import {
 } from '../workout/weightUnits'
 import { load_exercise_weight_unit_preferences } from '../workout/weightUnitPreferences'
 import { is_training_set_completed } from '../../domain/rules/completion'
+import {
+  encode_adaptive_challenge,
+  parse_adaptive_challenge,
+} from './progressionChallenge'
 
 export type AdaptiveCurrentWeekVerdict =
   | 'increase_load'
@@ -322,6 +326,7 @@ export async function adapt_current_week_after_session(
       source: SessionExercise
       decision: AdaptiveCurrentWeekDecision
       loads: Map<number, number>
+      challenge_baseline_loads: Map<number, number>
     }
   >()
 
@@ -347,10 +352,22 @@ export async function adapt_current_week_after_session(
     const loads = source_actual_loads(sets)
     if (loads.size === 0) continue
 
+    const challenge_baseline_loads = new Map<number, number>()
+    for (const planned_set of source_programmed?.sets ?? []) {
+      const challenge = parse_adaptive_challenge(planned_set.set.notes)
+      if (challenge?.baseline_load_kg !== null && challenge?.baseline_load_kg !== undefined) {
+        challenge_baseline_loads.set(
+          planned_set.set.set_number,
+          challenge.baseline_load_kg,
+        )
+      }
+    }
+
     evidence_by_exercise.set(source.exercise_id, {
       source,
       decision,
       loads,
+      challenge_baseline_loads,
     })
   }
 
@@ -386,15 +403,37 @@ export async function adapt_current_week_after_session(
         const actual_load = evidence.loads.get(set.set_number)
         if (actual_load === undefined) continue
 
+        const protected_baseline =
+          evidence.challenge_baseline_loads.get(set.set_number) ?? null
+        const evidence_load =
+          protected_baseline === null
+            ? actual_load
+            : Math.max(actual_load, protected_baseline)
         const desired_load =
           evidence.decision.verdict === 'increase_load'
-            ? progressed_load_kg(actual_load, unit)
-            : actual_load
+            ? progressed_load_kg(evidence_load, unit)
+            : evidence_load
 
         if (same_load(set.target_load_kg, desired_load)) continue
 
+        const existing_challenge = parse_adaptive_challenge(set.notes)
+        const baseline_load =
+          existing_challenge?.baseline_load_kg ?? set.target_load_kg
+        const challenge = encode_adaptive_challenge({
+          source_session_id: session.id,
+          baseline_load_kg: baseline_load,
+          target_load_kg: desired_load,
+          baseline_rep_min:
+            existing_challenge?.baseline_rep_min ?? set.target_rep_min,
+          baseline_rep_max:
+            existing_challenge?.baseline_rep_max ?? set.target_rep_max,
+          target_rep_min: set.target_rep_min,
+          target_rep_max: set.target_rep_max,
+        })
+        const baseline_label =
+          baseline_load === null ? 'load open' : `${baseline_load} kg`
         const note =
-          `Adaptive current week · ${session.session_date_local} · ${evidence.decision.label}: ${evidence.decision.reason}\n${marker}`
+          `Adaptive current week · ${session.session_date_local} · ${evidence.decision.label} · ${baseline_label} → ${desired_load} kg: ${evidence.decision.reason}\n${challenge}\n${marker}`
         const updated: ProgrammedSessionSet = {
           ...set,
           target_load_kg: desired_load,

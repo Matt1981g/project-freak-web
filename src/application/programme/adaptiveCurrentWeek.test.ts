@@ -52,6 +52,15 @@ describe('adaptive current week', () => {
     expect(decision.verdict).toBe('insufficient_data')
   })
 
+  it('treats a harder challenge miss as a hold/add-reps decision rather than automatic regression', () => {
+    const decision = decide_current_week_progression(good, [
+      { set_number: 1, load_kg: 87.5, completed_reps: 10, target_rep_min: 8, target_rep_max: 12 },
+      { set_number: 2, load_kg: 85, completed_reps: 10, target_rep_min: 8, target_rep_max: 12 },
+    ])
+
+    expect(decision.verdict).toBe('add_reps')
+  })
+
   it('uses the configured entry increment for kg and lb', () => {
     expect(progressed_load_kg(40, 'kg')).toBe(41.25)
     expect(progressed_load_kg(40.3, 'kg')).toBe(41.55)

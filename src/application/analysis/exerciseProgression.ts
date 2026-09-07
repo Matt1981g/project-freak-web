@@ -1,6 +1,7 @@
 import type { ExerciseMetrics, TrainingSet } from '../../domain/models'
 import type { ExerciseHistoryResult } from '../history/exerciseHistory'
 import { is_training_set_completed } from '../../domain/rules/completion'
+import { is_progression_challenge_note } from '../programme/progressionChallenge'
 
 export type ExerciseProgressionVerdict =
   | 'baseline'
@@ -21,6 +22,7 @@ export interface ExerciseProgressionRow {
   rpe: number | null
   pump: number | null
   form: number | null
+  challenge_attempt: boolean
   verdict: ExerciseProgressionVerdict
   reason: string
 }
@@ -258,11 +260,27 @@ export function build_exercise_progression(
       rpe: average(metrics, 'rpe'),
       pump: average(metrics, 'pump'),
       form: average(metrics, 'form'),
+      challenge_attempt: entry.appearances.some((appearance) =>
+        is_progression_challenge_note(
+          appearance.session_exercise.programme_notes,
+        ),
+      ),
       verdict: 'baseline',
       reason: '',
     }
 
-    const classification = classify_progression(row, previous_comparable)
+    let classification = classify_progression(row, previous_comparable)
+    if (
+      row.challenge_attempt &&
+      classification.verdict === 'regressed' &&
+      previous_comparable?.challenge_attempt !== true
+    ) {
+      classification = {
+        verdict: 'not_comparable',
+        reason:
+          'A deliberately harder progression challenge was attempted. Missing that stretch target once is not treated as regression by itself.',
+      }
+    }
     row.verdict = classification.verdict
     row.reason = classification.reason
     rows.push(row)

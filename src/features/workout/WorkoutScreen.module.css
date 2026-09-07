@@ -2131,3 +2131,15 @@
   color: var(--pf-text-muted);
   font-size: 9px;
 }
+
+.challengeTarget {
+  color: var(--pf-danger) !important;
+  font-weight: 1000 !important;
+}
+
+.challengeInput {
+  color: var(--pf-danger) !important;
+  border-color: var(--pf-danger-border) !important;
+  box-shadow: 0 0 0 1px var(--pf-danger-soft);
+  font-weight: 1000;
+}

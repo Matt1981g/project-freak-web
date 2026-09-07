@@ -63,7 +63,11 @@ function session(
   }
 }
 
-function session_exercise(id: string, session_id: string): SessionExercise {
+function session_exercise(
+  id: string,
+  session_id: string,
+  programme_notes: string | null = null,
+): SessionExercise {
   return {
     ...base_entity(),
     id,
@@ -81,7 +85,7 @@ function session_exercise(id: string, session_id: string): SessionExercise {
     rest_seconds: null,
     tempo: null,
     technique_cue: null,
-    programme_notes: null,
+    programme_notes,
     started_at: NOW,
     completed_at: NOW,
     notes: null,
@@ -152,12 +156,17 @@ function history(rows: Array<{
   session: CompletedSession
   sets: TrainingSet[]
   form: number | null
+  programme_notes?: string | null
 }>): ExerciseHistoryResult {
   return {
     exercise: exercise(),
     resolved_exercise_ids: ['exercise-1'],
     entries: rows.map((row) => {
-      const sx = session_exercise(`sx-${row.session.id}`, row.session.id)
+      const sx = session_exercise(
+        `sx-${row.session.id}`,
+        row.session.id,
+        row.programme_notes ?? null,
+      )
       return {
         session: row.session,
         appearances: [
@@ -236,6 +245,32 @@ describe('exercise progression analysis', () => {
     expect(result.rows[0].session_id).toBe('second')
     expect(result.rows[0].verdict).toBe('improved')
     expect(result.rows[0].best_reps_at_load).toBe(12)
+  })
+
+  it('does not classify a one-off miss on a deliberate harder challenge as regression', () => {
+    const first = session('first', '2026-09-01')
+    const second = session('second', '2026-09-05')
+
+    const result = build_exercise_progression(
+      history([
+        {
+          session: first,
+          form: 9,
+          sets: [set('first-work', first.id, 40, 10)],
+        },
+        {
+          session: second,
+          form: 9,
+          programme_notes:
+            'PF_ADAPTIVE_CHALLENGE:{"source_session_id":"source-1","baseline_load_kg":40,"target_load_kg":40,"baseline_rep_min":8,"baseline_rep_max":10,"target_rep_min":8,"target_rep_max":12}',
+          sets: [set('second-work', second.id, 40, 9)],
+        },
+      ]),
+    )
+
+    expect(result.rows[0].challenge_attempt).toBe(true)
+    expect(result.rows[0].verdict).toBe('not_comparable')
+    expect(result.rows[0].reason).toContain('stretch target')
   })
 
   it('does not call heavier load progress when reps fall or Form is missing', () => {

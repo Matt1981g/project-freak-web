@@ -51,6 +51,7 @@ import {
   is_training_set_completed,
 } from '../../domain/rules/completion'
 import { format_local_date_display } from '../../utils/dateFormat'
+import { progression_challenge_fields } from '../../application/programme/progressionChallenge'
 import styles from './WorkoutScreen.module.css'
 
 type LiveWorkout = NonNullable<
@@ -1115,6 +1116,7 @@ function SetLoggerRow(props: {
   const completed =
     saved_set !== null && is_training_set_completed(saved_set)
   const target = planned_set?.set
+  const challenge = progression_challenge_fields(target?.notes)
 
   useEffect(() => {
     return () => {
@@ -1315,7 +1317,7 @@ function SetLoggerRow(props: {
       <div className={styles.setHeading}>
         <div>
           <strong>SET {set_number}</strong>
-          <span>
+          <span className={challenge.reps ? styles.challengeTarget : undefined}>
             {target
               ? `${rep_target(target.target_rep_min, target.target_rep_max)} · ${target.structure_type.replaceAll('_', ' ')}`
               : rep_target(exercise.target_rep_min, exercise.target_rep_max)}
@@ -1336,9 +1338,14 @@ function SetLoggerRow(props: {
 
       <div className={styles.loggerGrid}>
         <div className={styles.fieldGroup}>
-          <label htmlFor={`load-${exercise.id}-${set_number}`}>
+          <label
+            className={challenge.load ? styles.challengeTarget : undefined}
+            htmlFor={`load-${exercise.id}-${set_number}`}
+          >
             LOAD {load_unit === 'kg' ? 'KG' : 'LBS'}
-            {load_prefill_source === 'programme'
+            {challenge.load
+              ? ' · CHALLENGE'
+              : load_prefill_source === 'programme'
               ? ' · PROGRAMME'
               : load_prefill_source === 'previous_comparable'
                 ? ' · PREVIOUS'
@@ -1360,6 +1367,7 @@ function SetLoggerRow(props: {
               min="0"
               step="any"
               value={load_entry}
+              className={challenge.load ? styles.challengeInput : undefined}
               disabled={completed || locked}
               onChange={(event) => change_load_entry(event.target.value)}
               onBlur={() => {

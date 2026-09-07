@@ -10,6 +10,7 @@ import {
   start_programmed_session_workout,
 } from '../../app/projectFreakServices'
 import { format_local_date_display } from '../../utils/dateFormat'
+import { progression_challenge_fields } from '../../application/programme/progressionChallenge'
 import styles from './PlanScreen.module.css'
 
 interface StoredProgrammeSummary {
@@ -405,6 +406,8 @@ export function PlanScreen() {
                                             {sets.map(({ set, components }) => {
                                               const adaptive_note =
                                                 adaptive_current_week_note(set.notes)
+                                              const challenge =
+                                                progression_challenge_fields(set.notes)
 
                                               return (
                                                 <div
@@ -412,13 +415,25 @@ export function PlanScreen() {
                                                   key={set.id}
                                                 >
                                                   <strong>S{set.set_number}</strong>
-                                                  <span>
+                                                  <span
+                                                    className={
+                                                      challenge.reps
+                                                        ? styles.changedTarget
+                                                        : undefined
+                                                    }
+                                                  >
                                                     {rep_target(
                                                       set.target_rep_min,
                                                       set.target_rep_max,
                                                     )}
                                                   </span>
-                                                  <span>
+                                                  <span
+                                                    className={
+                                                      challenge.load
+                                                        ? styles.changedTarget
+                                                        : undefined
+                                                    }
+                                                  >
                                                     {set.target_load_kg !== null
                                                       ? `${set.target_load_kg} kg`
                                                       : 'load open'}

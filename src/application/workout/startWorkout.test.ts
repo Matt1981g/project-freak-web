@@ -58,7 +58,32 @@ function programmed_detail(): ProgrammedSessionDetail {
           technique_cue: 'Keep upper arm fixed.',
           notes: 'Biceps priority.',
         },
-        sets: [],
+        sets: [
+          {
+            set: {
+              id: 'programmed-set-1',
+              created_at: NOW,
+              updated_at: NOW,
+              deleted_at: null,
+              revision: 2,
+              device_id: DEVICE_ID,
+              source_kind: 'user',
+              source_id: 'programme-json:test',
+              programmed_session_exercise_id: 'programmed-exercise-1',
+              set_number: 1,
+              set_role: 'work',
+              structure_type: 'straight',
+              target_rep_min: 8,
+              target_rep_max: 12,
+              target_duration_seconds: null,
+              target_load_kg: 41.25,
+              target_load_type: 'normal',
+              failure_target: 'none',
+              notes: 'PF_ADAPTIVE_CHALLENGE:{"source_session_id":"source-1","baseline_load_kg":40,"target_load_kg":41.25,"baseline_rep_min":8,"baseline_rep_max":12,"target_rep_min":8,"target_rep_max":12}',
+            },
+            components: [],
+          },
+        ],
       },
       {
         exercise: {
@@ -153,8 +178,9 @@ describe('start_programmed_workout', () => {
       target_rep_max: 12,
       rest_seconds: 90,
       tempo: '3-0-1-0',
-      programme_notes: 'Biceps priority.',
+      programme_notes: expect.stringContaining('PF_ADAPTIVE_CHALLENGE:'),
     })
+    expect(graph?.exercises[0].programme_notes).toContain('Biceps priority.')
   })
 
   it('creates a fresh actual workout when the previous attempt is completed', async () => {

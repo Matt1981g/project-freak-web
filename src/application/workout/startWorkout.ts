@@ -7,6 +7,7 @@ import type {
   ProgrammedSessionDetail,
   SessionRepository,
 } from '../../data/repositories/contracts'
+import { progression_challenge_lines } from '../programme/progressionChallenge'
 
 export interface StartWorkoutContext {
   device_id: string
@@ -61,7 +62,20 @@ export async function start_programmed_workout(
     notes: null,
   }
 
-  const exercises: SessionExercise[] = detail.exercises.map(({ exercise }) => ({
+  const exercises: SessionExercise[] = detail.exercises.map(({ exercise, sets }) => {
+    const challenge_lines = [
+      ...new Set(
+        sets.flatMap(({ set }) => progression_challenge_lines(set.notes)),
+      ),
+    ]
+    const programme_notes = [
+      exercise.notes,
+      ...challenge_lines,
+    ]
+      .filter((value): value is string => Boolean(value?.trim()))
+      .join('\n')
+
+    return ({
     id: make_id(),
     created_at: context.now_iso,
     updated_at: context.now_iso,
@@ -84,11 +98,12 @@ export async function start_programmed_workout(
     rest_seconds: exercise.rest_seconds,
     tempo: exercise.tempo,
     technique_cue: exercise.technique_cue,
-    programme_notes: exercise.notes,
+    programme_notes: programme_notes || null,
     started_at: null,
     completed_at: null,
     notes: null,
-  }))
+  })
+  })
 
   return repository.create_session_graph(session, exercises)
 }
