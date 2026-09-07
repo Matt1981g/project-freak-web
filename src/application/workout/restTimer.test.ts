@@ -5,6 +5,7 @@ import {
   reset_rest_timer,
   rest_seconds_remaining,
   resume_rest_timer,
+  should_start_rest_after_set,
   start_rest_timer,
 } from './restTimer'
 
@@ -36,6 +37,12 @@ describe('rest timer', () => {
 
     const paused = add_rest_seconds(pause_rest_timer(running, 10_000), 15)
     expect(rest_seconds_remaining(paused, 999_000)).toBe(95)
+  })
+
+  it('starts rest after an intermediate set and after a final set when another exercise remains', () => {
+    expect(should_start_rest_after_set(2, 4, false)).toBe(true)
+    expect(should_start_rest_after_set(4, 4, true)).toBe(true)
+    expect(should_start_rest_after_set(4, 4, false)).toBe(false)
   })
 
   it('resets back to the programmed rest duration', () => {

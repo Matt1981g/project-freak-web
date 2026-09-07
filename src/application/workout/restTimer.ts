@@ -82,3 +82,11 @@ export function reset_rest_timer(
 ): RestTimerState {
   return start_rest_timer(timer.planned_seconds, now_ms)
 }
+
+export function should_start_rest_after_set(
+  set_number: number,
+  planned_set_count: number,
+  has_next_exercise: boolean,
+): boolean {
+  return set_number < planned_set_count || has_next_exercise
+}

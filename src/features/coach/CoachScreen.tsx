@@ -9,6 +9,7 @@ import type {
   TrainingExportScopeType,
 } from '../../application/coach/trainingExport'
 import { build_weekly_coaching_brief } from '../../application/coach/weeklyBrief'
+import { project_freak_filename } from '../../utils/projectFreakFilename'
 import { ProgrammeImportPanel } from './ProgrammeImportPanel'
 import styles from './CoachScreen.module.css'
 
@@ -52,11 +53,19 @@ function scope_filename_part(payload: TrainingExport): string {
 }
 
 function export_filename(payload: TrainingExport): string {
-  return `PROJECT_FREAK_Coach_Bridge_${scope_filename_part(payload)}.json`
+  return project_freak_filename(
+    payload.exported_at,
+    `COACH_BRIDGE_${scope_filename_part(payload)}`,
+    'json',
+  )
 }
 
 function brief_filename(payload: TrainingExport): string {
-  return `PROJECT_FREAK_Coaching_Brief_${scope_filename_part(payload)}.txt`
+  return project_freak_filename(
+    payload.exported_at,
+    `COACHING_BRIEF_${scope_filename_part(payload)}`,
+    'txt',
+  )
 }
 
 function count_sets(payload: TrainingExport): number {

@@ -27,6 +27,7 @@ import {
   reset_rest_timer,
   rest_seconds_remaining,
   resume_rest_timer,
+  should_start_rest_after_set,
   start_rest_timer,
   type RestTimerState,
 } from '../../application/workout/restTimer'
@@ -193,6 +194,9 @@ function build_component_drafts(
 type ActiveRestTimer = RestTimerState & {
   exercise_id: string
   exercise_name: string
+  next_exercise_id?: string | null
+  next_exercise_name?: string | null
+  next_exercise_label?: string | null
 }
 
 type PairingPrompt = {
@@ -277,7 +281,21 @@ function load_stored_rest_timer(
       return null
     }
 
-    return parsed as ActiveRestTimer
+    return {
+      ...(parsed as ActiveRestTimer),
+      next_exercise_id:
+        typeof parsed.next_exercise_id === 'string'
+          ? parsed.next_exercise_id
+          : null,
+      next_exercise_name:
+        typeof parsed.next_exercise_name === 'string'
+          ? parsed.next_exercise_name
+          : null,
+      next_exercise_label:
+        typeof parsed.next_exercise_label === 'string'
+          ? parsed.next_exercise_label
+          : null,
+    }
   } catch {
     return null
   }
@@ -1902,22 +1920,73 @@ function ExerciseScoringPanel(props: {
 function RestTimerPanel(props: {
   timer: ActiveRestTimer
   now_ms: number
+  allow_next_prompt: boolean
   on_change: (timer: ActiveRestTimer) => void
   on_skip: () => void
+  on_go: () => void
 }) {
-  const { timer, now_ms, on_change, on_skip } = props
+  const {
+    timer,
+    now_ms,
+    allow_next_prompt,
+    on_change,
+    on_skip,
+    on_go,
+  } = props
   const remaining = rest_seconds_remaining(timer, now_ms)
   const paused = timer.ends_at_ms === null
   const ready = remaining === 0 && !paused
+  const transition_ready =
+    ready && Boolean(timer.next_exercise_id) && allow_next_prompt
+
+  if (transition_ready) {
+    return (
+      <div className={styles.nextExerciseOverlay} role="dialog" aria-modal="true">
+        <section className={styles.nextExercisePrompt}>
+          <span>REST COMPLETE</span>
+          <strong>NEXT EXERCISE</strong>
+          <h2>
+            {timer.next_exercise_label
+              ? `${timer.next_exercise_label} · `
+              : ''}
+            {timer.next_exercise_name}
+          </h2>
+          <button type="button" onClick={on_go}>
+            START NEXT EXERCISE
+          </button>
+          <button
+            type="button"
+            className={styles.nextExerciseDismiss}
+            onClick={on_skip}
+          >
+            DISMISS
+          </button>
+        </section>
+      </div>
+    )
+  }
+
+  const waiting_for_rating =
+    ready && Boolean(timer.next_exercise_id) && !allow_next_prompt
 
   return (
     <aside className={ready ? styles.restTimerReady : styles.restTimer}>
       <div className={styles.restTimerMain}>
         <div>
           <span>{ready ? 'REST COMPLETE' : paused ? 'REST PAUSED' : 'REST TIMER'}</span>
-          <small>{timer.exercise_name}</small>
+          <small>
+            {waiting_for_rating
+              ? 'Rate and complete the current exercise to continue'
+              : timer.exercise_name}
+          </small>
         </div>
-        <strong>{ready ? 'GO' : format_rest_time(remaining)}</strong>
+        <strong>
+          {ready
+            ? waiting_for_rating
+              ? 'RATE'
+              : 'GO'
+            : format_rest_time(remaining)}
+        </strong>
       </div>
 
       <div className={styles.restTimerActions}>
@@ -2296,7 +2365,10 @@ export function WorkoutScreen() {
     }
   }, [completed_session_id, rest_timer])
 
-  function begin_rest(exercise: LiveExercise['exercise']) {
+  function begin_rest(
+    exercise: LiveExercise['exercise'],
+    next_exercise: LiveExercise['exercise'] | null = null,
+  ) {
     if (exercise.rest_seconds === null || exercise.rest_seconds <= 0) return
 
     const now = Date.now()
@@ -2305,7 +2377,54 @@ export function WorkoutScreen() {
       ...start_rest_timer(exercise.rest_seconds, now),
       exercise_id: exercise.id,
       exercise_name: exercise.exercise_name_snapshot,
+      next_exercise_id: next_exercise?.id ?? null,
+      next_exercise_name: next_exercise?.exercise_name_snapshot ?? null,
+      next_exercise_label: next_exercise
+        ? exercise_label(next_exercise)
+        : null,
     })
+  }
+
+  function next_exercise_after_final_set(
+    current_exercise_id: string,
+  ): LiveExercise['exercise'] | null {
+    if (!workout) return null
+
+    const paired = pairing_recommendation(current_exercise_id, true)
+    if (paired && paired.target_exercise_id !== current_exercise_id) {
+      return (
+        workout.exercises.find(
+          (entry) => entry.exercise.id === paired.target_exercise_id,
+        )?.exercise ?? null
+      )
+    }
+
+    const ordered = [...workout.exercises].sort(
+      (left, right) =>
+        left.exercise.actual_order - right.exercise.actual_order,
+    )
+    const current_index = ordered.findIndex(
+      (entry) => entry.exercise.id === current_exercise_id,
+    )
+    if (current_index < 0) return null
+
+    const candidates = [
+      ...ordered.slice(current_index + 1),
+      ...ordered.slice(0, current_index),
+    ]
+
+    return (
+      candidates.find((entry) => {
+        const completed_sets = entry.sets.filter(
+          is_training_set_completed,
+        ).length
+        const target_sets =
+          entry.planned_sets.length ||
+          entry.exercise.target_sets ||
+          Math.max(entry.sets.length, 1)
+        return completed_sets < target_sets
+      })?.exercise ?? null
+    )
   }
 
   function pairing_recommendation(
@@ -2404,6 +2523,17 @@ export function WorkoutScreen() {
       entry.exercise.target_sets ||
       Math.max(entry.sets.length, 1),
   }))
+
+  const rest_source_complete = rest_timer
+    ? (() => {
+        const source = workout.exercises.find(
+          (entry) => entry.exercise.id === rest_timer.exercise_id,
+        )
+        return source
+          ? is_session_exercise_completed(source.exercise, workout.session)
+          : true
+      })()
+    : true
 
   return (
     <div className={styles.screen} onPointerDown={prime_rest_audio}>
@@ -2544,6 +2674,7 @@ export function WorkoutScreen() {
 
             return (
               <article
+                id={`exercise-${exercise.id}`}
                 className={
                   is_open ? styles.exerciseCardOpen : styles.exerciseCard
                 }
@@ -2812,9 +2943,19 @@ export function WorkoutScreen() {
                               set_number < planned_count
                                 ? pairing_recommendation(exercise.id, true)
                                 : null
+                            const next_exercise =
+                              set_number >= planned_count
+                                ? next_exercise_after_final_set(exercise.id)
+                                : null
 
-                            if (set_number < planned_count) {
-                              begin_rest(exercise)
+                            if (
+                              should_start_rest_after_set(
+                                set_number,
+                                planned_count,
+                                next_exercise !== null,
+                              )
+                            ) {
+                              begin_rest(exercise, next_exercise)
                             }
 
                             await refresh_workout()
@@ -2838,7 +2979,10 @@ export function WorkoutScreen() {
                             pairing_recommendation(exercise.id, false)
                           await refresh_workout()
 
-                          if (recommendation) {
+                          if (
+                            recommendation &&
+                            !rest_timer?.next_exercise_id
+                          ) {
                             follow_pairing_recommendation(recommendation)
                           }
                         }}
@@ -2856,11 +3000,24 @@ export function WorkoutScreen() {
         <RestTimerPanel
           timer={rest_timer}
           now_ms={rest_now_ms}
+          allow_next_prompt={rest_source_complete}
           on_change={(timer) => {
             setRestNowMs(Date.now())
             setRestTimer(timer)
           }}
           on_skip={() => setRestTimer(null)}
+          on_go={() => {
+            const next_id = rest_timer.next_exercise_id
+            setRestTimer(null)
+            setPairingPrompt(null)
+            if (!next_id) return
+            setOpenExerciseId(next_id)
+            window.requestAnimationFrame(() => {
+              document
+                .getElementById(`exercise-${next_id}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            })
+          }}
         />
       )}
 

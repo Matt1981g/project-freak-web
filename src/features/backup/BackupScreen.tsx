@@ -11,14 +11,21 @@ import type {
   BackupPreview,
   ProjectFreakBackup,
 } from '../../application/backup/databaseBackup'
+import {
+  project_freak_filename,
+  project_freak_time_stamp,
+} from '../../utils/projectFreakFilename'
 import styles from './BackupScreen.module.css'
 
-function backup_filename(backup: ProjectFreakBackup): string {
-  const stamp = backup.created_at
-    .replace(/[:.]/g, '-')
-    .replace('T', '_')
-    .replace('Z', '')
-  return `PROJECT_FREAK_Backup_${stamp}.json`
+function backup_filename(
+  backup: ProjectFreakBackup,
+  description = 'BACKUP',
+): string {
+  return project_freak_filename(
+    backup.created_at,
+    `${description}_${project_freak_time_stamp(backup.created_at)}`,
+    'json',
+  )
 }
 
 function total_records(backup: ProjectFreakBackup): number {
@@ -157,10 +164,7 @@ export function BackupScreen() {
       const safety = await build_database_backup()
       download_backup_payload(
         safety,
-        backup_filename(safety).replace(
-          'PROJECT_FREAK_Backup_',
-          'PROJECT_FREAK_SAFETY_BEFORE_RESTORE_',
-        ),
+        backup_filename(safety, 'SAFETY_BEFORE_RESTORE'),
       )
 
       setStatus('Safety backup downloaded. Restoring database…')

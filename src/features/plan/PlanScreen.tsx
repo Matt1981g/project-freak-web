@@ -339,8 +339,12 @@ export function PlanScreen() {
                                                                       >
                                                                         {starting_session_id ===
                                                                         session_detail.session.id
-                                                                          ? 'Starting workout…'
-                                                                          : 'Start workout'}
+                                                                          ? session_detail.session.status === 'started'
+                                                                            ? 'Opening workout…'
+                                                                            : 'Starting workout…'
+                                                                          : session_detail.session.status === 'started'
+                                                                            ? 'Resume workout'
+                                                                            : 'Start workout'}
                                                                       </button>
                                     
                                   )}
