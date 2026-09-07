@@ -542,7 +542,7 @@ describe('build_last_7_days_training_export', () => {
 
     expect(payload.format).toBe(TRAINING_EXPORT_FORMAT)
     expect(payload.coach_instructions).toMatchObject({
-      instruction_version: '1.0.0',
+      instruction_version: '1.1.0',
       user_command: 'Build next week.',
       next_block: {
         length_days: 7,
