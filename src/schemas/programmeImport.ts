@@ -12,6 +12,7 @@ const iso_date = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD')
 
 const nullable_nonempty_string = z.string().min(1).nullable().optional()
+const iso_datetime = z.iso.datetime({ offset: true })
 
 const component_schema = z
   .object({
@@ -100,7 +101,7 @@ export const programme_import_schema = z
   .object({
     format: z.literal('project-freak-programme'),
     schema_version: z.literal('1.0.0'),
-    generated_at: z.string().nullable().optional(),
+    generated_at: iso_datetime.nullable().optional(),
     source: z.string().nullable().optional(),
     programme: programme_schema,
   })

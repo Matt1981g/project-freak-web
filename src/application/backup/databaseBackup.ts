@@ -1,4 +1,5 @@
 import type { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
+import { validate_backup_record } from './backupRecordValidation'
 import {
   PROJECT_FREAK_DATA_CONTRACT_VERSION,
   PROJECT_FREAK_DB_SCHEMA_VERSION,
@@ -449,6 +450,7 @@ export async function preview_backup_json(
     const records: Array<Record<string, unknown>> = []
     for (const [index, record] of raw_records.entries()) {
       assert_object(record, `Backup table ${table_name} record ${index + 1}`)
+      validate_backup_record(table_name, record, index + 1)
       records.push(record)
     }
 

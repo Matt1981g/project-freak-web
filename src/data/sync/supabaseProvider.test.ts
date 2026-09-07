@@ -31,6 +31,42 @@ describe('Supabase sync provider', () => {
     ).toThrow('HTTPS')
   })
 
+  it('clears an expired stored session when refresh fails', async () => {
+    const removeItem = vi.fn()
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn().mockReturnValue(
+        JSON.stringify({
+          access_token: 'expired-access',
+          refresh_token: 'expired-refresh',
+          expires_at: Date.now() - 60_000,
+          user_id: 'user-1',
+          email: 'test@example.com',
+        }),
+      ),
+      setItem: vi.fn(),
+      removeItem,
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: async () => JSON.stringify({ error: 'invalid refresh token' }),
+      }),
+    )
+
+    await expect(
+      check_supabase_backend({
+        project_url: 'https://example.supabase.co',
+        anon_key: 'abcdefghijklmnopqrstuvwxyz',
+      }),
+    ).rejects.toThrow('invalid refresh token')
+
+    expect(removeItem).toHaveBeenCalledWith(
+      'project-freak:sync:supabase:session:v1',
+    )
+  })
+
   it('verifies the authenticated backend contract without mutating data', async () => {
     const fetch_mock = vi.fn().mockResolvedValue({
       ok: true,

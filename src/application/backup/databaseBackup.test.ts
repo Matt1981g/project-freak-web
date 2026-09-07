@@ -138,6 +138,25 @@ describe('PROJECT FREAK database backup', () => {
     expect(await db.settings.get('test-setting')).toBeDefined()
   })
 
+  it('rejects a checksum-valid backup containing a malformed entity record', async () => {
+    const backup = await build_full_backup(db, {
+      now_iso: NOW,
+      source_device_id: 'device-1',
+    })
+
+    backup.database.tables.settings[0] = {
+      ...backup.database.tables.settings[0],
+      scope: 'definitely-not-a-valid-scope',
+    }
+    backup.checksums.tables.settings = await sha256_text(
+      JSON.stringify(backup.database.tables.settings),
+    )
+
+    await expect(
+      preview_backup_json(JSON.stringify(backup)),
+    ).rejects.toThrow('Backup table settings record 1.scope is invalid')
+  })
+
   it('rejects a damaged table checksum', async () => {
     const backup = await build_full_backup(db, {
       now_iso: NOW,

@@ -37,6 +37,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Install Playwright test runner
+        run: |
+          npm install --no-save --no-package-lock @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Browser E2E
+        run: npx playwright test
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 

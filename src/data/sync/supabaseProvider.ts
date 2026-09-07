@@ -275,7 +275,12 @@ export async function require_supabase_session(
     return session
   }
 
-  return refresh_supabase_session(config, session)
+  try {
+    return await refresh_supabase_session(config, session)
+  } catch (cause) {
+    clear_supabase_session()
+    throw cause
+  }
 }
 
 async function rpc<T>(
