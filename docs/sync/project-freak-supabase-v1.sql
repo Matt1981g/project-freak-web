@@ -373,11 +373,11 @@ begin
 end;
 $$;
 
-revoke all on function public.project_freak_valid_entity_type(text) from public;
-revoke all on function public.project_freak_compact_changes(integer) from public;
-revoke all on function public.project_freak_push_mutations(jsonb) from public;
-revoke all on function public.project_freak_pull_changes(text, integer) from public;
-revoke all on function public.project_freak_sync_health() from public;
+revoke all on function public.project_freak_valid_entity_type(text) from public, anon, authenticated;
+revoke all on function public.project_freak_compact_changes(integer) from public, anon, authenticated;
+revoke all on function public.project_freak_push_mutations(jsonb) from public, anon, authenticated;
+revoke all on function public.project_freak_pull_changes(text, integer) from public, anon, authenticated;
+revoke all on function public.project_freak_sync_health() from public, anon, authenticated;
 
 grant execute on function public.project_freak_push_mutations(jsonb) to authenticated;
 grant execute on function public.project_freak_pull_changes(text, integer) to authenticated;
