@@ -7,9 +7,20 @@ import {
   STRUCTURE_TYPES,
 } from '../domain/enums/training'
 
+function is_valid_iso_date(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+
+  const [year, month, day] = value.split('-').map(Number)
+  if (month < 1 || month > 12 || day < 1) return false
+
+  const days_in_month = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return day <= days_in_month
+}
+
 const iso_date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD')
+  .refine(is_valid_iso_date, 'Expected a valid calendar date in YYYY-MM-DD')
 
 const nullable_nonempty_string = z.string().min(1).nullable().optional()
 const iso_datetime = z.iso.datetime({ offset: true })
