@@ -180,6 +180,44 @@ describe('programme import', () => {
     ).toBe(true)
   })
 
+  it('rejects impossible calendar dates instead of accepting regex-only dates', async () => {
+    const document = valid_document()
+    document.programme.sessions[0].scheduled_date_local = '2026-02-31'
+
+    const preview = await preview_programme_import(
+      JSON.stringify(document),
+      exercise_repository(),
+    )
+
+    expect(preview.can_commit).toBe(false)
+    expect(
+      preview.issues.some(
+        (entry) =>
+          entry.code === 'schema_validation_error' &&
+          entry.path.includes('scheduled_date_local'),
+      ),
+    ).toBe(true)
+  })
+
+  it('rejects empty external ids to match the published programme schema', async () => {
+    const document = valid_document()
+    document.programme.sessions[0].external_id = ''
+
+    const preview = await preview_programme_import(
+      JSON.stringify(document),
+      exercise_repository(),
+    )
+
+    expect(preview.can_commit).toBe(false)
+    expect(
+      preview.issues.some(
+        (entry) =>
+          entry.code === 'schema_validation_error' &&
+          entry.path.includes('external_id'),
+      ),
+    ).toBe(true)
+  })
+
   it('warns when imported exercise text differs but resolves by active id', async () => {
     const document = valid_document()
     document.programme.sessions[0].exercises[0].exercise_name =
