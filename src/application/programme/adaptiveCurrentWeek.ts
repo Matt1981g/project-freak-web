@@ -7,9 +7,9 @@ import type {
 } from '../../domain/models'
 import type { RepositoryBundle } from '../../data/repositories/contracts'
 import {
-  adjust_display_load_by_step,
-  display_load_to_kilograms,
-  load_for_display,
+  kilograms_to_pounds,
+  load_step_for_unit,
+  pounds_to_kilograms,
   type WeightEntryUnit,
 } from '../workout/weightUnits'
 import { load_exercise_weight_unit_preferences } from '../workout/weightUnitPreferences'
@@ -181,10 +181,13 @@ export function progressed_load_kg(
   load_kg: number,
   unit: WeightEntryUnit,
 ): number {
-  const display = load_for_display(load_kg, unit)
-  if (display === null) return load_kg
-  const progressed = adjust_display_load_by_step(display, unit, 1)
-  return display_load_to_kilograms(progressed, unit) ?? load_kg
+  if (unit === 'kg') {
+    return Math.round((load_kg + load_step_for_unit('kg')) * 10000) / 10000
+  }
+
+  return pounds_to_kilograms(
+    kilograms_to_pounds(load_kg) + load_step_for_unit('lb'),
+  )
 }
 
 function actual_set_evidence(

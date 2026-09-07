@@ -54,6 +54,7 @@ describe('adaptive current week', () => {
 
   it('uses the configured entry increment for kg and lb', () => {
     expect(progressed_load_kg(40, 'kg')).toBe(41.25)
+    expect(progressed_load_kg(40.3, 'kg')).toBe(41.55)
     expect(progressed_load_kg(40.8233, 'lb')).toBeCloseTo(43.0913, 3)
   })
 })
