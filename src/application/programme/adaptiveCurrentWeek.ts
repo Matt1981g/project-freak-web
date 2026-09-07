@@ -411,7 +411,10 @@ export async function adapt_current_week_after_session(
           set_number: set.set_number,
           previous_load_kg: set.target_load_kg,
           target_load_kg: desired_load,
-          verdict: evidence.decision.verdict,
+          verdict: evidence.decision.verdict as Exclude<
+            AdaptiveCurrentWeekVerdict,
+            'insufficient_data'
+          >,
           reason: evidence.decision.reason,
         })
       }
