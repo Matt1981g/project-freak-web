@@ -3025,7 +3025,7 @@ export function WorkoutScreen() {
         />
       )}
 
-      {workout.session.status === 'completed' ? (
+      {workout.session.status === 'completed' && (
         <section className={styles.workoutSummary}>
           <div className={styles.summaryHeader}>
             <div>
