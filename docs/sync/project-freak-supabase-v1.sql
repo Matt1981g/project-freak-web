@@ -60,7 +60,48 @@ as $$
     'exercise_metrics',
     'user_setting'
   );
-$$;
+$;
+
+-- Change rows contain complete entity snapshots, not deltas. Keeping only the
+-- newest snapshot per entity preserves convergence while bounding change-log growth.
+create or replace function public.project_freak_compact_changes(
+  p_keep_latest_per_entity integer default 1
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_user uuid := auth.uid();
+  v_keep integer := greatest(1, least(coalesce(p_keep_latest_per_entity, 1), 10));
+  v_deleted integer := 0;
+begin
+  if v_user is null then
+    raise exception 'Authentication required';
+  end if;
+
+  with ranked as (
+    select
+      id,
+      row_number() over (
+        partition by entity_type, entity_id
+        order by id desc
+      ) as row_rank
+    from public.project_freak_sync_changes
+    where user_id = v_user
+  ), deleted as (
+    delete from public.project_freak_sync_changes changes
+    using ranked
+    where changes.id = ranked.id
+      and ranked.row_rank > v_keep
+    returning changes.id
+  )
+  select count(*)::integer into v_deleted from deleted;
+
+  return v_deleted;
+end;
+$;
 
 create or replace function public.project_freak_push_mutations(p_mutations jsonb)
 returns jsonb
@@ -218,6 +259,8 @@ begin
     v_ack := array_append(v_ack, v_outbox_id);
   end loop;
 
+  perform public.project_freak_compact_changes(1);
+
   return jsonb_build_object(
     'acknowledged_outbox_ids', to_jsonb(v_ack),
     'remote_user_id', v_user::text,
@@ -331,6 +374,7 @@ end;
 $$;
 
 revoke all on function public.project_freak_valid_entity_type(text) from public;
+revoke all on function public.project_freak_compact_changes(integer) from public;
 revoke all on function public.project_freak_push_mutations(jsonb) from public;
 revoke all on function public.project_freak_pull_changes(text, integer) from public;
 revoke all on function public.project_freak_sync_health() from public;
