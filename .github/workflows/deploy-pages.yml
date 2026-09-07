@@ -39,8 +39,8 @@ jobs:
 
       - name: Install Playwright test runner
         run: |
-          npm install --no-save --no-package-lock @playwright/test@1.55.0
-          npx playwright install --with-deps chromium
+          npm install --no-save --no-package-lock @playwright/test@1.62.1
+          npx playwright install --with-deps chromium webkit
 
       - name: Browser E2E
         run: npx playwright test
