@@ -110,6 +110,7 @@ export function load_supabase_session(): SupabaseAuthSession | null {
       typeof parsed.expires_at !== 'number' ||
       typeof parsed.user_id !== 'string'
     ) {
+      clear_supabase_session()
       return null
     }
 
@@ -121,6 +122,7 @@ export function load_supabase_session(): SupabaseAuthSession | null {
       email: typeof parsed.email === 'string' ? parsed.email : null,
     }
   } catch {
+    clear_supabase_session()
     return null
   }
 }
@@ -300,6 +302,10 @@ async function rpc<T>(
       body: JSON.stringify(body),
     },
   )
+
+  if (response.status === 401) {
+    clear_supabase_session()
+  }
 
   return parse_json_response<T>(response)
 }
