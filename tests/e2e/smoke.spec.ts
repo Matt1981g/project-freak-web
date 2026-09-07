@@ -10,9 +10,6 @@ test('boots PROJECT FREAK, registers the service worker and survives an offline 
     return true
   })
 
-  // First registration does not control the page that created it. Reload once
-  // online so the service worker owns the client, then prove a cold offline
-  // navigation can still render the application shell.
   await page.reload()
   await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller))
 
@@ -34,4 +31,111 @@ test('core navigation remains usable in the browser shell', async ({ page }) => 
   const analysis = page.getByRole('link', { name: 'ANALYSIS' }).first()
   await analysis.click()
   await expect(page).toHaveURL(/#\/analysis/)
+})
+
+test('live workout survives the critical set-to-finish lifecycle', async ({ page }) => {
+  await page.goto('./#/plan')
+  await expect(page.getByText('Current programme', { exact: true })).toBeVisible()
+
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('project-freak')
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+
+    const tx = db.transaction(
+      ['exercises', 'completed_sessions', 'session_exercises'],
+      'readwrite',
+    )
+    const now = new Date().toISOString()
+    const mutable = {
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      revision: 1,
+      device_id: 'e2e-device',
+      source_kind: 'user',
+      source_id: null,
+    }
+
+    tx.objectStore('exercises').put({
+      ...mutable,
+      id: 'e2e-exercise',
+      canonical_name: 'E2E Curl',
+      short_name: null,
+      category: 'Biceps',
+      equipment: 'Machine',
+      default_load_type: 'normal',
+      rep_mode_default: 'total',
+      archived_at: null,
+      notes: null,
+    })
+
+    tx.objectStore('completed_sessions').put({
+      ...mutable,
+      id: 'e2e-session',
+      programmed_session_id: null,
+      programme_block_id: null,
+      workout_template_id_snapshot: null,
+      legacy_workout_id: null,
+      session_name: 'E2E Workout',
+      session_date_local: new Date().toISOString().slice(0, 10),
+      timezone: 'Europe/London',
+      status: 'in_progress',
+      started_at: now,
+      completed_at: null,
+      source_start_text: null,
+      source_finish_text: null,
+      duration_seconds: null,
+      notes: null,
+    })
+
+    tx.objectStore('session_exercises').put({
+      ...mutable,
+      id: 'e2e-sx',
+      completed_session_id: 'e2e-session',
+      programmed_session_exercise_id: null,
+      exercise_id: 'e2e-exercise',
+      exercise_name_snapshot: 'E2E Curl',
+      planned_order: 1,
+      actual_order: 1,
+      rotation_group_key: null,
+      rotation_position: null,
+      target_sets: 1,
+      target_rep_min: 8,
+      target_rep_max: 12,
+      rest_seconds: 0,
+      tempo: null,
+      technique_cue: 'Controlled reps.',
+      programme_notes: null,
+      started_at: now,
+      completed_at: null,
+      notes: null,
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => reject(tx.error)
+    })
+    db.close()
+  })
+
+  await page.goto('./#/workout/e2e-session')
+  await expect(page.getByText('E2E Workout', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: /E2E Curl/ }).click()
+  await page.locator('#load-e2e-sx-1').fill('40')
+  await page.locator('#reps-e2e-sx-1').fill('10')
+  await page.getByRole('button', { name: 'COMPLETE SET' }).click()
+
+  await expect(page.getByRole('button', { name: 'COMPLETE EXERCISE' })).toBeVisible()
+  await page.getByRole('button', { name: 'COMPLETE EXERCISE' }).click()
+
+  await expect(page.getByRole('button', { name: 'FINISH WORKOUT' })).toBeVisible()
+  await page.getByRole('button', { name: 'FINISH WORKOUT' }).click()
+
+  await expect(page.getByText('WORKOUT COMPLETE', { exact: true })).toBeVisible()
+  await expect(page.getByText('400 kg', { exact: true })).toBeVisible()
 })
