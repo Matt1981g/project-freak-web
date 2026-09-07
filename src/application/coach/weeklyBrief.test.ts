@@ -16,7 +16,7 @@ const payload: TrainingExport = {
     programme_block_id: null,
   },
   coach_instructions: {
-    instruction_version: '1.0.0',
+    instruction_version: '1.1.0',
     purpose: 'Build the next week.',
     user_command: 'Build next week.',
     programming_hierarchy: ['Form', 'Target-muscle stimulus', 'Reps', 'Load'],
