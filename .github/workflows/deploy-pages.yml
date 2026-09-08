@@ -45,6 +45,17 @@ jobs:
       - name: Browser E2E
         run: npx playwright test
 
+      - name: Upload theme verification screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pf-theme-verification-${{ github.run_attempt }}
+          path: |
+            test-results/**/pf-bronze-cast-desktop.png
+            test-results/**/pf-bronze-cast-phone.png
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
