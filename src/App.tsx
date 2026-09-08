@@ -35,7 +35,7 @@ function App() {
     isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-theme="bronze-cast-v1">
       <header className="app-header">
         <div className="brand-lockup">
           <img
