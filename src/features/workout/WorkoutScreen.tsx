@@ -28,8 +28,12 @@ import {
   resume_rest_timer,
   should_start_rest_after_set,
   start_rest_timer,
-  type RestTimerState,
 } from '../../application/workout/restTimer'
+import {
+  load_stored_rest_timer,
+  rest_timer_storage_key,
+  type PersistedRestTimer,
+} from '../../application/workout/restTimerPersistence'
 import {
   is_rotation_exercise_lagging,
   recommended_rotation_exercise_id,
@@ -191,13 +195,7 @@ function build_component_drafts(
 }
 
 
-type ActiveRestTimer = RestTimerState & {
-  exercise_id: string
-  exercise_name: string
-  next_exercise_id?: string | null
-  next_exercise_name?: string | null
-  next_exercise_label?: string | null
-}
+type ActiveRestTimer = PersistedRestTimer
 
 type PairingPrompt = {
   source_exercise_id: string
@@ -252,53 +250,6 @@ function format_volume(value: number): string {
   return value.toLocaleString(undefined, {
     maximumFractionDigits: 1,
   })
-}
-
-function rest_timer_storage_key(completed_session_id: string): string {
-  return `project-freak:rest-timer:${completed_session_id}`
-}
-
-function load_stored_rest_timer(
-  completed_session_id: string | undefined,
-): ActiveRestTimer | null {
-  if (!completed_session_id || typeof window === 'undefined') return null
-
-  try {
-    const raw = window.localStorage.getItem(
-      rest_timer_storage_key(completed_session_id),
-    )
-    if (!raw) return null
-
-    const parsed = JSON.parse(raw) as Partial<ActiveRestTimer>
-    if (
-      typeof parsed.planned_seconds !== 'number' ||
-      (typeof parsed.ends_at_ms !== 'number' && parsed.ends_at_ms !== null) ||
-      (typeof parsed.paused_remaining_seconds !== 'number' &&
-        parsed.paused_remaining_seconds !== null) ||
-      typeof parsed.exercise_id !== 'string' ||
-      typeof parsed.exercise_name !== 'string'
-    ) {
-      return null
-    }
-
-    return {
-      ...(parsed as ActiveRestTimer),
-      next_exercise_id:
-        typeof parsed.next_exercise_id === 'string'
-          ? parsed.next_exercise_id
-          : null,
-      next_exercise_name:
-        typeof parsed.next_exercise_name === 'string'
-          ? parsed.next_exercise_name
-          : null,
-      next_exercise_label:
-        typeof parsed.next_exercise_label === 'string'
-          ? parsed.next_exercise_label
-          : null,
-    }
-  } catch {
-    return null
-  }
 }
 
 function format_rest_time(seconds: number): string {
