@@ -172,20 +172,15 @@ test('final-set rest survives reload and preserves the next-exercise transition'
   await page.reload()
 
   await expect(page.getByText('REST COMPLETE', { exact: true })).toBeVisible()
-  await expect(
-    page.getByText('Rate and complete the current exercise to continue', {
-      exact: true,
-    }),
-  ).toBeVisible()
-
-  await page.getByRole('button', { name: /E2E First Curl/ }).click()
-  await page.getByRole('button', { name: 'COMPLETE EXERCISE' }).click()
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await expect(page.getByText('NEXT EXERCISE', { exact: true })).toBeVisible()
+  await expect(page.getByText('GO!', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('+1s', { exact: true })).toBeVisible()
   await expect(page.getByText('E2E Next Curl', { exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: 'START NEXT EXERCISE' }).click()
-  await expect(page.locator('#load-e2e-rest-sx-b-1')).toBeVisible()
+  await page.getByRole('button', { name: 'GO!' }).click()
+  await expect(page.getByRole('dialog')).not.toBeVisible()
+
+  await page.getByRole('button', { name: /E2E First Curl/ }).click()
+  await expect(page.getByText('SET COMPLETE', { exact: true })).toBeVisible()
 })
 
 test('live workout survives the critical set-to-finish lifecycle', async ({ page }) => {
