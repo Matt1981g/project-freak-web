@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import {
   Navigate,
   NavLink,
@@ -19,6 +19,7 @@ import { PwaInstallControl } from './features/pwa/PwaInstallControl'
 import { AutoSyncRuntime } from './features/sync/AutoSyncRuntime'
 import { SyncScreen } from './features/sync/SyncScreen'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
+import { PF_APPROVED_BACKGROUND } from './pfApprovedBackground'
 import './App.css'
 
 function App() {
@@ -35,7 +36,15 @@ function App() {
     isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
 
   return (
-    <div className="app-shell" data-theme="bronze-cast-v1">
+    <div
+      className="app-shell"
+      data-theme="approved-background-v1"
+      style={
+        {
+          '--pf-approved-bg': `url("${PF_APPROVED_BACKGROUND}")`,
+        } as CSSProperties
+      }
+    >
       <header className="app-header">
         <div className="brand-lockup">
           <img
