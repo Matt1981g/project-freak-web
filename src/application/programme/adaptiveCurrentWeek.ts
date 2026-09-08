@@ -19,6 +19,7 @@ import {
   parse_adaptive_challenge,
 } from './progressionChallenge'
 import { can_apply_adaptive_change } from './prescriptionAuthority'
+import { read_target_stimulus } from '../workout/targetStimulus'
 
 export type AdaptiveCurrentWeekVerdict =
   | 'increase_load'
@@ -90,7 +91,10 @@ function usable_target(set: AdaptiveSetEvidence): boolean {
 }
 
 export function decide_current_week_progression(
-  metrics: Pick<ExerciseMetrics, 'form' | 'pump' | 'legacy_mmc'> | null,
+  metrics:
+    | (Pick<ExerciseMetrics, 'form' | 'pump' | 'legacy_mmc'> &
+        Partial<Pick<ExerciseMetrics, 'where_felt_tags'>>)
+    | null,
   sets: readonly AdaptiveSetEvidence[],
 ): AdaptiveCurrentWeekDecision {
   if (!metrics || metrics.form === null) {
@@ -109,6 +113,25 @@ export function decide_current_week_progression(
         metrics.form === 8
           ? 'Form was 8/10. Keep the achieved load and improve execution before progressing.'
           : `Form was ${metrics.form}/10. Keep the achieved load and restore execution first.`,
+    }
+  }
+
+  const target_stimulus = read_target_stimulus(metrics.where_felt_tags)
+  if (target_stimulus === 'wrong_area') {
+    return {
+      verdict: 'hold_load',
+      label: 'HOLD LOAD',
+      reason:
+        'The exercise was clearly felt outside the intended target. Keep load stable and restore target-muscle stimulus before progressing.',
+    }
+  }
+
+  if (target_stimulus === 'mixed') {
+    return {
+      verdict: 'hold_load',
+      label: 'HOLD LOAD',
+      reason:
+        'Target-muscle stimulus was mixed with other areas. Keep load stable and improve target bias before progressing.',
     }
   }
 
