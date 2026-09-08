@@ -6,9 +6,9 @@
   background:
     radial-gradient(circle at 10% -10%, rgba(198, 255, 0, 0.025), transparent 27%),
     radial-gradient(circle at 94% -10%, rgba(255, 106, 0, 0.028), transparent 23%),
-    radial-gradient(ellipse at 18% 25%, rgba(113, 57, 33, 0.14), transparent 42%),
-    radial-gradient(ellipse at 82% 72%, rgba(77, 39, 24, 0.12), transparent 44%),
-    linear-gradient(180deg, #100c09 0%, #0b0907 44%, #080706 100%);
+    radial-gradient(ellipse at 18% 25%, rgba(101, 50, 31, 0.085), transparent 42%),
+    radial-gradient(ellipse at 82% 72%, rgba(68, 34, 22, 0.075), transparent 44%),
+    linear-gradient(180deg, #0c0a08 0%, #080706 44%, #060605 100%);
 }
 
 /* Natural rough-cast grain, derived from an SVG fractal-noise material tile. */
@@ -18,12 +18,12 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.78;
+  opacity: 0.90;
   background:
-    linear-gradient(112deg, rgba(170, 88, 48, .045), transparent 28%, rgba(0, 0, 0, .12) 60%, transparent 83%),
+    linear-gradient(112deg, rgba(176, 86, 46, .038), transparent 27%, rgba(0, 0, 0, .14) 61%, transparent 83%),
     url("./assets/pf-cast-iron-texture.svg") repeat;
-  background-size: auto, 430px 430px;
-  mix-blend-mode: screen;
+  background-size: auto, 720px 720px;
+  mix-blend-mode: normal;
 }
 
 /* Partial vintage plate emboss: deliberately cropped off-canvas like the reference. */
@@ -33,13 +33,13 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.66;
+  opacity: 0.72;
   background-image:
     radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,.22) 100%),
     url("./assets/pf-weight-plate-emboss.svg");
   background-repeat: no-repeat, no-repeat;
-  background-position: center, left -175px bottom -220px;
-  background-size: cover, min(760px, 62vw) auto;
+  background-position: center, left -80px bottom -80px;
+  background-size: cover, min(720px, 58vw) auto;
 }
 
 .app-header {
@@ -484,14 +484,14 @@
 
 @media (max-width: 700px) {
   .app-shell::after {
-    opacity: 0.48;
-    background-position: center, left -245px bottom -145px;
-    background-size: cover, 540px auto;
+    opacity: 0.62;
+    background-position: center, left -40px bottom -60px;
+    background-size: cover, 680px auto;
   }
 
   .app-shell::before {
-    opacity: 0.68;
-    background-size: auto, 360px 360px;
+    opacity: 0.84;
+    background-size: auto, 560px 560px;
   }
 }
 
