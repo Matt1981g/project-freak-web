@@ -3,38 +3,36 @@
   min-height: 100svh;
   isolation: isolate;
   overflow: clip;
-  background:
-    radial-gradient(circle at 9% -8%, rgba(198, 255, 0, 0.018), transparent 25%),
-    radial-gradient(circle at 94% -8%, rgba(255, 106, 0, 0.022), transparent 22%),
-    radial-gradient(ellipse at 17% 27%, rgba(117, 58, 34, 0.055), transparent 40%),
-    radial-gradient(ellipse at 82% 73%, rgba(73, 36, 23, 0.045), transparent 44%),
-    linear-gradient(180deg, #0b0a08 0%, #080807 46%, #070706 100%);
+  background: #070706;
 }
 
-/* Fine cast-iron grain only — no literal plate artwork behind the UI. */
+/* User-approved PROJECT FREAK artwork, used as the actual app wallpaper. */
 .app-shell::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.38;
-  background:
-    linear-gradient(114deg, rgba(188, 94, 51, .025), transparent 27%, rgba(0, 0, 0, .08) 60%, transparent 84%),
-    url("./assets/pf-cast-iron-texture.svg") repeat;
-  background-size: auto, 680px 680px;
+  background-color: #070706;
+  background-image: var(--pf-approved-bg);
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
 }
 
-/* Gentle vignette to keep content readable over the material surface. */
+/* Very light readability veil only; the approved artwork remains visually intact. */
 .app-shell::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse at center, transparent 54%, rgba(0, 0, 0, 0.16) 100%),
-    linear-gradient(180deg, rgba(0,0,0,.03), transparent 18%, transparent 82%, rgba(0,0,0,.10));
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.02),
+    rgba(0, 0, 0, 0.06) 48%,
+    rgba(0, 0, 0, 0.10)
+  );
 }
 
 .app-header {
@@ -479,8 +477,12 @@
 
 @media (max-width: 700px) {
   .app-shell::before {
-    opacity: 0.34;
-    background-size: auto, 560px 560px;
+    background-position: 20% top;
+    background-size: cover;
+  }
+
+  .app-shell::after {
+    background: rgba(0, 0, 0, 0.08);
   }
 }
 
