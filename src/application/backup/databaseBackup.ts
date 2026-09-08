@@ -1,4 +1,5 @@
 import type { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
+import { inspect_data_integrity } from '../diagnostics/dataIntegrity'
 import { validate_backup_record } from './backupRecordValidation'
 import {
   PROJECT_FREAK_DATA_CONTRACT_VERSION,
@@ -312,6 +313,13 @@ export async function restore_validated_backup(
       db,
       validated.backup,
     )
+    const integrity = await inspect_data_integrity(db, context.now_iso)
+    if (integrity.error_count > 0) {
+      const first = integrity.issues.find((issue) => issue.severity === 'error')
+      throw new Error(
+        `Restored database failed relational integrity validation: ${first?.detail ?? `${integrity.error_count} integrity errors detected`}.`,
+      )
+    }
 
     return {
       restored: true,
