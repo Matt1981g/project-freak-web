@@ -3,6 +3,7 @@ import type {
   ProgrammeBlock,
   ProgrammedSession,
 } from '../../domain/models'
+import { explicitly_supersedes } from './programmeLineage'
 
 export interface PlanProgrammeSummary {
   block: ProgrammeBlock
@@ -50,15 +51,27 @@ function is_superseded(
   block: ProgrammeBlock,
   blocks: readonly ProgrammeBlock[],
 ): boolean {
-  return blocks.some(
-    (candidate) =>
-      candidate.id !== block.id &&
-      candidate.deleted_at === null &&
-      candidate.status !== 'archived' &&
-      candidate.status !== 'completed' &&
+  return blocks.some((candidate) => {
+    if (
+      candidate.id === block.id ||
+      candidate.deleted_at !== null ||
+      candidate.status === 'archived' ||
+      candidate.status === 'completed'
+    ) {
+      return false
+    }
+
+    if (explicitly_supersedes(candidate, block.id)) return true
+
+    // Existing databases pre-date explicit lineage. Only legacy rows that do
+    // not have the field at all use the old overlap/creation-time heuristic.
+    if (candidate.supersedes_programme_block_id !== undefined) return false
+
+    return (
       candidate.created_at > block.created_at &&
-      programme_windows_overlap(block, candidate),
-  )
+      programme_windows_overlap(block, candidate)
+    )
+  })
 }
 
 function has_started_actual(
