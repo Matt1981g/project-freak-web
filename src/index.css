@@ -1,20 +1,21 @@
 :root {
-  --pf-bg: #060806;
-  --pf-panel: #0d110e;
-  --pf-panel-raised: #141a15;
-  --pf-border: #283129;
-  --pf-text-strong: #f4f7f2;
-  --pf-text: #d8ddd5;
-  --pf-text-muted: #9aa49c;
-  --pf-text-faint: #707a72;
-  --pf-accent: #bdff00;
-  --pf-accent-soft: rgba(189, 255, 0, 0.11);
-  --pf-accent-border: rgba(189, 255, 0, 0.42);
-  --pf-accent-glow: rgba(189, 255, 0, 0.18);
+  /* PROJECT FREAK — Bronze Cast theme */
+  --pf-bg: #120c08;
+  --pf-panel: #18120e;
+  --pf-panel-raised: #231a13;
+  --pf-border: #4a3829;
+  --pf-text-strong: #e8ffc0;
+  --pf-text: #c8e99b;
+  --pf-text-muted: #91aa72;
+  --pf-text-faint: #687857;
+  --pf-accent: #c6ff00;
+  --pf-accent-soft: rgba(198, 255, 0, 0.11);
+  --pf-accent-border: rgba(198, 255, 0, 0.46);
+  --pf-accent-glow: rgba(198, 255, 0, 0.21);
   --pf-orange: #ff6a00;
-  --pf-orange-soft: rgba(255, 106, 0, 0.08);
-  --pf-orange-border: rgba(255, 106, 0, 0.34);
-  --pf-orange-glow: rgba(255, 106, 0, 0.16);
+  --pf-orange-soft: rgba(255, 106, 0, 0.09);
+  --pf-orange-border: rgba(255, 106, 0, 0.42);
+  --pf-orange-glow: rgba(255, 106, 0, 0.22);
   --pf-danger: #ff6b6b;
   --pf-danger-soft: rgba(255, 107, 107, 0.08);
   --pf-danger-border: rgba(255, 107, 107, 0.28);
@@ -40,23 +41,43 @@
 html {
   min-width: 320px;
   min-height: 100%;
-  background: var(--pf-bg);
+  background: #100a07;
 }
 
 body {
   min-width: 320px;
   min-height: 100svh;
   margin: 0;
-  background: var(--pf-bg);
+  color: var(--pf-text);
+  background:
+    radial-gradient(ellipse at 14% 20%, rgba(171, 91, 48, 0.23), transparent 35%),
+    radial-gradient(ellipse at 82% 74%, rgba(107, 54, 29, 0.20), transparent 40%),
+    radial-gradient(circle, rgba(231, 155, 99, 0.075) 0 0.65px, transparent 0.95px) 0 0 / 13px 15px,
+    radial-gradient(circle, rgba(38, 21, 13, 0.42) 0 0.8px, transparent 1.2px) 6px 8px / 19px 21px,
+    linear-gradient(118deg, rgba(155, 82, 44, 0.09), transparent 29%, rgba(18, 12, 9, 0.14) 63%, transparent 84%),
+    linear-gradient(180deg, #1a100b 0%, #130c08 42%, #0f0a07 100%);
+  background-attachment: fixed;
+  color-scheme: dark;
+}
+
+#root {
+  min-height: 100svh;
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+select,
+textarea {
+  color: var(--pf-text);
 }
 
 button:focus-visible,
@@ -67,27 +88,10 @@ summary:focus-visible {
 }
 
 ::selection {
-  color: #071006;
+  color: #0d1206;
   background: var(--pf-accent);
 }
 
-#root {
-  min-height: 100svh;
-}
-
-
-body {
-  color-scheme: dark;
-}
-
-button, input, select, textarea {
-  font: inherit;
-}
-
-select, textarea {
-  color: var(--pf-text);
-}
-
 ::placeholder {
-  color: #596159;
+  color: #68735d;
 }
