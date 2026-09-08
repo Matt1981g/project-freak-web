@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Exercise } from '../../domain/models'
+import type { Exercise, ProgrammeBlock } from '../../domain/models'
 import type {
   ExerciseRepository,
   ProgrammeRepository,
@@ -47,9 +47,10 @@ function exercise_repository(
 
 function programme_repository(
   latest_version = 0,
+  blocks: ProgrammeBlock[] = [],
 ): ProgrammeRepository {
   return {
-    list_blocks: async () => [],
+    list_blocks: async () => blocks,
     list_templates_for_block: async () => [],
     list_programmed_sessions_for_block: async () => [],
     get_programmed_session_detail: async () => undefined,
@@ -237,6 +238,39 @@ describe('programme import', () => {
     expect(preview.exercise_resolutions[0].canonical_name).toBe(
       'Nautilus Bicep Curl',
     )
+  })
+
+  it('records explicit lineage when a new imported block replaces an overlapping block', async () => {
+    const preview = await preview_programme_import(
+      JSON.stringify(valid_document()),
+      exercise_repository(),
+    )
+    const previous: ProgrammeBlock = {
+      id: 'previous-block',
+      created_at: '2026-09-01T12:00:00.000Z',
+      updated_at: '2026-09-01T12:00:00.000Z',
+      deleted_at: null,
+      revision: 1,
+      device_id: 'device',
+      source_kind: 'programme_import',
+      source_id: 'old',
+      name: 'Previous September',
+      block_type: 'mesocycle',
+      start_date_local: '2026-09-01',
+      end_date_local: '2026-09-30',
+      status: 'draft',
+      goal: null,
+      notes: null,
+    }
+
+    const entities = await build_programme_import_entities(
+      preview,
+      programme_repository(0, [previous]),
+      'current-device',
+      '2026-09-04T16:00:00.000Z',
+    )
+
+    expect(entities.block.supersedes_programme_block_id).toBe(previous.id)
   })
 
   it('builds separate versioned templates and immutable programmed snapshots', async () => {
