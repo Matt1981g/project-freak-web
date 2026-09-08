@@ -1,8 +1,8 @@
 :root {
-  --pf-bg: #060806;
-  --pf-panel: #0d110e;
-  --pf-panel-raised: #141a15;
-  --pf-border: #283129;
+  --pf-bg: #0a0705;
+  --pf-panel: #12100d;
+  --pf-panel-raised: #1a1511;
+  --pf-border: #3a3027;
   --pf-text-strong: #f4f7f2;
   --pf-text: #d8ddd5;
   --pf-text-muted: #9aa49c;
@@ -33,31 +33,32 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html {
   min-width: 320px;
   min-height: 100%;
-  background: var(--pf-bg);
+  background: #080604;
 }
 
 body {
   min-width: 320px;
   min-height: 100svh;
   margin: 0;
-  background: var(--pf-bg);
+  background:
+    radial-gradient(circle at 15% 22%, rgba(185, 104, 58, 0.20), transparent 30%),
+    radial-gradient(circle at 82% 70%, rgba(113, 59, 31, 0.18), transparent 35%),
+    radial-gradient(circle, rgba(225, 151, 96, 0.08) 0 0.7px, transparent 1px) 0 0 / 13px 15px,
+    radial-gradient(circle, rgba(30, 16, 10, 0.40) 0 0.8px, transparent 1.25px) 5px 8px / 19px 21px,
+    linear-gradient(118deg, rgba(150, 81, 43, 0.11), transparent 30%, rgba(18, 12, 9, 0.20) 62%, transparent 84%),
+    linear-gradient(180deg, #130c08 0%, #0c0806 40%, #080604 100%);
+  background-attachment: fixed;
 }
 
 button,
-input {
-  font: inherit;
-}
+input { font: inherit; }
 
-button {
-  -webkit-tap-highlight-color: transparent;
-}
+button { -webkit-tap-highlight-color: transparent; }
 
 button:focus-visible,
 input:focus-visible,
@@ -71,23 +72,12 @@ summary:focus-visible {
   background: var(--pf-accent);
 }
 
-#root {
-  min-height: 100svh;
-}
+#root { min-height: 100svh; }
 
+body { color-scheme: dark; }
 
-body {
-  color-scheme: dark;
-}
+button, input, select, textarea { font: inherit; }
 
-button, input, select, textarea {
-  font: inherit;
-}
+select, textarea { color: var(--pf-text); }
 
-select, textarea {
-  color: var(--pf-text);
-}
-
-::placeholder {
-  color: #596159;
-}
+::placeholder { color: #596159; }
