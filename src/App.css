@@ -38,7 +38,7 @@
     radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,.22) 100%),
     url("./assets/pf-weight-plate-emboss.svg");
   background-repeat: no-repeat, no-repeat;
-  background-position: center, left -80px bottom -80px;
+  background-position: center, left -10px top -20px;
   background-size: cover, min(720px, 58vw) auto;
 }
 
@@ -485,7 +485,7 @@
 @media (max-width: 700px) {
   .app-shell::after {
     opacity: 0.62;
-    background-position: center, left -40px bottom -60px;
+    background-position: center, left -8px top -10px;
     background-size: cover, 680px auto;
   }
 
