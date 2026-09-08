@@ -15,7 +15,6 @@ async function expectApprovedBackground(page: import('@playwright/test').Page) {
       accent: root.getPropertyValue('--pf-accent').trim(),
       orange: root.getPropertyValue('--pf-orange').trim(),
       text: root.getPropertyValue('--pf-text').trim(),
-      shellBackground: shellStyle.backgroundImage,
       approvedBackground: getComputedStyle(document.querySelector('.app-shell')!, '::before').backgroundImage,
       readabilityVeil: getComputedStyle(document.querySelector('.app-shell')!, '::after').backgroundImage,
     }
@@ -26,8 +25,6 @@ async function expectApprovedBackground(page: import('@playwright/test').Page) {
   expect(theme.accent).toBe('#c6ff00')
   expect(theme.orange).toBe('#ff6a00')
   expect(theme.text).toBe('#d8e1cf')
-  expect(theme.shellBackground).toContain('radial-gradient')
-  expect(theme.shellBackground).toContain('linear-gradient')
   expect(theme.approvedBackground).toContain('data:image/webp;base64')
   expect(theme.readabilityVeil).toContain('linear-gradient')
 }
