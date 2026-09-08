@@ -6,6 +6,7 @@ import {
   SET_ROLES,
   STRUCTURE_TYPES,
 } from '../domain/enums/training'
+import { live_set_capability_issues } from '../domain/rules/liveSetCapability'
 
 function is_valid_iso_date(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -62,6 +63,18 @@ const set_schema = z
     components: z.array(component_schema).default([]),
   })
   .strict()
+  .superRefine((set, context) => {
+    for (const capability_issue of live_set_capability_issues(set)) {
+      context.addIssue({
+        code: 'custom',
+        message: capability_issue.message,
+        path:
+          capability_issue.code === 'timed_primary_not_supported'
+            ? ['target_duration_seconds']
+            : ['components'],
+      })
+    }
+  })
 
 const exercise_schema = z
   .object({
