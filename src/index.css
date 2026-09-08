@@ -1,13 +1,13 @@
 :root {
   /* PROJECT FREAK — Bronze Cast theme */
-  --pf-bg: #120c08;
-  --pf-panel: #18120e;
-  --pf-panel-raised: #231a13;
-  --pf-border: #4a3829;
-  --pf-text-strong: #e8ffc0;
-  --pf-text: #c8e99b;
-  --pf-text-muted: #91aa72;
-  --pf-text-faint: #687857;
+  --pf-bg: #0a0806;
+  --pf-panel: #11100d;
+  --pf-panel-raised: #19150f;
+  --pf-border: #392a20;
+  --pf-text-strong: #e6ffb2;
+  --pf-text: #b8d889;
+  --pf-text-muted: #879b6b;
+  --pf-text-faint: #626e54;
   --pf-accent: #c6ff00;
   --pf-accent-soft: rgba(198, 255, 0, 0.11);
   --pf-accent-border: rgba(198, 255, 0, 0.46);
@@ -41,7 +41,7 @@
 html {
   min-width: 320px;
   min-height: 100%;
-  background: #100a07;
+  background: #080706;
 }
 
 body {
@@ -50,12 +50,9 @@ body {
   margin: 0;
   color: var(--pf-text);
   background:
-    radial-gradient(ellipse at 14% 20%, rgba(171, 91, 48, 0.23), transparent 35%),
-    radial-gradient(ellipse at 82% 74%, rgba(107, 54, 29, 0.20), transparent 40%),
-    radial-gradient(circle, rgba(231, 155, 99, 0.075) 0 0.65px, transparent 0.95px) 0 0 / 13px 15px,
-    radial-gradient(circle, rgba(38, 21, 13, 0.42) 0 0.8px, transparent 1.2px) 6px 8px / 19px 21px,
-    linear-gradient(118deg, rgba(155, 82, 44, 0.09), transparent 29%, rgba(18, 12, 9, 0.14) 63%, transparent 84%),
-    linear-gradient(180deg, #1a100b 0%, #130c08 42%, #0f0a07 100%);
+    radial-gradient(ellipse at 16% 18%, rgba(110, 57, 34, 0.12), transparent 37%),
+    radial-gradient(ellipse at 84% 75%, rgba(84, 42, 26, 0.10), transparent 42%),
+    linear-gradient(180deg, #0d0a08 0%, #090806 46%, #070605 100%);
   background-attachment: fixed;
   color-scheme: dark;
 }
