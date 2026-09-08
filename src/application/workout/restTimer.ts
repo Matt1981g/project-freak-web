@@ -88,5 +88,8 @@ export function should_start_rest_after_set(
   planned_set_count: number,
   has_next_exercise: boolean,
 ): boolean {
-  return set_number < planned_set_count || has_next_exercise
+  return (
+    set_number >= 1 &&
+    (set_number <= planned_set_count || has_next_exercise)
+  )
 }
