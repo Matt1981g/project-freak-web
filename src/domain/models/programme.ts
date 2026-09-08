@@ -13,6 +13,7 @@ export interface ProgrammeBlock extends MutableEntity {
   start_date_local: string | null
   end_date_local: string | null
   status: 'draft' | 'active' | 'completed' | 'archived'
+  supersedes_programme_block_id?: string | null
   goal: string | null
   notes: string | null
 }
