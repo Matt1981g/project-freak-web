@@ -1,9 +1,9 @@
 :root {
   /* PROJECT FREAK — Bronze Cast theme */
-  --pf-bg: #0a0806;
-  --pf-panel: #11100d;
-  --pf-panel-raised: #19150f;
-  --pf-border: #392a20;
+  --pf-bg: #070605;
+  --pf-panel: #0d0d0b;
+  --pf-panel-raised: #15120e;
+  --pf-border: #34251d;
   --pf-text-strong: #e6ffb2;
   --pf-text: #b8d889;
   --pf-text-muted: #879b6b;
@@ -41,7 +41,7 @@
 html {
   min-width: 320px;
   min-height: 100%;
-  background: #080706;
+  background: #060605;
 }
 
 body {
@@ -50,9 +50,9 @@ body {
   margin: 0;
   color: var(--pf-text);
   background:
-    radial-gradient(ellipse at 16% 18%, rgba(110, 57, 34, 0.12), transparent 37%),
-    radial-gradient(ellipse at 84% 75%, rgba(84, 42, 26, 0.10), transparent 42%),
-    linear-gradient(180deg, #0d0a08 0%, #090806 46%, #070605 100%);
+    radial-gradient(ellipse at 15% 18%, rgba(91, 46, 29, 0.075), transparent 38%),
+    radial-gradient(ellipse at 86% 76%, rgba(70, 35, 23, 0.065), transparent 43%),
+    linear-gradient(180deg, #0a0807 0%, #070706 48%, #050504 100%);
   background-attachment: fixed;
   color-scheme: dark;
 }
