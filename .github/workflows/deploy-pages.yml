@@ -3,7 +3,7 @@ name: Deploy PROJECT FREAK HTTPS
 on:
   push:
     branches:
-      - phase-6-live-logger
+      - main
   workflow_dispatch:
 
 permissions:
