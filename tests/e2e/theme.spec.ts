@@ -28,8 +28,10 @@ async function expectBronzeTheme(page: import('@playwright/test').Page) {
   expect(theme.text).toBe('#b8d889')
   expect(theme.shellBackground).toContain('radial-gradient')
   expect(theme.shellBackground).toContain('linear-gradient')
-  expect(theme.materialTexture).toContain('pf-cast-iron-texture')
-  expect(theme.plateEmboss).toContain('pf-weight-plate-emboss')
+  expect(theme.materialTexture).toContain('data:image/svg+xml')
+  expect(theme.materialTexture).toContain('feTurbulence')
+  expect(theme.plateEmboss).toContain('data:image/svg+xml')
+  expect(theme.plateEmboss).toContain('STANDARD')
 }
 
 test('bronze cast theme renders on desktop', async ({ page }, testInfo) => {
