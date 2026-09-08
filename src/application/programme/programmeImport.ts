@@ -23,6 +23,7 @@ import {
   type ProgrammeImportExercise,
   type ProgrammeImportSet,
 } from '../../schemas/programmeImport'
+import { infer_superseded_programme_block_id } from './programmeLineage'
 
 export interface ProgrammeImportIssue {
   severity: 'warning' | 'error'
@@ -580,6 +581,16 @@ export async function build_programme_import_entities(
   const document = preview.document
   const resolutions = resolution_map(preview)
   const block_id = create_uuid()
+  const existing_blocks = await programme_repository.list_blocks()
+  const supersedes_programme_block_id =
+    infer_superseded_programme_block_id(
+      {
+        block_type: document.programme.block_type ?? 'custom',
+        start_date_local: document.programme.start_date_local ?? null,
+        end_date_local: document.programme.end_date_local ?? null,
+      },
+      existing_blocks,
+    )
 
   const block: ProgrammeBlock = {
     ...metadata(block_id, timestamp, device_id, preview.source_id),
@@ -588,6 +599,7 @@ export async function build_programme_import_entities(
     start_date_local: document.programme.start_date_local ?? null,
     end_date_local: document.programme.end_date_local ?? null,
     status: 'draft',
+    supersedes_programme_block_id,
     goal: document.programme.goal ?? null,
     notes: document.programme.notes ?? null,
   }
