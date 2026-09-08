@@ -51,8 +51,8 @@ jobs:
         with:
           name: pf-theme-verification-${{ github.run_attempt }}
           path: |
-            test-results/**/pf-bronze-cast-desktop.png
-            test-results/**/pf-bronze-cast-phone.png
+            test-results/**/pf-approved-bg-desktop.png
+            test-results/**/pf-approved-bg-phone.png
           if-no-files-found: error
           retention-days: 7
 
