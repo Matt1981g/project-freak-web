@@ -4,11 +4,16 @@ import type {
   SessionExercise,
 } from '../../domain/models'
 import type { SessionRepository } from '../../data/repositories/contracts'
+import {
+  with_target_stimulus_tag,
+  type TargetStimulusRating,
+} from './targetStimulus'
 
 export interface ExerciseScoreInput {
   rpe: number | null
   pump: number | null
   form: number | null
+  target_stimulus?: TargetStimulusRating | null
 }
 
 export interface ExerciseCompletionContext {
@@ -36,7 +41,11 @@ export async function save_exercise_scores(
 
   const existing = await repository.get_exercise_metrics(session_exercise_id)
   const has_any_score =
-    scores.rpe !== null || scores.pump !== null || scores.form !== null
+    scores.rpe !== null ||
+    scores.pump !== null ||
+    scores.form !== null ||
+    (scores.target_stimulus !== undefined &&
+      scores.target_stimulus !== null)
 
   if (!existing && !has_any_score) {
     return null
@@ -56,7 +65,13 @@ export async function save_exercise_scores(
     pump: scores.pump,
     form: scores.form,
     where_felt_text: existing?.where_felt_text ?? null,
-    where_felt_tags: existing?.where_felt_tags ?? [],
+    where_felt_tags:
+      scores.target_stimulus === undefined
+        ? existing?.where_felt_tags ?? []
+        : with_target_stimulus_tag(
+            existing?.where_felt_tags ?? [],
+            scores.target_stimulus,
+          ),
     legacy_tension: existing?.legacy_tension ?? null,
     legacy_mmc: existing?.legacy_mmc ?? null,
     notes: existing?.notes ?? null,
