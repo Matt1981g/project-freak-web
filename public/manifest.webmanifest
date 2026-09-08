@@ -6,8 +6,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#060806",
-  "theme_color": "#0b100d",
+  "background_color": "#120c08",
+  "theme_color": "#17100b",
   "icons": [
     {
       "src": "./pf-icon-v2.svg",
