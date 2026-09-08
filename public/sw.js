@@ -1,4 +1,4 @@
-const CACHE_NAME = 'project-freak-shell-v6-vintage-iron'
+const CACHE_NAME = 'project-freak-shell-v7-plate-reference'
 
 function app_url(path = '') {
   return new URL(path, self.registration.scope).href
