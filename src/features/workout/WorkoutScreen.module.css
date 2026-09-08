@@ -1540,7 +1540,7 @@
 
 .restTimerActions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   margin-top: 10px;
 }
@@ -1608,6 +1608,16 @@
   margin: 4px 0 10px;
   color: var(--pf-text-strong);
   font-size: clamp(20px, 4vw, 34px);
+}
+
+.restOvertime {
+  color: #ff3b30;
+  font-size: clamp(30px, 9vw, 72px);
+  font-weight: 1000;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 22px rgba(255, 59, 48, 0.32);
 }
 
 .nextExercisePrompt > button {
