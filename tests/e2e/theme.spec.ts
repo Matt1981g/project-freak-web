@@ -16,16 +16,20 @@ async function expectBronzeTheme(page: import('@playwright/test').Page) {
       orange: root.getPropertyValue('--pf-orange').trim(),
       text: root.getPropertyValue('--pf-text').trim(),
       shellBackground: shellStyle.backgroundImage,
+      materialTexture: getComputedStyle(document.querySelector('.app-shell')!, '::before').backgroundImage,
+      plateEmboss: getComputedStyle(document.querySelector('.app-shell')!, '::after').backgroundImage,
     }
   })
 
-  expect(theme.background).toBe('#120c08')
-  expect(theme.panel).toBe('#18120e')
+  expect(theme.background).toBe('#0a0806')
+  expect(theme.panel).toBe('#11100d')
   expect(theme.accent).toBe('#c6ff00')
   expect(theme.orange).toBe('#ff6a00')
-  expect(theme.text).toBe('#c8e99b')
+  expect(theme.text).toBe('#b8d889')
   expect(theme.shellBackground).toContain('radial-gradient')
   expect(theme.shellBackground).toContain('linear-gradient')
+  expect(theme.materialTexture).toContain('pf-cast-iron-texture')
+  expect(theme.plateEmboss).toContain('pf-weight-plate-emboss')
 }
 
 test('bronze cast theme renders on desktop', async ({ page }, testInfo) => {
