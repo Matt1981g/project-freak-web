@@ -173,6 +173,57 @@ describe('PROJECT FREAK database backup', () => {
     ).rejects.toThrow('Backup checksum failed for settings')
   })
 
+  it('rejects and rolls back a checksum-valid restore with broken relationships', async () => {
+    const backup = await build_full_backup(db, {
+      now_iso: NOW,
+      source_device_id: 'device-1',
+    })
+
+    backup.database.tables.session_exercises.push({
+      id: 'orphan-session-exercise',
+      created_at: NOW,
+      updated_at: NOW,
+      deleted_at: null,
+      revision: 1,
+      device_id: 'device-1',
+      source_kind: 'restore',
+      source_id: null,
+      completed_session_id: 'missing-session',
+      programmed_session_exercise_id: null,
+      exercise_id: 'exercise-id',
+      exercise_name_snapshot: 'Orphan exercise',
+      planned_order: 1,
+      actual_order: 1,
+      rotation_group_key: null,
+      rotation_position: null,
+      target_sets: 1,
+      target_rep_min: 8,
+      target_rep_max: 12,
+      rest_seconds: 60,
+      tempo: null,
+      technique_cue: null,
+      programme_notes: null,
+      started_at: null,
+      completed_at: null,
+      notes: null,
+    })
+    backup.checksums.tables.session_exercises = await sha256_text(
+      JSON.stringify(backup.database.tables.session_exercises),
+    )
+
+    const preview = await preview_backup_json(JSON.stringify(backup))
+
+    await expect(
+      restore_validated_backup(db, preview, {
+        now_iso: '2026-09-04T20:10:00.000Z',
+        source_device_id: 'device-1',
+      }),
+    ).rejects.toThrow('failed relational integrity validation')
+
+    expect(await db.session_exercises.get('orphan-session-exercise')).toBeUndefined()
+    expect(await db.settings.get('test-setting')).toBeDefined()
+  })
+
   it('upgrades a valid pre-v2 backup by adding the new synced settings table', async () => {
     const backup = await build_full_backup(db, {
       now_iso: NOW,
