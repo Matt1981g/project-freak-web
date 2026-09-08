@@ -18,6 +18,7 @@ import {
   encode_adaptive_challenge,
   parse_adaptive_challenge,
 } from './progressionChallenge'
+import { can_apply_adaptive_change } from './prescriptionAuthority'
 
 export type AdaptiveCurrentWeekVerdict =
   | 'increase_load'
@@ -395,7 +396,8 @@ export async function adapt_current_week_after_session(
           set.set_role !== 'work' ||
           set.structure_type !== 'straight' ||
           set.target_load_type !== 'normal' ||
-          set.notes?.includes(marker)
+          set.notes?.includes(marker) ||
+          !can_apply_adaptive_change(set)
         ) {
           continue
         }
