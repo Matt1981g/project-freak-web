@@ -2493,17 +2493,6 @@ export function WorkoutScreen() {
       Math.max(entry.sets.length, 1),
   }))
 
-  const rest_source_complete = rest_timer
-    ? (() => {
-        const source = workout.exercises.find(
-          (entry) => entry.exercise.id === rest_timer.exercise_id,
-        )
-        return source
-          ? is_session_exercise_completed(source.exercise, workout.session)
-          : true
-      })()
-    : true
-
   return (
     <div className={styles.screen} onPointerDown={prime_rest_audio}>
       <section className={styles.heading}>
