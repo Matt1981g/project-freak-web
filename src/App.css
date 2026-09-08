@@ -2,24 +2,47 @@
   position: relative;
   min-height: 100svh;
   isolation: isolate;
+  overflow: clip;
   background:
-    radial-gradient(circle at 12% -12%, rgba(189, 255, 0, 0.12), transparent 30%),
-    radial-gradient(circle at 92% -14%, rgba(255, 106, 0, 0.09), transparent 23%),
-    linear-gradient(180deg, #070a08 0%, var(--pf-bg) 38%, #050706 100%);
+    radial-gradient(circle at 10% -10%, rgba(198, 255, 0, 0.045), transparent 28%),
+    radial-gradient(circle at 94% -12%, rgba(255, 106, 0, 0.05), transparent 24%),
+    radial-gradient(ellipse at 16% 28%, rgba(151, 79, 42, 0.28), transparent 39%),
+    radial-gradient(ellipse at 82% 72%, rgba(102, 52, 29, 0.24), transparent 43%),
+    linear-gradient(180deg, #1d120c 0%, #160e0a 44%, #100b08 100%);
 }
 
+/* Fine rough-cast texture: deliberately irregular, low contrast and non-photographic. */
 .app-shell::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
-  opacity: 0.22;
+  opacity: 0.58;
   background-image:
-    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: linear-gradient(to bottom, black, transparent 72%);
+    radial-gradient(circle, rgba(236, 159, 99, 0.13) 0 0.62px, transparent 0.94px),
+    radial-gradient(circle, rgba(44, 24, 14, 0.60) 0 0.84px, transparent 1.22px),
+    radial-gradient(circle, rgba(165, 88, 48, 0.095) 0 0.72px, transparent 1.08px),
+    repeating-radial-gradient(ellipse at 27% 19%, rgba(114, 61, 34, 0.07) 0 1px, transparent 1px 5px),
+    linear-gradient(117deg, rgba(184, 101, 56, 0.065), transparent 25%, rgba(29, 18, 12, 0.10) 54%, transparent 80%);
+  background-size:
+    12px 14px,
+    18px 20px,
+    27px 23px,
+    69px 53px,
+    auto;
+}
+
+.app-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 38%, rgba(0, 0, 0, 0.14) 100%),
+    linear-gradient(90deg, rgba(0,0,0,.10), transparent 10%, transparent 90%, rgba(0,0,0,.15)),
+    linear-gradient(180deg, rgba(0,0,0,.05), transparent 17%, transparent 84%, rgba(0,0,0,.18));
 }
 
 .app-header {
@@ -33,11 +56,12 @@
   min-height: calc(84px + env(safe-area-inset-top));
   padding: env(safe-area-inset-top) 20px 0;
   box-sizing: border-box;
-  border-bottom: 1px solid rgba(189, 255, 0, 0.20);
+  border-bottom: 1px solid rgba(198, 255, 0, 0.22);
   background:
-    linear-gradient(180deg, rgba(18, 23, 19, 0.97), rgba(7, 10, 8, 0.94));
+    linear-gradient(180deg, rgba(27, 20, 14, 0.97), rgba(13, 10, 8, 0.95));
   box-shadow:
-    inset 0 -1px 0 rgba(255, 106, 0, 0.10),
+    inset 0 -1px 0 rgba(255, 106, 0, 0.34),
+    inset 0 1px 0 rgba(205, 129, 78, 0.08),
     0 14px 42px rgba(0, 0, 0, 0.38);
   backdrop-filter: blur(20px);
 }
@@ -74,7 +98,7 @@
 }
 
 .brand-title b {
-  color: #d7dcd8;
+  color: #d9efb5;
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.19em;
@@ -92,7 +116,7 @@
   position: relative;
   width: fit-content;
   padding-top: 5px;
-  color: #949c96;
+  color: #8fa66f;
   font-size: 7.5px;
   font-weight: 800;
   letter-spacing: 0.23em;
@@ -262,7 +286,7 @@
     padding: 6px;
     border: 1px solid var(--pf-border);
     border-radius: 16px;
-    background: rgba(10, 12, 10, 0.94);
+    background: rgba(24, 18, 13, 0.96);
     backdrop-filter: blur(16px);
   }
 
@@ -291,7 +315,7 @@
     padding: 6px;
     border: 1px solid var(--pf-accent-border);
     border-radius: 14px;
-    background: rgba(10, 12, 10, 0.98);
+    background: rgba(24, 18, 13, 0.98);
     backdrop-filter: blur(16px);
   }
 
@@ -320,13 +344,14 @@
 /* PROJECT FREAK V1 brand refresh */
 .app-shell main {
   position: relative;
+  z-index: 1;
 }
 
 .app-shell main h1 {
   width: fit-content;
   max-width: 100%;
   text-transform: uppercase;
-  background: linear-gradient(180deg, #ffffff 0%, #d8ddd9 48%, #8b948e 100%);
+  background: linear-gradient(180deg, #efffcf 0%, var(--pf-accent) 56%, #82aa00 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent !important;
@@ -343,16 +368,27 @@
   box-shadow: 0 0 9px var(--pf-orange-glow);
 }
 
-.app-shell main h2 {
+.app-shell main h2,
+.app-shell main h3 {
+  color: var(--pf-text-strong);
   letter-spacing: -0.02em;
+}
+
+.app-shell main :where(label, dt, th) {
+  color: #b8dc7f;
 }
 
 .app-shell main :where(section, details) {
   background-image:
+    radial-gradient(circle, rgba(194, 111, 64, .04) 0 .55px, transparent .9px),
     linear-gradient(145deg, rgba(255,255,255,.018), transparent 40%),
-    linear-gradient(320deg, rgba(189,255,0,.018), transparent 26%);
+    linear-gradient(320deg, rgba(198,255,0,.012), transparent 26%),
+    linear-gradient(12deg, rgba(140, 76, 42, .045), transparent 38%);
+  background-size: 19px 17px, auto, auto, auto;
   box-shadow:
+    inset 2px 0 0 rgba(255, 106, 0, .12),
     inset 0 1px 0 rgba(255,255,255,.025),
+    inset 0 0 38px rgba(125, 67, 36, .035),
     0 18px 50px rgba(0,0,0,.10);
 }
 
@@ -406,13 +442,13 @@
 }
 
 .app-shell ::-webkit-scrollbar-track {
-  background: #070907;
+  background: #100b08;
 }
 
 .app-shell ::-webkit-scrollbar-thumb {
-  border: 2px solid #070907;
+  border: 2px solid #100b08;
   border-radius: 999px;
-  background: linear-gradient(180deg, #65705f, var(--pf-accent));
+  background: linear-gradient(180deg, #718451, var(--pf-accent));
 }
 
 @media (max-width: 900px) {
@@ -442,7 +478,7 @@
   .app-nav-mobile {
     border-color: rgba(189,255,0,.16);
     background:
-      linear-gradient(180deg, rgba(18,23,19,.98), rgba(7,10,8,.98));
+      linear-gradient(180deg, rgba(29,21,15,.98), rgba(14,10,8,.98));
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,.025),
       0 10px 26px rgba(0,0,0,.24);
