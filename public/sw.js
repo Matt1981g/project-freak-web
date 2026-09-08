@@ -1,4 +1,4 @@
-const CACHE_NAME = 'project-freak-shell-v4-brand'
+const CACHE_NAME = 'project-freak-shell-v5-bronze-cast'
 
 function app_url(path = '') {
   return new URL(path, self.registration.scope).href
