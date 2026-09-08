@@ -39,10 +39,11 @@ describe('rest timer', () => {
     expect(rest_seconds_remaining(paused, 999_000)).toBe(95)
   })
 
-  it('starts rest after an intermediate set and after a final set when another exercise remains', () => {
+  it('starts rest after every programmed set, including the final set', () => {
+    expect(should_start_rest_after_set(1, 4, false)).toBe(true)
     expect(should_start_rest_after_set(2, 4, false)).toBe(true)
     expect(should_start_rest_after_set(4, 4, true)).toBe(true)
-    expect(should_start_rest_after_set(4, 4, false)).toBe(false)
+    expect(should_start_rest_after_set(4, 4, false)).toBe(true)
   })
 
   it('resets back to the programmed rest duration', () => {
