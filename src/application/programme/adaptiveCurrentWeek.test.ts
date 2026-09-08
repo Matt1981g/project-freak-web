@@ -34,6 +34,51 @@ describe('adaptive current week', () => {
     expect(decision.verdict).toBe('hold_load')
   })
 
+  it('does not increase load when the exercise was clearly felt in the wrong area', () => {
+    const decision = decide_current_week_progression(
+      {
+        form: 10,
+        pump: 10,
+        legacy_mmc: null,
+        where_felt_tags: ['pf:target_stimulus:wrong_area'],
+      },
+      [
+        {
+          set_number: 1,
+          load_kg: 40,
+          completed_reps: 12,
+          target_rep_min: 8,
+          target_rep_max: 12,
+        },
+      ],
+    )
+
+    expect(decision.verdict).toBe('hold_load')
+    expect(decision.reason).toContain('outside the intended target')
+  })
+
+  it('holds load when target-muscle stimulus was mixed despite strong pump', () => {
+    const decision = decide_current_week_progression(
+      {
+        form: 10,
+        pump: 10,
+        legacy_mmc: null,
+        where_felt_tags: ['pf:target_stimulus:mixed'],
+      },
+      [
+        {
+          set_number: 1,
+          load_kg: 40,
+          completed_reps: 12,
+          target_rep_min: 8,
+          target_rep_max: 12,
+        },
+      ],
+    )
+
+    expect(decision.verdict).toBe('hold_load')
+  })
+
   it('keeps the achieved load and asks for reps before load', () => {
     const decision = decide_current_week_progression(good, [
       { set_number: 1, load_kg: 40, completed_reps: 10, target_rep_min: 8, target_rep_max: 12 },
