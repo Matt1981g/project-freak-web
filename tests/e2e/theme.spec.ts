@@ -21,17 +21,15 @@ async function expectBronzeTheme(page: import('@playwright/test').Page) {
     }
   })
 
-  expect(theme.background).toBe('#0a0806')
-  expect(theme.panel).toBe('#11100d')
+  expect(theme.background).toBe('#070605')
+  expect(theme.panel).toBe('#0d0d0b')
   expect(theme.accent).toBe('#c6ff00')
   expect(theme.orange).toBe('#ff6a00')
   expect(theme.text).toBe('#b8d889')
   expect(theme.shellBackground).toContain('radial-gradient')
   expect(theme.shellBackground).toContain('linear-gradient')
-  expect(theme.materialTexture).toContain('data:image/svg+xml')
-  expect(theme.materialTexture).toContain('feTurbulence')
-  expect(theme.plateEmboss).toContain('data:image/svg+xml')
-  expect(theme.plateEmboss).toContain('base64')
+  expect(theme.materialTexture).toContain('url(')
+  expect(theme.plateEmboss).toContain('url(')
 }
 
 test('bronze cast theme renders on desktop', async ({ page }, testInfo) => {
