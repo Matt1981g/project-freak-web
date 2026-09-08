@@ -746,15 +746,11 @@ export async function load_today_programmed_sessions(): Promise<
   TodayProgrammedSession[]
 > {
   const today = current_local_date()
-  const blocks = await repositories.programme.list_blocks()
-  const sessions = (
-    await Promise.all(
-      blocks.map((block) =>
-        repositories.programme.list_programmed_sessions_for_block(block.id),
-      ),
-    )
-  )
-    .flat()
+  // Use the same visibility rules as Plan: any final actual closes the
+  // scheduled session, and replaced/archived programmes cannot prompt.
+  const { programmes } = await load_active_plan_programmes()
+  const sessions = programmes
+    .flatMap((programme) => programme.sessions)
     .filter(
       (session) =>
         session.deleted_at === null &&
@@ -775,7 +771,7 @@ export async function load_today_programmed_sessions(): Promise<
     result.push({
       programmed_session,
       existing_session_id: existing_session?.id ?? null,
-      resume: Boolean(existing_session),
+      resume: existing_session?.status === 'in_progress',
     })
   }
 
