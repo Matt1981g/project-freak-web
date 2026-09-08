@@ -229,4 +229,36 @@ describe('active plan selection', () => {
     expect(result.programmes[0].block.id).toBe('replacement')
   })
 
+  it('uses explicit lineage even when creation-time overlap heuristics would not', () => {
+    const oldBlock = block(
+      'old-explicit',
+      '2026-09-07',
+      '2026-09-12',
+      '2026-09-06T12:00:00.000Z',
+    )
+    const replacement: ProgrammeBlock = {
+      ...block(
+        'replacement-explicit',
+        '2026-10-01',
+        '2026-10-07',
+        '2026-09-05T12:00:00.000Z',
+      ),
+      supersedes_programme_block_id: oldBlock.id,
+    }
+
+    const result = select_active_plan_programmes(
+      [oldBlock, replacement],
+      new Map([
+        [oldBlock.id, [planned('old-explicit-mon', oldBlock.id)]],
+        [replacement.id, [planned('replacement-explicit-mon', replacement.id, '2026-10-01')]],
+      ]),
+      [],
+      { today_local: '2026-09-06', latest_programming_input_at: null },
+    )
+
+    expect(result.programmes.map((entry) => entry.block.id)).toEqual([
+      replacement.id,
+    ])
+  })
+
 })
