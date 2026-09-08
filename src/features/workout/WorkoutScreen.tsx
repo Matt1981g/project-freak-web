@@ -22,7 +22,6 @@ import {
   substitute_workout_exercise,
 } from '../../app/projectFreakServices'
 import {
-  add_rest_seconds,
   pause_rest_timer,
   reset_rest_timer,
   rest_seconds_remaining,
@@ -1928,73 +1927,56 @@ function ExerciseScoringPanel(props: {
 function RestTimerPanel(props: {
   timer: ActiveRestTimer
   now_ms: number
-  allow_next_prompt: boolean
   on_change: (timer: ActiveRestTimer) => void
-  on_skip: () => void
+  on_end: () => void
   on_go: () => void
 }) {
   const {
     timer,
     now_ms,
-    allow_next_prompt,
     on_change,
-    on_skip,
+    on_end,
     on_go,
   } = props
   const remaining = rest_seconds_remaining(timer, now_ms)
   const paused = timer.ends_at_ms === null
   const ready = remaining === 0 && !paused
-  const transition_ready =
-    ready && Boolean(timer.next_exercise_id) && allow_next_prompt
+  const late_seconds =
+    ready && timer.ends_at_ms !== null
+      ? Math.max(0, Math.floor((now_ms - timer.ends_at_ms) / 1000))
+      : 0
 
-  if (transition_ready) {
+  if (ready) {
+    const next_label =
+      timer.next_exercise_name
+        ? timer.next_exercise_label
+          ? `${timer.next_exercise_label} · ${timer.next_exercise_name}`
+          : timer.next_exercise_name
+        : timer.exercise_name
+
     return (
       <div className={styles.nextExerciseOverlay} role="dialog" aria-modal="true">
         <section className={styles.nextExercisePrompt}>
           <span>REST COMPLETE</span>
-          <strong>NEXT EXERCISE</strong>
-          <h2>
-            {timer.next_exercise_label
-              ? `${timer.next_exercise_label} · `
-              : ''}
-            {timer.next_exercise_name}
-          </h2>
+          <strong>GO!</strong>
+          <div className={styles.restOvertime}>+{late_seconds}s</div>
+          <h2>{next_label}</h2>
           <button type="button" onClick={on_go}>
-            START NEXT EXERCISE
-          </button>
-          <button
-            type="button"
-            className={styles.nextExerciseDismiss}
-            onClick={on_skip}
-          >
-            DISMISS
+            GO!
           </button>
         </section>
       </div>
     )
   }
 
-  const waiting_for_rating =
-    ready && Boolean(timer.next_exercise_id) && !allow_next_prompt
-
   return (
-    <aside className={ready ? styles.restTimerReady : styles.restTimer}>
+    <aside className={styles.restTimer}>
       <div className={styles.restTimerMain}>
         <div>
-          <span>{ready ? 'REST COMPLETE' : paused ? 'REST PAUSED' : 'REST TIMER'}</span>
-          <small>
-            {waiting_for_rating
-              ? 'Rate and complete the current exercise to continue'
-              : timer.exercise_name}
-          </small>
+          <span>{paused ? 'REST PAUSED' : 'REST TIMER'}</span>
+          <small>{timer.exercise_name}</small>
         </div>
-        <strong>
-          {ready
-            ? waiting_for_rating
-              ? 'RATE'
-              : 'GO'
-            : format_rest_time(remaining)}
-        </strong>
+        <strong>{format_rest_time(remaining)}</strong>
       </div>
 
       <div className={styles.restTimerActions}>
@@ -2030,38 +2012,13 @@ function RestTimerPanel(props: {
         >
           RESET
         </button>
-        <button
-          type="button"
-          onClick={() =>
-            on_change({
-              ...add_rest_seconds(timer, 15),
-              exercise_id: timer.exercise_id,
-              exercise_name: timer.exercise_name,
-            })
-          }
-        >
-          +15
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            on_change({
-              ...add_rest_seconds(timer, 30),
-              exercise_id: timer.exercise_id,
-              exercise_name: timer.exercise_name,
-            })
-          }
-        >
-          +30
-        </button>
-        <button type="button" onClick={on_skip}>
-          SKIP
+        <button type="button" onClick={on_end}>
+          END REST
         </button>
       </div>
     </aside>
   )
 }
-
 function CompletedExerciseSummary(props: {
   metrics: ExerciseMetrics | undefined
 }) {
@@ -3012,12 +2969,11 @@ export function WorkoutScreen() {
         <RestTimerPanel
           timer={rest_timer}
           now_ms={rest_now_ms}
-          allow_next_prompt={rest_source_complete}
           on_change={(timer) => {
             setRestNowMs(Date.now())
             setRestTimer(timer)
           }}
-          on_skip={() => setRestTimer(null)}
+          on_end={() => setRestTimer(null)}
           on_go={() => {
             const next_id = rest_timer.next_exercise_id
             setRestTimer(null)
