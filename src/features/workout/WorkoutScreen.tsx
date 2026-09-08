@@ -35,6 +35,10 @@ import {
   type PersistedRestTimer,
 } from '../../application/workout/restTimerPersistence'
 import {
+  read_target_stimulus,
+  type TargetStimulusRating,
+} from '../../application/workout/targetStimulus'
+import {
   is_rotation_exercise_lagging,
   recommended_rotation_exercise_id,
 } from '../../application/workout/pairedRotation'
@@ -1693,6 +1697,14 @@ function ExerciseScoringPanel(props: {
   const [rpe, setRpe] = useState(metrics?.rpe ?? 5)
   const [pump, setPump] = useState(metrics?.pump ?? 5)
   const [form, setForm] = useState(metrics?.form ?? 5)
+  const initial_target_stimulus = read_target_stimulus(
+    metrics?.where_felt_tags,
+  )
+  const [target_stimulus, setTargetStimulus] =
+    useState<TargetStimulusRating | null>(initial_target_stimulus)
+  const [stimulus_touched, setStimulusTouched] = useState(
+    initial_target_stimulus !== null,
+  )
   const [rpe_touched, setRpeTouched] = useState(metrics?.rpe != null)
   const [pump_touched, setPumpTouched] = useState(metrics?.pump != null)
   const [form_touched, setFormTouched] = useState(metrics?.form != null)
@@ -1706,6 +1718,7 @@ function ExerciseScoringPanel(props: {
   function score_payload(
     override_key?: ScoreKey,
     override_value?: number,
+    override_stimulus?: TargetStimulusRating,
   ) {
     return {
       rpe:
@@ -1726,16 +1739,28 @@ function ExerciseScoringPanel(props: {
           : form_touched
             ? form
             : null,
+      target_stimulus:
+        override_stimulus ??
+        (stimulus_touched ? target_stimulus ?? undefined : undefined),
     }
   }
 
-  async function persist_score(key?: ScoreKey, value?: number) {
-    const scores = score_payload(key, value)
+  async function persist_score(
+    key?: ScoreKey,
+    value?: number,
+    stimulus?: TargetStimulusRating,
+  ) {
+    const scores = score_payload(key, value, stimulus)
+    const saved_target_stimulus = read_target_stimulus(
+      saved_metrics?.where_felt_tags,
+    )
 
     if (
       saved_metrics?.rpe === scores.rpe &&
       saved_metrics?.pump === scores.pump &&
-      saved_metrics?.form === scores.form
+      saved_metrics?.form === scores.form &&
+      (scores.target_stimulus === undefined ||
+        saved_target_stimulus === scores.target_stimulus)
     ) {
       return true
     }
@@ -1856,6 +1881,44 @@ function ExerciseScoringPanel(props: {
       {slider('rpe', 'RPE', rpe, rpe_touched, setRpe, setRpeTouched)}
       {slider('pump', 'PUMP', pump, pump_touched, setPump, setPumpTouched)}
       {slider('form', 'FORM', form, form_touched, setForm, setFormTouched)}
+
+      <div className={styles.targetStimulus}>
+        <div>
+          <span>TARGET MUSCLE</span>
+          <small>Optional · one tap. This can block load progression when stimulus is off-target.</small>
+        </div>
+        <div
+          className={styles.targetStimulusChoices}
+          role="group"
+          aria-label="Target muscle stimulus"
+        >
+          {(
+            [
+              ['target', 'TARGET'],
+              ['mixed', 'MIXED'],
+              ['wrong_area', 'WRONG AREA'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={
+                stimulus_touched && target_stimulus === value
+                  ? styles.targetStimulusActive
+                  : undefined
+              }
+              disabled={saving || completing}
+              onClick={() => {
+                setTargetStimulus(value)
+                setStimulusTouched(true)
+                void persist_score(undefined, undefined, value)
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <button
         type="button"
