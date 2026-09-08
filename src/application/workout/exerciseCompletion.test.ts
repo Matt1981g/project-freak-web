@@ -150,6 +150,51 @@ describe('exercise completion', () => {
     expect(fixture.saved_metrics()).toEqual(metrics)
   })
 
+  it('stores target-muscle stimulus without deleting existing where-felt evidence', async () => {
+    const fixture = repository_fixture({
+      metrics: {
+        id: 'metrics-existing',
+        created_at: NOW,
+        updated_at: NOW,
+        deleted_at: null,
+        revision: 2,
+        device_id: DEVICE_ID,
+        source_kind: 'user',
+        source_id: null,
+        session_exercise_id: 'session-exercise-1',
+        rpe: 8,
+        pump: 9,
+        form: 9,
+        where_felt_text: 'Mostly biceps',
+        where_felt_tags: ['biceps'],
+        legacy_tension: null,
+        legacy_mmc: null,
+        notes: null,
+      },
+    })
+
+    const metrics = await save_exercise_scores(
+      'session-exercise-1',
+      {
+        rpe: 8,
+        pump: 9,
+        form: 9,
+        target_stimulus: 'wrong_area',
+      },
+      fixture.repository,
+      {
+        device_id: DEVICE_ID,
+        now_iso: NOW,
+      },
+    )
+
+    expect(metrics?.where_felt_tags).toEqual([
+      'biceps',
+      'pf:target_stimulus:wrong_area',
+    ])
+    expect(metrics?.revision).toBe(3)
+  })
+
   it('does not manufacture a midpoint score when every slider is untouched', async () => {
     const fixture = repository_fixture()
 
