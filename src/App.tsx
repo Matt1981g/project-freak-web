@@ -19,7 +19,7 @@ import { PwaInstallControl } from './features/pwa/PwaInstallControl'
 import { AutoSyncRuntime } from './features/sync/AutoSyncRuntime'
 import { SyncScreen } from './features/sync/SyncScreen'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
-import approvedBackgroundUrl from './assets/pf-approved-background.webp?url'
+import approvedBackgroundUrl from './pfApprovedBackground'
 import './App.css'
 
 function App() {
