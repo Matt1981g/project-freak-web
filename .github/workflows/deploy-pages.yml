@@ -39,6 +39,9 @@ jobs:
 
       - name: Install Playwright test runner
         run: |
+          # GitHub's runner currently has a stale Google Chrome apt index that
+          # causes Playwright's --with-deps apt update to fail with Hash Sum mismatch.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
           npm install --no-save --no-package-lock @playwright/test@1.62.1
           npx playwright install --with-deps chromium webkit
 
