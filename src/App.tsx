@@ -19,7 +19,7 @@ import { PwaInstallControl } from './features/pwa/PwaInstallControl'
 import { AutoSyncRuntime } from './features/sync/AutoSyncRuntime'
 import { SyncScreen } from './features/sync/SyncScreen'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
-import { PF_APPROVED_BACKGROUND } from './pfApprovedBackground'
+import approvedBackgroundUrl from './assets/pf-approved-background.webp?url'
 import './App.css'
 
 function App() {
@@ -41,7 +41,7 @@ function App() {
       data-theme="approved-background-v1"
       style={
         {
-          '--pf-approved-bg': `url("${PF_APPROVED_BACKGROUND}")`,
+          '--pf-approved-bg': `url("${approvedBackgroundUrl}")`,
         } as CSSProperties
       }
     >
