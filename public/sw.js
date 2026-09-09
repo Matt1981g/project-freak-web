@@ -1,4 +1,4 @@
-const CACHE_NAME = 'project-freak-shell-v10-approved-bg'
+const CACHE_NAME = 'project-freak-shell-v11-approved-bg-live'
 
 function app_url(path = '') {
   return new URL(path, self.registration.scope).href
