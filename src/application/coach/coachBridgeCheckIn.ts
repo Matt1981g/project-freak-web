@@ -37,8 +37,22 @@ export const END_OF_WEEK_CHECK_IN_QUESTIONS = [
 export function with_end_of_week_check_in(payload: TrainingExport) {
   return {
     ...payload,
+    sessions: payload.sessions.map((session) => ({
+      ...session,
+      post_workout_feedback: session.readiness
+        ? {
+            session_quality: session.readiness.session_quality ?? null,
+            session_fatigue: session.readiness.session_fatigue,
+            energy_stability: session.readiness.energy_stability,
+            breathlessness: session.readiness.breathlessness,
+            coach_note: session.readiness.coach_note ?? null,
+          }
+        : null,
+    })),
     coach_instructions: {
       ...payload.coach_instructions,
+      post_workout_feedback_rule:
+        'Review each session.post_workout_feedback alongside the objective sets, exercise metrics and readiness data. Treat session quality, fatigue, energy stability, breathlessness and the user coach note as subjective evidence that can explain performance and influence next-week programming.',
       end_of_week_check_in: {
         version: END_OF_WEEK_CHECK_IN_VERSION,
         required_before_programming: true,
