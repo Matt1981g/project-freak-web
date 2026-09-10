@@ -6,6 +6,7 @@ import {
   load_history_entries,
   set_coach_session_excluded,
 } from '../../app/projectFreakServices'
+import { download_workout_share_image } from '../../app/workoutShareService'
 import { format_local_date_display } from '../../utils/dateFormat'
 import styles from './HistoryScreen.module.css'
 
@@ -42,6 +43,7 @@ export function HistoryScreen() {
   )
   const [coachSavingId, setCoachSavingId] = useState<string | null>(null)
   const [discardingId, setDiscardingId] = useState<string | null>(null)
+  const [shareGeneratingId, setShareGeneratingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -206,6 +208,33 @@ export function HistoryScreen() {
                       {discardingId === entry.session.id
                         ? 'DISCARDING…'
                         : 'DISCARD WORKOUT'}
+                    </button>
+                  )}
+
+                {entry.session.status === 'completed' &&
+                  entry.session.source_kind !== 'historical_import' && (
+                    <button
+                      type="button"
+                      className={styles.coachIncludeButton}
+                      disabled={shareGeneratingId === entry.session.id}
+                      onClick={() => {
+                        setShareGeneratingId(entry.session.id)
+                        setError(null)
+
+                        void download_workout_share_image(entry.session.id)
+                          .catch((cause) => {
+                            setError(
+                              cause instanceof Error
+                                ? cause.message
+                                : 'Unable to generate the workout share image.',
+                            )
+                          })
+                          .finally(() => setShareGeneratingId(null))
+                      }}
+                    >
+                      {shareGeneratingId === entry.session.id
+                        ? 'GENERATING…'
+                        : 'GENERATE SHARE IMAGE'}
                     </button>
                   )}
 
