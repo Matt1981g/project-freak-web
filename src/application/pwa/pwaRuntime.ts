@@ -90,7 +90,7 @@ async function check_for_deployed_app_update(): Promise<boolean> {
 }
 
 function install_app_update_listener(): void {
-  if (app_update_listener_installed) return
+  if (app_update_listener_installed || typeof document === 'undefined') return
   app_update_listener_installed = true
 
   document.addEventListener('visibilitychange', () => {
