@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import {
   Navigate,
   NavLink,
@@ -19,18 +19,47 @@ import { PwaInstallControl } from './features/pwa/PwaInstallControl'
 import { AutoSyncRuntime } from './features/sync/AutoSyncRuntime'
 import { SyncScreen } from './features/sync/SyncScreen'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
+import { AUTO_SYNC_COMPLETE_EVENT } from './application/sync/autoSyncEvents'
 import approvedBackgroundUrl from './pfApprovedBackground'
 import './App.css'
+
+interface AutoSyncCompleteDetail {
+  result?: {
+    applied?: number
+  }
+}
 
 function App() {
   const location = useLocation()
   const [mobile_more_open, setMobileMoreOpen] = useState(false)
+  const [remote_data_revision, setRemoteDataRevision] = useState(0)
   const secondary_mobile_active = [
     '/priorities',
     '/coach',
     '/backup',
     '/exercises',
   ].some((path) => location.pathname.startsWith(path))
+
+  useEffect(() => {
+    function handle_auto_sync_complete(event: Event) {
+      const detail = (event as CustomEvent<AutoSyncCompleteDetail>).detail
+      if ((detail?.result?.applied ?? 0) <= 0) return
+
+      // Never remount an active workout when another device syncs changes in.
+      // Live workout screens already manage their own durable state.
+      if (location.pathname.startsWith('/workout/')) return
+
+      setRemoteDataRevision((current) => current + 1)
+    }
+
+    window.addEventListener(AUTO_SYNC_COMPLETE_EVENT, handle_auto_sync_complete)
+    return () => {
+      window.removeEventListener(
+        AUTO_SYNC_COMPLETE_EVENT,
+        handle_auto_sync_complete,
+      )
+    }
+  }, [location.pathname])
 
   const nav_class = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'app-nav-link app-nav-link-active' : 'app-nav-link'
@@ -158,10 +187,10 @@ function App() {
       </header>
 
       <AutoSyncRuntime />
-      <DailySessionPrompt />
+      <DailySessionPrompt key={`daily-${remote_data_revision}`} />
 
       <main>
-        <Routes>
+        <Routes key={`routes-${remote_data_revision}`}>
           <Route path="/" element={<Navigate to="/plan" replace />} />
           <Route path="/plan" element={<PlanScreen />} />
           <Route path="/priorities" element={<PrioritiesScreen />} />
