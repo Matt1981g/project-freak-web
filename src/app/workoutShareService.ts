@@ -26,6 +26,13 @@ export interface WorkoutShareCardData {
   exercise_highlights: WorkoutShareExerciseHighlight[]
 }
 
+interface ExerciseHighlightCandidate {
+  exercise: SessionExercise
+  top_set: TrainingSet
+  completed_work_set_count: number
+  exercise_volume: number
+}
+
 function completed_reps(set: TrainingSet): number | null {
   return (
     set.completed_reps ??
@@ -67,32 +74,43 @@ function format_number(value: number): string {
   return value.toLocaleString('en-GB', { maximumFractionDigits: 1 })
 }
 
-function format_set_detail(set: TrainingSet): string {
+function format_whole_number(value: number): string {
+  return Math.round(value).toLocaleString('en-GB', {
+    maximumFractionDigits: 0,
+  })
+}
+
+function format_set_detail(set: TrainingSet, completed_work_set_count: number): string {
   const reps = completed_reps(set)
+  const set_count_suffix = ` × ${completed_work_set_count}`
 
   if (set.rep_mode === 'timed' && set.duration_seconds !== null) {
-    return `${set.duration_seconds}s`
+    return `${set.duration_seconds}s${set_count_suffix}`
   }
 
   const reps_label = reps === null ? null : String(reps)
 
   if (set.load_type === 'bodyweight') {
-    return reps_label === null ? 'BW' : `BW × ${reps_label}`
+    return reps_label === null
+      ? `BW${set_count_suffix}`
+      : `BW × ${reps_label}${set_count_suffix}`
   }
 
   if (set.load_type === 'assistance' && set.load_kg !== null) {
     return reps_label === null
-      ? `BW - ${format_number(set.load_kg)} kg`
-      : `BW - ${format_number(set.load_kg)} kg × ${reps_label}`
+      ? `BW - ${format_number(set.load_kg)} kg${set_count_suffix}`
+      : `BW - ${format_number(set.load_kg)} kg × ${reps_label}${set_count_suffix}`
   }
 
   if (set.load_kg !== null) {
     return reps_label === null
-      ? `${format_number(set.load_kg)} kg`
-      : `${format_number(set.load_kg)} kg × ${reps_label}`
+      ? `${format_number(set.load_kg)} kg${set_count_suffix}`
+      : `${format_number(set.load_kg)} kg × ${reps_label}${set_count_suffix}`
   }
 
-  return reps_label === null ? 'Completed' : `${reps_label} reps`
+  return reps_label === null
+    ? `Completed${set_count_suffix}`
+    : `${reps_label} reps${set_count_suffix}`
 }
 
 function format_duration(seconds: number | null): string {
@@ -138,17 +156,65 @@ function ordered_exercises(
   )
 }
 
-function exercise_highlight(
+function completed_work_sets_for_exercise(
   exercise: SessionExercise,
   sets: readonly TrainingSet[],
-): WorkoutShareExerciseHighlight | null {
-  const top_set = best_set(
-    sets.filter((set) => set.session_exercise_id === exercise.id),
+): TrainingSet[] {
+  return sets.filter(
+    (set) =>
+      set.session_exercise_id === exercise.id &&
+      set.set_role === 'work' &&
+      is_training_set_completed(set),
   )
+}
+
+function exercise_candidate(
+  exercise: SessionExercise,
+  sets: readonly TrainingSet[],
+): ExerciseHighlightCandidate | null {
+  const completed_sets = completed_work_sets_for_exercise(exercise, sets)
+  const top_set = best_set(completed_sets)
   if (!top_set) return null
+
   return {
-    exercise_name: exercise.exercise_name_snapshot,
-    set_detail: format_set_detail(top_set),
+    exercise,
+    top_set,
+    completed_work_set_count: completed_sets.length,
+    exercise_volume: completed_sets.reduce(
+      (total, set) => total + (set.set_load_kg_reps ?? 0),
+      0,
+    ),
+  }
+}
+
+function compare_session_highlight_candidates(
+  left: ExerciseHighlightCandidate,
+  right: ExerciseHighlightCandidate,
+): number {
+  const left_load = left.top_set.load_kg ?? 0
+  const right_load = right.top_set.load_kg ?? 0
+  if (left_load !== right_load) return right_load - left_load
+
+  const left_reps = completed_reps(left.top_set) ?? 0
+  const right_reps = completed_reps(right.top_set) ?? 0
+  if (left_reps !== right_reps) return right_reps - left_reps
+
+  if (left.exercise_volume !== right.exercise_volume) {
+    return right.exercise_volume - left.exercise_volume
+  }
+
+  return left.exercise.actual_order - right.exercise.actual_order
+}
+
+function exercise_highlight(
+  candidate: ExerciseHighlightCandidate,
+): WorkoutShareExerciseHighlight {
+  return {
+    exercise_name: candidate.exercise.exercise_name_snapshot,
+    set_detail: format_set_detail(
+      candidate.top_set,
+      candidate.completed_work_set_count,
+    ),
   }
 }
 
@@ -170,32 +236,32 @@ export async function build_workout_share_card_data(
   const completed_work_sets = sets.filter(
     (set) => set.set_role === 'work' && is_training_set_completed(set),
   )
-  const top_set = best_set(completed_work_sets)
-  const top_exercise = top_set
-    ? ordered.find((exercise) => exercise.id === top_set.session_exercise_id) ?? null
-    : null
-  const session_highlight =
-    top_set && top_exercise
-      ? {
-          exercise_name: top_exercise.exercise_name_snapshot,
-          set_detail: format_set_detail(top_set),
-        }
-      : null
 
-  const highlight_exercise_id = top_exercise?.id ?? null
-  const exercise_order = highlight_exercise_id
-    ? [
-        ...ordered.filter((exercise) => exercise.id === highlight_exercise_id),
-        ...ordered.filter((exercise) => exercise.id !== highlight_exercise_id),
-      ]
-    : ordered
-
-  const exercise_highlights = exercise_order
-    .map((exercise) => exercise_highlight(exercise, completed_work_sets))
+  const exercise_candidates = ordered
+    .map((exercise) => exercise_candidate(exercise, completed_work_sets))
     .filter(
-      (value): value is WorkoutShareExerciseHighlight => value !== null,
+      (candidate): candidate is ExerciseHighlightCandidate => candidate !== null,
+    )
+
+  // Session highlight deliberately favours the major work near the start of the
+  // session, so a late high-rep isolation movement does not dominate the card.
+  // Among the first three completed exercises, prefer load, then reps, then the
+  // exercise's completed working-set volume.
+  const session_highlight_candidate = [...exercise_candidates]
+    .slice(0, 3)
+    .sort(compare_session_highlight_candidates)[0] ?? null
+
+  const session_highlight = session_highlight_candidate
+    ? exercise_highlight(session_highlight_candidate)
+    : null
+
+  const exercise_highlights = exercise_candidates
+    .filter(
+      (candidate) =>
+        candidate.exercise.id !== session_highlight_candidate?.exercise.id,
     )
     .slice(0, 4)
+    .map(exercise_highlight)
 
   const date = format_date(session.session_date_local)
 
@@ -207,7 +273,7 @@ export async function build_workout_share_card_data(
     duration_label: format_duration(summary.duration_seconds),
     exercise_count: summary.exercise_count,
     completed_sets: summary.completed_sets,
-    total_volume_label: `${format_number(summary.total_volume_kg)} KG`,
+    total_volume_label: `${format_whole_number(summary.total_volume_kg)} KG`,
     session_highlight,
     exercise_highlights,
   }
