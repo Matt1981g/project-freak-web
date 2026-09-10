@@ -8,6 +8,7 @@ import type {
   TrainingExportScopeRequest,
   TrainingExportScopeType,
 } from '../../application/coach/trainingExport'
+import { with_end_of_week_check_in } from '../../application/coach/coachBridgeCheckIn'
 import { build_weekly_coaching_brief } from '../../application/coach/weeklyBrief'
 import { project_freak_filename } from '../../utils/projectFreakFilename'
 import { ProgrammeImportPanel } from './ProgrammeImportPanel'
@@ -174,7 +175,10 @@ export function CoachScreen() {
   }, [exerciseId, programmeBlockId, scopeType])
 
   const json = useMemo(
-    () => (payload ? JSON.stringify(payload, null, 2) : ''),
+    () =>
+      payload
+        ? JSON.stringify(with_end_of_week_check_in(payload), null, 2)
+        : '',
     [payload],
   )
   const brief = useMemo(
@@ -264,8 +268,9 @@ export function CoachScreen() {
           <h1>Coaching export</h1>
           <p>
             Export the training evidence ChatGPT needs, then import the next
-            validated programme here. The handover JSON now carries the active
-            exercise catalogue and the weekly coaching instructions automatically.
+            validated programme here. The handover JSON carries the active
+            exercise catalogue, weekly coaching instructions and mandatory
+            end-of-week preference check-in automatically.
           </p>
         </div>
         <span>PHASE 11</span>
@@ -366,8 +371,8 @@ export function CoachScreen() {
             </div>
             <p>
               Training priorities, the live active exercise catalogue, alias
-              mappings and versioned weekly coaching instructions are included
-              automatically in the Coach Bridge JSON.
+              mappings, weekly coaching instructions and the five-question
+              end-of-week check-in are included automatically in Coach Bridge JSON.
             </p>
           </section>
 
@@ -415,11 +420,14 @@ export function CoachScreen() {
             <span>WORKFLOW</span>
             <strong>
               Choose scope → download Coach Bridge JSON → upload to ChatGPT →
-              type “Build next week” → import the returned programme JSON below.
+              type “Build next week” → answer the five end-of-week questions →
+              import the returned programme JSON below.
             </strong>
             <p>
-              For weekly programming, Last 7 Days remains the normal review scope.
-              The other scopes are for targeted analysis and deeper history.
+              ChatGPT is instructed not to build the programme until you answer
+              the weekly check-in. For weekly programming, Last 7 Days remains
+              the normal review scope; the other scopes are for targeted analysis
+              and deeper history.
             </p>
           </section>
 
