@@ -32,9 +32,11 @@ export interface SaveReadinessContext {
 export interface SaveRecoveryInput {
   completed_session_id: string
   post_workout_intake: string | null
+  session_quality: number | null
   session_fatigue: number | null
   breathlessness: number | null
   energy_stability: number | null
+  coach_note: string | null
 }
 
 function validate_range(
@@ -96,9 +98,11 @@ export async function save_session_readiness(
     intra_workout_nutrition: clean_text(input.intra_workout_nutrition),
     intra_hydration_ml: input.intra_hydration_ml,
     post_workout_intake: existing?.post_workout_intake ?? null,
+    session_quality: existing?.session_quality ?? null,
     session_fatigue: existing?.session_fatigue ?? null,
     breathlessness: existing?.breathlessness ?? null,
     energy_stability: existing?.energy_stability ?? null,
+    coach_note: existing?.coach_note ?? null,
     notes: clean_text(input.notes),
   }
 
@@ -106,12 +110,12 @@ export async function save_session_readiness(
   return entry
 }
 
-
 export async function save_session_recovery(
   input: SaveRecoveryInput,
   repository: ReadinessRepository,
   context: SaveReadinessContext,
 ): Promise<ReadinessEntry> {
+  validate_range(input.session_quality, 1, 10, 'Session quality')
   validate_range(input.session_fatigue, 1, 10, 'Session fatigue')
   validate_range(input.breathlessness, 1, 10, 'Breathlessness')
   validate_range(input.energy_stability, 1, 10, 'Energy stability')
@@ -145,9 +149,11 @@ export async function save_session_recovery(
     intra_workout_nutrition: existing?.intra_workout_nutrition ?? null,
     intra_hydration_ml: existing?.intra_hydration_ml ?? null,
     post_workout_intake: clean_text(input.post_workout_intake),
+    session_quality: input.session_quality,
     session_fatigue: input.session_fatigue,
     breathlessness: input.breathlessness,
     energy_stability: input.energy_stability,
+    coach_note: clean_text(input.coach_note),
     notes: existing?.notes ?? null,
   }
 
