@@ -13,6 +13,10 @@ export interface PwaRegistrationTarget {
   scope: string
 }
 
+const APP_UPDATE_RELOAD_KEY = 'project-freak:last-app-update-reload'
+let app_update_check_in_flight: Promise<boolean> | null = null
+let app_update_listener_installed = false
+
 export function resolve_pwa_registration(
   href = 'http://localhost/',
 ): PwaRegistrationTarget {
@@ -23,9 +27,85 @@ export function resolve_pwa_registration(
   }
 }
 
+function current_module_script_url(): string | null {
+  const script = document.querySelector<HTMLScriptElement>(
+    'script[type="module"][src]',
+  )
+  return script?.src ?? null
+}
+
+function deployed_module_script_url(html: string, base_url: string): string | null {
+  const document_copy = new DOMParser().parseFromString(html, 'text/html')
+  const script = document_copy.querySelector<HTMLScriptElement>(
+    'script[type="module"][src]',
+  )
+  const source = script?.getAttribute('src')
+  return source ? new URL(source, base_url).href : null
+}
+
+async function check_for_deployed_app_update(): Promise<boolean> {
+  if (typeof document === 'undefined' || typeof location === 'undefined') {
+    return false
+  }
+  if (document.visibilityState !== 'visible') return false
+  if (app_update_check_in_flight) return app_update_check_in_flight
+
+  const operation = (async () => {
+    const current_script = current_module_script_url()
+    if (!current_script) return false
+
+    const base_url = new URL('./', location.href).href
+    const response = await fetch(base_url, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
+    })
+    if (!response.ok) return false
+
+    const deployed_script = deployed_module_script_url(
+      await response.text(),
+      base_url,
+    )
+    if (!deployed_script) return false
+
+    if (deployed_script === current_script) {
+      sessionStorage.removeItem(APP_UPDATE_RELOAD_KEY)
+      return false
+    }
+
+    if (sessionStorage.getItem(APP_UPDATE_RELOAD_KEY) === deployed_script) {
+      return false
+    }
+
+    sessionStorage.setItem(APP_UPDATE_RELOAD_KEY, deployed_script)
+    location.reload()
+    return true
+  })()
+    .catch(() => false)
+    .finally(() => {
+      app_update_check_in_flight = null
+    })
+
+  app_update_check_in_flight = operation
+  return operation
+}
+
+function install_app_update_listener(): void {
+  if (app_update_listener_installed) return
+  app_update_listener_installed = true
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void check_for_deployed_app_update()
+    }
+  })
+}
+
 export async function initialize_pwa_runtime(): Promise<PwaStartupResult> {
   let service_worker_registered = false
   let service_worker_update_requested = false
+
+  install_app_update_listener()
+  void check_for_deployed_app_update()
 
   if ('serviceWorker' in navigator) {
     try {
