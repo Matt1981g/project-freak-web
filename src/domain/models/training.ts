@@ -57,6 +57,8 @@ export interface ReadinessEntry extends MutableEntity {
   session_fatigue: number | null
   breathlessness: number | null
   energy_stability: number | null
+  session_quality?: number | null
+  coach_note?: string | null
   notes: string | null
 }
 
