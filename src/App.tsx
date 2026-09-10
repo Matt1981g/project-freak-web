@@ -18,6 +18,7 @@ import { PrioritiesScreen } from './features/priorities/PrioritiesScreen'
 import { PwaInstallControl } from './features/pwa/PwaInstallControl'
 import { AutoSyncRuntime } from './features/sync/AutoSyncRuntime'
 import { SyncScreen } from './features/sync/SyncScreen'
+import { PostWorkoutFeedbackPanel } from './features/workout/PostWorkoutFeedbackPanel'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
 import { AUTO_SYNC_COMPLETE_EVENT } from './application/sync/autoSyncEvents'
 import approvedBackgroundUrl from './pfApprovedBackground'
@@ -206,7 +207,12 @@ function App() {
 
           <Route
             path="/workout/:completed_session_id"
-            element={<WorkoutScreen />}
+            element={
+              <>
+                <WorkoutScreen />
+                <PostWorkoutFeedbackPanel />
+              </>
+            }
           />
           <Route path="/exercises" element={<ExerciseLibraryScreen />} />
           <Route path="*" element={<Navigate to="/plan" replace />} />
