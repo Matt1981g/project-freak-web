@@ -37,7 +37,7 @@ export const END_OF_WEEK_CHECK_IN_QUESTIONS = [
 export function with_end_of_week_check_in(payload: TrainingExport) {
   return {
     ...payload,
-    sessions: payload.sessions.map((session) => ({
+    sessions: (payload.sessions ?? []).map((session) => ({
       ...session,
       post_workout_feedback: session.readiness
         ? {
