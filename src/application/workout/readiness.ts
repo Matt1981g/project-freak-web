@@ -32,11 +32,11 @@ export interface SaveReadinessContext {
 export interface SaveRecoveryInput {
   completed_session_id: string
   post_workout_intake: string | null
-  session_quality: number | null
+  session_quality?: number | null
   session_fatigue: number | null
   breathlessness: number | null
   energy_stability: number | null
-  coach_note: string | null
+  coach_note?: string | null
 }
 
 function validate_range(
@@ -115,7 +115,7 @@ export async function save_session_recovery(
   repository: ReadinessRepository,
   context: SaveReadinessContext,
 ): Promise<ReadinessEntry> {
-  validate_range(input.session_quality, 1, 10, 'Session quality')
+  validate_range(input.session_quality ?? null, 1, 10, 'Session quality')
   validate_range(input.session_fatigue, 1, 10, 'Session fatigue')
   validate_range(input.breathlessness, 1, 10, 'Breathlessness')
   validate_range(input.energy_stability, 1, 10, 'Energy stability')
@@ -149,11 +149,17 @@ export async function save_session_recovery(
     intra_workout_nutrition: existing?.intra_workout_nutrition ?? null,
     intra_hydration_ml: existing?.intra_hydration_ml ?? null,
     post_workout_intake: clean_text(input.post_workout_intake),
-    session_quality: input.session_quality,
+    session_quality:
+      input.session_quality === undefined
+        ? existing?.session_quality ?? null
+        : input.session_quality,
     session_fatigue: input.session_fatigue,
     breathlessness: input.breathlessness,
     energy_stability: input.energy_stability,
-    coach_note: clean_text(input.coach_note),
+    coach_note:
+      input.coach_note === undefined
+        ? existing?.coach_note ?? null
+        : clean_text(input.coach_note),
     notes: existing?.notes ?? null,
   }
 
