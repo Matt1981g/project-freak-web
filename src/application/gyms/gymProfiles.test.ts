@@ -10,6 +10,8 @@ import {
   save_active_gym,
   copy_jacksons_to_trident,
   set_gym_exercise_available,
+  edit_gym_machine_details_with_name,
+  gym_machine_details,
 } from './gymProfiles'
 
 const NOW = '2026-09-12T18:00:00.000Z'
@@ -55,7 +57,7 @@ function fixtures() {
     get: async (key) => settings.get(key),
     put: async (setting) => { settings.set(setting.key, setting); return setting.key },
   }
-  return { profiles, availability, gymRepo, exerciseRepo, settingsRepo }
+  return { profiles, availability, exercises, gymRepo, exerciseRepo, settingsRepo }
 }
 
 describe('gym profiles', () => {
@@ -83,6 +85,51 @@ describe('gym profiles', () => {
     expect((await f.gymRepo.list_availability(TRIDENT_GYM_ID)).find(row => row.exercise_id === 'pendulum')?.available).toBe(false)
     expect((await f.gymRepo.list_availability(TRIDENT_GYM_ID)).find(row => row.exercise_id === 'db-curl')?.available).toBe(true)
   })
+
+  it('keeps Trident machine identity independent while preserving the shared exercise ID', async () => {
+    const f = fixtures()
+    await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
+
+    const jacksonPendulum = (await f.gymRepo.list_availability(JACKSONS_GYM_ID)).find(row => row.exercise_id === 'pendulum')!
+    await f.gymRepo.put_availability({
+      ...jacksonPendulum,
+      machine_brand: 'Jackson Brand',
+      machine_model: 'J-100',
+      equipment_label: 'Jacksons Pendulum',
+    })
+    const jacksonBeforeCopy = JSON.stringify((await f.gymRepo.list_availability(JACKSONS_GYM_ID)).find(row => row.exercise_id === 'pendulum'))
+
+    await copy_jacksons_to_trident(f.gymRepo, f.settingsRepo, DEVICE, NOW)
+    const copied = (await f.gymRepo.list_availability(TRIDENT_GYM_ID)).find(row => row.exercise_id === 'pendulum')!
+    expect(copied.exercise_id).toBe('pendulum')
+    expect(copied.machine_brand).toBeNull()
+    expect(copied.machine_model).toBeNull()
+    expect(copied.equipment_label).toBeNull()
+
+    await edit_gym_machine_details_with_name(
+      f.gymRepo,
+      f.exerciseRepo,
+      TRIDENT_GYM_ID,
+      'pendulum',
+      'Panatta',
+      'Super Pendulum',
+      'Trident Pendulum Squat',
+      DEVICE,
+      NOW,
+    )
+
+    const trident = (await f.gymRepo.list_availability(TRIDENT_GYM_ID)).find(row => row.exercise_id === 'pendulum')!
+    const exerciseRecord = f.exercises.find(row => row.id === 'pendulum')!
+    expect(trident.exercise_id).toBe('pendulum')
+    expect(gym_machine_details(exerciseRecord, trident)).toEqual({
+      machine_brand: 'Panatta',
+      machine_model: 'Super Pendulum',
+      display_name: 'Trident Pendulum Squat',
+    })
+    expect(JSON.stringify((await f.gymRepo.list_availability(JACKSONS_GYM_ID)).find(row => row.exercise_id === 'pendulum'))).toBe(jacksonBeforeCopy)
+    expect(f.exercises.find(row => row.id === 'pendulum')?.canonical_name).toBe('Pendulum Squat')
+  })
+
   it('seeds Trident, preserves all current exercises at Jacksons, and keeps Generic conservative', async () => {
     const f = fixtures()
     await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
