@@ -111,6 +111,8 @@ import {
   copy_jacksons_to_trident,
   set_gym_exercise_available,
   create_gym_exercise,
+  gym_machine_details,
+  edit_gym_machine_details,
   type NewGymExercise,
 } from '../application/gyms/gymProfiles'
 
@@ -144,7 +146,15 @@ export async function load_gym_equipment(gym_id: string) {
     repositories.exercises.list_active(), repositories.gyms.list_availability(gym_id),
   ])
   const available = new Set(mappings.filter(row => row.available).map(row => row.exercise_id))
-  return exercises.map(exercise => ({ ...exercise, available: available.has(exercise.id) }))
+  return exercises.map(exercise => ({ ...exercise,
+    ...gym_machine_details(exercise, mappings.find(row => row.exercise_id === exercise.id)),
+    available: available.has(exercise.id) }))
+}
+
+export async function save_gym_machine_details(gym_id: string, exercise_id: string, brand: string, model: string) {
+  await edit_gym_machine_details(repositories.gyms, repositories.exercises, gym_id,
+    exercise_id, brand, model, await current_device_id())
+  request_auto_sync('setting_changed')
 }
 
 export async function change_gym_equipment(gym_id: string, exercise_id: string, available: boolean) {
@@ -879,6 +889,7 @@ export async function start_programmed_session_workout(
     now_iso,
   )
   const active_gym = await load_active_gym(repositories.gyms, repositories.settings)
+  const gym_equipment = active_gym ? await load_gym_equipment(active_gym.id) : []
   const result = await start_programmed_workout(detail, repositories.sessions, {
     device_id,
     now_iso,
@@ -886,6 +897,7 @@ export async function start_programmed_session_workout(
     timezone: current_timezone(),
     gym_profile_id: active_gym?.id ?? null,
     gym_name_snapshot: active_gym?.name ?? null,
+    gym_exercise_names: Object.fromEntries(gym_equipment.filter(row => row.available).map(row => [row.id, row.display_name])),
   })
 
   const programme_changed = await set_programmed_status(

@@ -8,6 +8,35 @@ export const GENERIC_GYM_ID = 'gym-generic-travel'
 export const ACTIVE_GYM_SETTING_KEY = 'active_gym_profile_id'
 export const TRIDENT_COPY_KEY = 'trident_jacksons_copy_v1'
 
+export function gym_machine_details(exercise: Exercise, mapping?: GymExerciseAvailability) {
+  const brand = mapping?.machine_brand === undefined ? exercise.machine_brand ?? null : mapping.machine_brand
+  const model = mapping?.machine_model === undefined ? exercise.machine_model ?? null : mapping.machine_model
+  const original_variant = [exercise.machine_brand, exercise.machine_model].filter(Boolean).join(' ')
+  const original_suffix = original_variant ? ` — ${original_variant}` : ''
+  const name = original_suffix && exercise.canonical_name.endsWith(original_suffix)
+    ? exercise.canonical_name.slice(0, -original_suffix.length) : exercise.canonical_name
+  const variant = [brand, model].filter(Boolean).join(' ')
+  return { machine_brand: brand, machine_model: model, display_name: variant ? `${name} — ${variant}` : name }
+}
+
+export async function edit_gym_machine_details(
+  gyms: GymRepository, exercises: ExerciseRepository, gym_id: string,
+  exercise_id: string, brand: string, model: string, device_id: string,
+  timestamp = new Date().toISOString(),
+) {
+  const profile = await gyms.get_profile(gym_id)
+  const exercise = await exercises.get_by_id(exercise_id)
+  if (!profile || profile.deleted_at !== null || !exercise || exercise.deleted_at !== null) {
+    throw new Error('Gym or exercise was not found.')
+  }
+  if (brand.length > 120 || model.length > 120) throw new Error('Keep brand and model to 120 characters or fewer.')
+  const existing = (await gyms.list_availability(gym_id)).find(row => row.exercise_id === exercise_id)
+  if (!existing) throw new Error('Add this option to the gym before editing its details.')
+  await gyms.put_availability({ ...existing, machine_brand: brand.trim() || null,
+    machine_model: model.trim() || null, updated_at: timestamp,
+    revision: existing.revision + 1, device_id })
+}
+
 export interface NewGymExercise {
   name: string
   brand: string

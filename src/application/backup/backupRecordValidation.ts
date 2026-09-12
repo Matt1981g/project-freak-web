@@ -98,6 +98,8 @@ const schemas: Record<string, z.ZodTypeAny> = {
     exercise_id: z.string().min(1),
     available: z.boolean(),
     equipment_label: nullable_string,
+    machine_brand: nullable_string.optional(),
+    machine_model: nullable_string.optional(),
     notes: nullable_string,
   }),
   muscles: z.object({

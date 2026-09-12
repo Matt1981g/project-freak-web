@@ -158,6 +158,7 @@ describe('start_programmed_workout', () => {
         timezone: 'Europe/London',
         gym_profile_id: 'gym-trident-plymouth',
         gym_name_snapshot: 'Trident Gym Plymouth',
+        gym_exercise_names: { 'exercise-1': 'Nautilus Bicep Curl — Trident model' },
         id_factory: () => ids[id_index++],
       },
     )
@@ -173,7 +174,7 @@ describe('start_programmed_workout', () => {
     expect(graph?.exercises).toHaveLength(2)
     expect(graph?.exercises[0]).toMatchObject({
       programmed_session_exercise_id: 'programmed-exercise-1',
-      exercise_name_snapshot: 'Nautilus Bicep Curl',
+      exercise_name_snapshot: 'Nautilus Bicep Curl — Trident model',
       actual_order: 1,
       rotation_group_key: 'A',
       rotation_position: 1,

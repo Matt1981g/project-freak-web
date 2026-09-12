@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { GymProfile } from '../../domain/models'
-import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment } from '../../app/projectFreakServices'
+import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment, save_gym_machine_details } from '../../app/projectFreakServices'
 import styles from './GymProfilesScreen.module.css'
 
 type State = Awaited<ReturnType<typeof load_gym_profile_state>>
@@ -15,6 +15,21 @@ export function GymProfilesScreen() {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState({ name: '', brand: '', model: '', category: '' })
   const [notice, setNotice] = useState<string | null>(null)
+  const [details, setDetails] = useState<{ id: string; name: string; brand: string; model: string } | null>(null)
+
+  async function saveDetails() {
+    if (!editing || !details) return
+    setSaving(details.id)
+    setError(null)
+    try {
+      await save_gym_machine_details(editing.id, details.id, details.brand, details.model)
+      setEquipment(await load_gym_equipment(editing.id))
+      setDetails(null)
+      setNotice('Details saved for this gym only. Existing workout history is unchanged.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save details.')
+    } finally { setSaving(null) }
+  }
 
   async function create() {
     if (!editing) return
@@ -41,6 +56,7 @@ export function GymProfilesScreen() {
       const rows = await load_gym_equipment(profile.id)
       setEquipment(rows)
       setEditing(profile)
+      setDetails(null)
       setSearch('')
       setAdding(false)
       setDraft({ name: '', brand: '', model: '', category: '' })
@@ -151,10 +167,27 @@ export function GymProfilesScreen() {
           <label>Search equipment or exercise
             <input value={search} onChange={event => setSearch(event.target.value)} placeholder="e.g. curl, cable, leg press" />
           </label>
+          {details && (
+            <form onSubmit={event => { event.preventDefault(); void saveDetails() }}>
+              <fieldset className={styles.newMachine} disabled={saving !== null}>
+                <legend>Edit {details.name} — {editing.short_name} only</legend>
+                <label>Brand (optional)<input maxLength={120} value={details.brand} onChange={event => setDetails({ ...details, brand: event.target.value })} /></label>
+                <label>Model / variant (optional)<input maxLength={120} value={details.model} onChange={event => setDetails({ ...details, model: event.target.value })} /></label>
+                <p>Use this to identify the same machine. For a different physical machine, create a new option instead. Existing workout history will not be rewritten.</p>
+                <button type="submit">Save details</button>
+                <button type="button" onClick={() => setDetails(null)}>Cancel</button>
+              </fieldset>
+            </form>
+          )}
           <div className={styles.options}>
-            {equipment.filter(row => `${row.canonical_name} ${row.equipment ?? ''}`.toLowerCase().includes(search.toLowerCase())).map(row => (
+            {equipment.filter(row => `${row.display_name} ${row.equipment ?? ''}`.toLowerCase().includes(search.toLowerCase())).map(row => (
               <div key={row.id} className={styles.option}>
-                <div><strong>{row.canonical_name}</strong><small>{row.equipment ?? 'Equipment not specified'}</small></div>
+                <div><strong>{row.display_name}</strong><small>{row.machine_brand || 'Brand not specified'}{row.machine_model ? ` · ${row.machine_model}` : ''}</small>
+                  {row.available && <button disabled={saving !== null} onClick={() => {
+                    setDetails({ id: row.id, name: row.canonical_name, brand: row.machine_brand ?? '', model: row.machine_model ?? '' })
+                    setAdding(false)
+                  }}>Edit details</button>}
+                </div>
                 <button disabled={saving !== null} aria-label={`${row.available ? 'Remove' : 'Add'} ${row.canonical_name}`}
                   onClick={() => void toggle(row.id, !row.available)}>
                   {saving === row.id ? 'Saving…' : row.available ? 'Remove' : 'Add'}

@@ -15,5 +15,7 @@ export interface GymExerciseAvailability extends MutableEntity {
   exercise_id: string
   available: boolean
   equipment_label: string | null
+  machine_brand?: string | null
+  machine_model?: string | null
   notes: string | null
 }

@@ -16,6 +16,7 @@ export interface StartWorkoutContext {
   timezone: string | null
   gym_profile_id?: string | null
   gym_name_snapshot?: string | null
+  gym_exercise_names?: Record<string, string>
   id_factory?: () => string
 }
 
@@ -91,7 +92,7 @@ export async function start_programmed_workout(
     completed_session_id: session_id,
     programmed_session_exercise_id: exercise.id,
     exercise_id: exercise.exercise_id,
-    exercise_name_snapshot: exercise.exercise_name_snapshot,
+    exercise_name_snapshot: context.gym_exercise_names?.[exercise.exercise_id] ?? exercise.exercise_name_snapshot,
     planned_order: exercise.planned_order,
     actual_order: exercise.planned_order,
     rotation_group_key: exercise.rotation_group_key,
