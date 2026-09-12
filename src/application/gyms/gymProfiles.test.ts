@@ -130,6 +130,35 @@ describe('gym profiles', () => {
     expect(f.exercises.find(row => row.id === 'pendulum')?.canonical_name).toBe('Pendulum Squat')
   })
 
+  it('cleans inherited Jacksons identity from an already-copied Trident mapping', async () => {
+    const f = fixtures()
+    await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
+    const jackson = (await f.gymRepo.list_availability(JACKSONS_GYM_ID)).find(row => row.exercise_id === 'pendulum')!
+    await f.gymRepo.put_availability({
+      ...jackson,
+      machine_brand: 'Jackson Brand',
+      machine_model: 'J-100',
+      equipment_label: 'Jacksons Pendulum',
+    })
+    await copy_jacksons_to_trident(f.gymRepo, f.settingsRepo, DEVICE, NOW)
+
+    const copied = (await f.gymRepo.list_availability(TRIDENT_GYM_ID)).find(row => row.exercise_id === 'pendulum')!
+    await f.gymRepo.put_availability({
+      ...copied,
+      machine_brand: 'Jackson Brand',
+      machine_model: 'J-100',
+      equipment_label: 'Jacksons Pendulum',
+    })
+
+    await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
+    const cleaned = (await f.gymRepo.list_availability(TRIDENT_GYM_ID)).find(row => row.exercise_id === 'pendulum')!
+    expect(cleaned.exercise_id).toBe('pendulum')
+    expect(cleaned.machine_brand).toBeNull()
+    expect(cleaned.machine_model).toBeNull()
+    expect(cleaned.equipment_label).toBeNull()
+    expect((await f.gymRepo.list_availability(JACKSONS_GYM_ID)).find(row => row.exercise_id === 'pendulum')?.machine_brand).toBe('Jackson Brand')
+  })
+
   it('seeds Trident, preserves all current exercises at Jacksons, and keeps Generic conservative', async () => {
     const f = fixtures()
     await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
