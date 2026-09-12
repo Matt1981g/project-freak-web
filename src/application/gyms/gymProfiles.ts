@@ -8,15 +8,24 @@ export const GENERIC_GYM_ID = 'gym-generic-travel'
 export const ACTIVE_GYM_SETTING_KEY = 'active_gym_profile_id'
 export const TRIDENT_COPY_KEY = 'trident_jacksons_copy_v1'
 
+function base_exercise_name(exercise: Exercise) {
+  const original_variant = [exercise.machine_brand, exercise.machine_model].filter(Boolean).join(' ')
+  const original_suffix = original_variant ? ` — ${original_variant}` : ''
+  return original_suffix && exercise.canonical_name.endsWith(original_suffix)
+    ? exercise.canonical_name.slice(0, -original_suffix.length)
+    : exercise.canonical_name
+}
+
 export function gym_machine_details(exercise: Exercise, mapping?: GymExerciseAvailability) {
   const brand = mapping?.machine_brand === undefined ? exercise.machine_brand ?? null : mapping.machine_brand
   const model = mapping?.machine_model === undefined ? exercise.machine_model ?? null : mapping.machine_model
-  const original_variant = [exercise.machine_brand, exercise.machine_model].filter(Boolean).join(' ')
-  const original_suffix = original_variant ? ` — ${original_variant}` : ''
-  const name = original_suffix && exercise.canonical_name.endsWith(original_suffix)
-    ? exercise.canonical_name.slice(0, -original_suffix.length) : exercise.canonical_name
+  const name = base_exercise_name(exercise)
   const variant = [brand, model].filter(Boolean).join(' ')
-  return { machine_brand: brand, machine_model: model, display_name: variant ? `${name} — ${variant}` : name }
+  const generated_name = variant ? `${name} — ${variant}` : name
+  const display_name = mapping?.equipment_label && mapping.equipment_label !== exercise.equipment
+    ? mapping.equipment_label
+    : generated_name
+  return { machine_brand: brand, machine_model: model, display_name }
 }
 
 export async function edit_gym_machine_details(
@@ -24,17 +33,41 @@ export async function edit_gym_machine_details(
   exercise_id: string, brand: string, model: string, device_id: string,
   timestamp = new Date().toISOString(),
 ) {
+  const exercise = await exercises.get_by_id(exercise_id)
+  if (!exercise) throw new Error('Exercise was not found.')
+  return edit_gym_machine_details_with_name(
+    gyms, exercises, gym_id, exercise_id, brand, model,
+    gym_machine_details(exercise, (await gyms.list_availability(gym_id)).find(row => row.exercise_id === exercise_id)).display_name,
+    device_id, timestamp,
+  )
+}
+
+export async function edit_gym_machine_details_with_name(
+  gyms: GymRepository, exercises: ExerciseRepository, gym_id: string,
+  exercise_id: string, brand: string, model: string, display_name: string,
+  device_id: string, timestamp = new Date().toISOString(),
+) {
   const profile = await gyms.get_profile(gym_id)
   const exercise = await exercises.get_by_id(exercise_id)
   if (!profile || profile.deleted_at !== null || !exercise || exercise.deleted_at !== null) {
     throw new Error('Gym or exercise was not found.')
   }
-  if (brand.length > 120 || model.length > 120) throw new Error('Keep brand and model to 120 characters or fewer.')
+  if ([brand, model, display_name].some(value => value.length > 120)) {
+    throw new Error('Keep brand, model and display name to 120 characters or fewer.')
+  }
   const existing = (await gyms.list_availability(gym_id)).find(row => row.exercise_id === exercise_id)
   if (!existing) throw new Error('Add this option to the gym before editing its details.')
-  await gyms.put_availability({ ...existing, machine_brand: brand.trim() || null,
-    machine_model: model.trim() || null, updated_at: timestamp,
-    revision: existing.revision + 1, device_id })
+  const trimmed_name = display_name.trim()
+  if (!trimmed_name) throw new Error('Enter a display name.')
+  await gyms.put_availability({
+    ...existing,
+    machine_brand: brand.trim() || null,
+    machine_model: model.trim() || null,
+    equipment_label: trimmed_name,
+    updated_at: timestamp,
+    revision: existing.revision + 1,
+    device_id,
+  })
 }
 
 export interface NewGymExercise {
@@ -91,9 +124,19 @@ export async function copy_jacksons_to_trident(
   for (const entry of source) {
     if (existing.has(entry.exercise_id)) continue // Includes explicitly removed items.
     await gyms.put_availability({
-      ...entry, id: `${TRIDENT_GYM_ID}:${entry.exercise_id}`,
-      gym_profile_id: TRIDENT_GYM_ID, created_at: timestamp, updated_at: timestamp,
-      revision: 1, device_id, source_kind: 'user', source_id: null,
+      ...entry,
+      id: `${TRIDENT_GYM_ID}:${entry.exercise_id}`,
+      gym_profile_id: TRIDENT_GYM_ID,
+      // Copy availability only. Jacksons-specific machine identity must never relabel Trident.
+      machine_brand: null,
+      machine_model: null,
+      equipment_label: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+      revision: 1,
+      device_id,
+      source_kind: 'user',
+      source_id: null,
     })
   }
   await gyms.put_profile({
