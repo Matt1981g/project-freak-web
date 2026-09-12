@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { GymProfile } from '../../domain/models'
-import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment } from '../../app/projectFreakServices'
+import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment } from '../../app/projectFreakServices'
 import styles from './GymProfilesScreen.module.css'
 
 type State = Awaited<ReturnType<typeof load_gym_profile_state>>
@@ -12,6 +12,27 @@ export function GymProfilesScreen() {
   const [editing, setEditing] = useState<GymProfile | null>(null)
   const [equipment, setEquipment] = useState<Awaited<ReturnType<typeof load_gym_equipment>>>([])
   const [search, setSearch] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState({ name: '', brand: '', model: '', category: '' })
+  const [notice, setNotice] = useState<string | null>(null)
+
+  async function create() {
+    if (!editing) return
+    setSaving('new-machine')
+    setError(null)
+    setNotice(null)
+    try {
+      const exercise = await add_new_gym_equipment(editing.id, draft)
+      setEquipment(await load_gym_equipment(editing.id))
+      setState(await load_gym_profile_state())
+      setSearch(exercise.canonical_name)
+      setDraft({ name: '', brand: '', model: '', category: '' })
+      setAdding(false)
+      setNotice(`${exercise.canonical_name} added to ${editing.name}.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to create machine.')
+    } finally { setSaving(null) }
+  }
 
   async function edit(profile: GymProfile) {
     setSaving(profile.id)
@@ -21,6 +42,9 @@ export function GymProfilesScreen() {
       setEquipment(rows)
       setEditing(profile)
       setSearch('')
+      setAdding(false)
+      setDraft({ name: '', brand: '', model: '', category: '' })
+      setNotice(null)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load equipment.')
     } finally { setSaving(null) }
@@ -99,7 +123,31 @@ export function GymProfilesScreen() {
       {editing && (
         <section className={styles.editor} aria-label={`${editing.name} equipment`}>
           <h2>{editing.name} — equipment & exercise options</h2>
-          <p>Add or remove options from the existing exercise library. Changes save automatically for this gym only.</p>
+          <p>Add or remove existing options, or create a new machine below. Availability changes apply to this gym only.</p>
+          {notice && <p role="status">{notice}</p>}
+          <button disabled={saving !== null} onClick={() => setAdding(!adding)}>Add new machine / exercise</button>
+          {adding && (
+            <form onSubmit={event => { event.preventDefault(); void create() }}>
+              <fieldset disabled={saving !== null} className={styles.newMachine}>
+                <legend>New option for {editing.name}</legend>
+                <label>Machine / exercise name (required)
+                  <input required maxLength={120} value={draft.name} placeholder="e.g. Leg Press" onChange={event => setDraft({ ...draft, name: event.target.value })} />
+                </label>
+                <label>Brand (optional)
+                  <input maxLength={120} value={draft.brand} placeholder="e.g. Panatta or Hammer Strength" onChange={event => setDraft({ ...draft, brand: event.target.value })} />
+                </label>
+                <label>Model / variant (optional)
+                  <input maxLength={120} value={draft.model} placeholder="e.g. 45-degree plate-loaded" onChange={event => setDraft({ ...draft, model: event.target.value })} />
+                </label>
+                <label>Muscle / category (optional)
+                  <input maxLength={120} value={draft.category} placeholder="e.g. Quads" onChange={event => setDraft({ ...draft, category: event.target.value })} />
+                </label>
+                <p>Different brands/models are separate exercises with their own history. This creates a total-reps, normal-load exercise. Muscle mappings can be refined under Exercises.</p>
+                <button type="submit">{saving === 'new-machine' ? 'Saving…' : `Save to ${editing.short_name}`}</button>
+                <button type="button" onClick={() => setAdding(false)}>Cancel</button>
+              </fieldset>
+            </form>
+          )}
           <label>Search equipment or exercise
             <input value={search} onChange={event => setSearch(event.target.value)} placeholder="e.g. curl, cable, leg press" />
           </label>

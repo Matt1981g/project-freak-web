@@ -110,9 +110,21 @@ import {
   save_active_gym,
   copy_jacksons_to_trident,
   set_gym_exercise_available,
+  create_gym_exercise,
+  type NewGymExercise,
 } from '../application/gyms/gymProfiles'
 
 const repositories = create_repositories(projectFreakDb)
+
+export async function add_new_gym_equipment(gym_id: string, input: NewGymExercise) {
+  const device_id = await current_device_id()
+  const exercise = await projectFreakDb.transaction('rw', [
+    projectFreakDb.gym_profiles, projectFreakDb.exercises,
+    projectFreakDb.gym_exercise_availability, projectFreakDb.audit_events, projectFreakDb.sync_outbox,
+  ], () => create_gym_exercise(repositories.gyms, repositories.exercises, gym_id, input, device_id))
+  request_auto_sync('setting_changed')
+  return exercise
+}
 
 export async function load_gym_profile_state() {
   const device_id = await current_device_id()

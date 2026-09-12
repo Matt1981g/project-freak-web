@@ -7,3 +7,5 @@
 .option{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--pf-border)}
 .editor button{min-height:44px;min-width:85px;padding:8px 14px;border-radius:10px;border:1px solid var(--pf-accent);background:transparent;color:var(--pf-accent);font:inherit;cursor:pointer}
 .editor button:disabled{opacity:.5;cursor:wait}
+.newMachine{margin:16px 0;padding:16px;border:1px solid var(--pf-border);border-radius:12px;min-width:0}
+.newMachine button{margin-right:8px;margin-bottom:8px}

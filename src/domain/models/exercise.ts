@@ -6,6 +6,9 @@ export interface Exercise extends MutableEntity {
   short_name: string | null
   category: string | null
   equipment: string | null
+  machine_brand?: string | null
+  machine_model?: string | null
+  origin_gym_profile_id?: string | null
   default_load_type: LoadType
   rep_mode_default: RepMode
   archived_at: string | null

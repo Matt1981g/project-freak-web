@@ -1,4 +1,5 @@
 import type { Exercise, GymExerciseAvailability, GymProfile } from '../../domain/models'
+import { create_uuid } from '../../domain/ids/uuid'
 import type { ExerciseRepository, GymRepository, SettingsRepository } from '../../data/repositories/contracts'
 
 export const TRIDENT_GYM_ID = 'gym-trident-plymouth'
@@ -6,6 +7,46 @@ export const JACKSONS_GYM_ID = 'gym-jacksons-plymouth'
 export const GENERIC_GYM_ID = 'gym-generic-travel'
 export const ACTIVE_GYM_SETTING_KEY = 'active_gym_profile_id'
 export const TRIDENT_COPY_KEY = 'trident_jacksons_copy_v1'
+
+export interface NewGymExercise {
+  name: string
+  brand: string
+  model: string
+  category: string
+}
+
+export async function create_gym_exercise(
+  gyms: GymRepository, exercises: ExerciseRepository, gym_id: string,
+  input: NewGymExercise, device_id: string, timestamp = new Date().toISOString(),
+) {
+  const profile = await gyms.get_profile(gym_id)
+  if (!profile || profile.deleted_at !== null) throw new Error('Gym profile was not found.')
+  const name = input.name.trim()
+  const brand = input.brand.trim()
+  const model = input.model.trim()
+  if (!name) throw new Error('Enter a machine or exercise name.')
+  if ([name, brand, model, input.category].some(value => value.length > 120)) {
+    throw new Error('Please keep each field to 120 characters or fewer.')
+  }
+  const variant = [brand, model].filter(Boolean).join(' ')
+  const canonical_name = variant ? `${name} — ${variant}` : name
+  if ((await exercises.list_all()).some(row => row.canonical_name.toLowerCase() === canonical_name.toLowerCase())) {
+    throw new Error('This option already exists. Find it in the list and select Add, or enter a distinct model.')
+  }
+  const exercise: Exercise = {
+    id: create_uuid(), canonical_name, short_name: null,
+    category: input.category.trim() || null,
+    equipment: [name, variant].filter(Boolean).join(' — '),
+    machine_brand: brand || null, machine_model: model || null,
+    origin_gym_profile_id: gym_id,
+    default_load_type: 'normal', rep_mode_default: 'total', archived_at: null, notes: null,
+    created_at: timestamp, updated_at: timestamp, deleted_at: null, revision: 1,
+    device_id, source_kind: 'user', source_id: null,
+  }
+  await exercises.put(exercise)
+  await gyms.put_availability(availability_seed(gym_id, exercise, device_id, timestamp))
+  return exercise
+}
 
 // One-time baseline, never a live link: subsequent Trident edits stay independent.
 export async function copy_jacksons_to_trident(
@@ -134,6 +175,8 @@ export async function ensure_default_gym_profiles(
   for (const gym_profile_id of [JACKSONS_GYM_ID, GENERIC_GYM_ID]) {
     const mapped = new Set((await gyms.list_availability(gym_profile_id)).map((entry) => entry.exercise_id))
     for (const exercise of active_exercises) {
+      // New gym-specific variants must never be silently seeded into other gyms.
+      if (exercise.origin_gym_profile_id) continue
       if (mapped.has(exercise.id)) continue
       if (gym_profile_id === GENERIC_GYM_ID && !generic_safe_bet(exercise)) continue
       await gyms.put_availability(availability_seed(gym_profile_id, exercise, device_id, timestamp))
