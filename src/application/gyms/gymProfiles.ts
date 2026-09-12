@@ -5,6 +5,51 @@ export const TRIDENT_GYM_ID = 'gym-trident-plymouth'
 export const JACKSONS_GYM_ID = 'gym-jacksons-plymouth'
 export const GENERIC_GYM_ID = 'gym-generic-travel'
 export const ACTIVE_GYM_SETTING_KEY = 'active_gym_profile_id'
+export const TRIDENT_COPY_KEY = 'trident_jacksons_copy_v1'
+
+// One-time baseline, never a live link: subsequent Trident edits stay independent.
+export async function copy_jacksons_to_trident(
+  gyms: GymRepository, settings: SettingsRepository, device_id: string,
+  timestamp = new Date().toISOString(),
+) {
+  if ((await settings.get(TRIDENT_COPY_KEY))?.value_json === true) return
+  const source = await gyms.list_availability(JACKSONS_GYM_ID)
+  if (source.length === 0) return // Wait for the original exercise data to arrive.
+  const target = await gyms.get_profile(TRIDENT_GYM_ID)
+  if (!target || target.deleted_at !== null) throw new Error('Trident profile was not found.')
+  const existing = new Set((await gyms.list_availability(TRIDENT_GYM_ID)).map(row => row.exercise_id))
+  for (const entry of source) {
+    if (existing.has(entry.exercise_id)) continue // Includes explicitly removed items.
+    await gyms.put_availability({
+      ...entry, id: `${TRIDENT_GYM_ID}:${entry.exercise_id}`,
+      gym_profile_id: TRIDENT_GYM_ID, created_at: timestamp, updated_at: timestamp,
+      revision: 1, device_id, source_kind: 'user', source_id: null,
+    })
+  }
+  await gyms.put_profile({
+    ...target, notes: 'Copied from Jacksons as a starting list. Add or remove options to match Trident.',
+    is_inventory_complete: false, revision: target.revision + 1, updated_at: timestamp, device_id,
+  })
+  await settings.put({ key: TRIDENT_COPY_KEY, scope: 'global', value_json: true,
+    updated_at: timestamp, device_id })
+}
+
+export async function set_gym_exercise_available(
+  gyms: GymRepository, exercises: ExerciseRepository,
+  gym_id: string, exercise_id: string, available: boolean, device_id: string,
+  timestamp = new Date().toISOString(),
+) {
+  const profile = await gyms.get_profile(gym_id)
+  const exercise = await exercises.get_by_id(exercise_id)
+  if (!profile || profile.deleted_at !== null || !exercise || exercise.deleted_at !== null) {
+    throw new Error('Gym or exercise was not found.')
+  }
+  const existing = (await gyms.list_availability(gym_id)).find(row => row.exercise_id === exercise_id)
+  await gyms.put_availability({
+    ...(existing ?? availability_seed(gym_id, exercise, device_id, timestamp)),
+    available, revision: (existing?.revision ?? 0) + 1, updated_at: timestamp, device_id,
+  })
+}
 
 const PROFILE_SEEDS: Array<Pick<GymProfile, 'id' | 'name' | 'short_name' | 'kind' | 'is_inventory_complete' | 'notes'>> = [
   {

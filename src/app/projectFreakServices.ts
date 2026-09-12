@@ -108,6 +108,8 @@ import {
   load_active_gym,
   load_gym_profiles,
   save_active_gym,
+  copy_jacksons_to_trident,
+  set_gym_exercise_available,
 } from '../application/gyms/gymProfiles'
 
 const repositories = create_repositories(projectFreakDb)
@@ -120,7 +122,23 @@ export async function load_gym_profile_state() {
     repositories.settings,
     device_id,
   )
+  await copy_jacksons_to_trident(repositories.gyms, repositories.settings, device_id)
+  request_auto_sync('setting_changed')
   return load_gym_profiles(repositories.gyms, repositories.settings)
+}
+
+export async function load_gym_equipment(gym_id: string) {
+  const [exercises, mappings] = await Promise.all([
+    repositories.exercises.list_active(), repositories.gyms.list_availability(gym_id),
+  ])
+  const available = new Set(mappings.filter(row => row.available).map(row => row.exercise_id))
+  return exercises.map(exercise => ({ ...exercise, available: available.has(exercise.id) }))
+}
+
+export async function change_gym_equipment(gym_id: string, exercise_id: string, available: boolean) {
+  await set_gym_exercise_available(repositories.gyms, repositories.exercises,
+    gym_id, exercise_id, available, await current_device_id())
+  request_auto_sync('setting_changed')
 }
 
 export async function select_active_gym_profile(gym_profile_id: string) {
