@@ -12,6 +12,7 @@ import { BackupScreen } from './features/backup/BackupScreen'
 import { CoachScreen } from './features/coach/CoachScreen'
 import { ExerciseLibraryScreen } from './features/exercises/ExerciseLibraryScreen'
 import { HistoryScreen } from './features/history/HistoryScreen'
+import { GymProfilesScreen } from './features/gyms/GymProfilesScreen'
 import { ExerciseHistoryScreen } from './features/history/ExerciseHistoryScreen'
 import { PlanScreen } from './features/plan/PlanScreen'
 import { PrioritiesScreen } from './features/priorities/PrioritiesScreen'
@@ -39,6 +40,7 @@ function App() {
     '/coach',
     '/backup',
     '/exercises',
+    '/gyms',
   ].some((path) => location.pathname.startsWith(path))
 
   useEffect(() => {
@@ -116,6 +118,9 @@ function App() {
           <NavLink to="/exercises" className={nav_class}>
             Exercises
           </NavLink>
+          <NavLink to="/gyms" className={nav_class}>
+            Gyms
+          </NavLink>
         </nav>
 
         <nav className="app-nav app-nav-mobile" aria-label="Primary mobile">
@@ -181,6 +186,13 @@ function App() {
             >
               Exercises
             </NavLink>
+            <NavLink
+              to="/gyms"
+              className={nav_class}
+              onClick={() => setMobileMoreOpen(false)}
+            >
+              Gyms
+            </NavLink>
           </nav>
         )}
         <PwaInstallControl />
@@ -215,6 +227,7 @@ function App() {
             }
           />
           <Route path="/exercises" element={<ExerciseLibraryScreen />} />
+          <Route path="/gyms" element={<GymProfilesScreen />} />
           <Route path="*" element={<Navigate to="/plan" replace />} />
         </Routes>
       </main>

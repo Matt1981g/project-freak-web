@@ -1,6 +1,6 @@
 export const PROJECT_FREAK_DB_NAME = 'project-freak'
-export const PROJECT_FREAK_DB_SCHEMA_VERSION = 2
-export const PROJECT_FREAK_DATA_CONTRACT_VERSION = '1.0.0'
+export const PROJECT_FREAK_DB_SCHEMA_VERSION = 3
+export const PROJECT_FREAK_DATA_CONTRACT_VERSION = '1.1.0'
 
 export const PROJECT_FREAK_SCHEMA_V1 = {
   schema_meta: '&key',
@@ -69,6 +69,13 @@ export const PROJECT_FREAK_SCHEMA_V2 = {
   synced_settings: '&id, &key, scope, updated_at',
 } as const
 
+export const PROJECT_FREAK_SCHEMA_V3 = {
+  ...PROJECT_FREAK_SCHEMA_V2,
+  gym_profiles: '&id, name, kind, updated_at',
+  gym_exercise_availability:
+    '&id, gym_profile_id, exercise_id, [gym_profile_id+exercise_id], available, updated_at',
+} as const
+
 export const PROJECT_FREAK_STORE_NAMES = Object.keys(
-  PROJECT_FREAK_SCHEMA_V2,
+  PROJECT_FREAK_SCHEMA_V3,
 ) as Array<keyof typeof PROJECT_FREAK_SCHEMA_V2>

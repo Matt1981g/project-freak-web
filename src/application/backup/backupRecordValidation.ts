@@ -83,6 +83,20 @@ const schemas: Record<string, z.ZodTypeAny> = {
     alias: z.string().min(1),
     normalized_alias: z.string().min(1),
   }),
+  gym_profiles: mutable_record({
+    name: z.string().min(1),
+    short_name: z.string().min(1),
+    kind: z.enum(['home', 'previous', 'travel']),
+    is_inventory_complete: z.boolean(),
+    notes: nullable_string,
+  }),
+  gym_exercise_availability: mutable_record({
+    gym_profile_id: z.string().min(1),
+    exercise_id: z.string().min(1),
+    available: z.boolean(),
+    equipment_label: nullable_string,
+    notes: nullable_string,
+  }),
   muscles: z.object({
     id: z.string().min(1),
     name: z.string().min(1),
@@ -216,6 +230,8 @@ const schemas: Record<string, z.ZodTypeAny> = {
   }),
 
   completed_sessions: mutable_record({
+    gym_profile_id: nullable_string.optional(),
+    gym_name_snapshot: nullable_string.optional(),
     programmed_session_id: nullable_string,
     programme_block_id: nullable_string,
     workout_template_id_snapshot: nullable_string,

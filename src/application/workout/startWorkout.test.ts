@@ -156,6 +156,8 @@ describe('start_programmed_workout', () => {
         now_iso: NOW,
         local_date: '2026-09-04',
         timezone: 'Europe/London',
+        gym_profile_id: 'gym-trident-plymouth',
+        gym_name_snapshot: 'Trident Gym Plymouth',
         id_factory: () => ids[id_index++],
       },
     )
@@ -166,6 +168,8 @@ describe('start_programmed_workout', () => {
     expect(graph?.session.programmed_session_id).toBe('programmed-session-1')
     expect(graph?.session.session_date_local).toBe('2026-09-04')
     expect(graph?.session.status).toBe('in_progress')
+    expect(graph?.session.gym_profile_id).toBe('gym-trident-plymouth')
+    expect(graph?.session.gym_name_snapshot).toBe('Trident Gym Plymouth')
     expect(graph?.exercises).toHaveLength(2)
     expect(graph?.exercises[0]).toMatchObject({
       programmed_session_exercise_id: 'programmed-exercise-1',

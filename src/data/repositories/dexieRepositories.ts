@@ -7,6 +7,8 @@ import type {
   ExerciseAlias,
   ExerciseMetrics,
   ExerciseMuscle,
+  GymExerciseAvailability,
+  GymProfile,
   Muscle,
   MutableEntity,
   ProgrammeBlock,
@@ -32,6 +34,7 @@ import type { SyncRepository } from '../sync/contracts'
 import type {
   DeviceRepository,
   ExerciseRepository,
+  GymRepository,
   ProgrammeImportEntities,
   ProgrammeRepository,
   ReadinessRepository,
@@ -48,6 +51,8 @@ import {
 type SyncableEntity =
   | Exercise
   | ExerciseAlias
+  | GymProfile
+  | GymExerciseAvailability
   | ProgrammeBlock
   | ReadinessEntry
   | WorkoutTemplate
@@ -108,6 +113,10 @@ function sync_table_for_entity_type(
       return db.exercises as unknown as Table<MutableEntity, string>
     case 'exercise_alias':
       return db.exercise_aliases as unknown as Table<MutableEntity, string>
+    case 'gym_profile':
+      return db.gym_profiles as unknown as Table<MutableEntity, string>
+    case 'gym_exercise_availability':
+      return db.gym_exercise_availability as unknown as Table<MutableEntity, string>
     case 'programme_block':
       return db.programme_blocks as unknown as Table<MutableEntity, string>
     case 'workout_template':
@@ -523,6 +532,44 @@ export class DexieExerciseRepository implements ExerciseRepository {
 
         return created_aliases
       },
+    )
+  }
+}
+
+export class DexieGymRepository implements GymRepository {
+  private readonly db: ProjectFreakDatabase
+
+  constructor(db: ProjectFreakDatabase) {
+    this.db = db
+  }
+
+  async list_profiles(): Promise<GymProfile[]> {
+    return (await this.db.gym_profiles.toArray())
+      .filter((profile) => profile.deleted_at === null)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  get_profile(id: string): Promise<GymProfile | undefined> {
+    return this.db.gym_profiles.get(id)
+  }
+
+  put_profile(profile: GymProfile): Promise<string> {
+    return put_with_audit_and_outbox(this.db, this.db.gym_profiles, 'gym_profile', profile)
+  }
+
+  async list_availability(gym_profile_id: string): Promise<GymExerciseAvailability[]> {
+    return (await this.db.gym_exercise_availability
+      .where('gym_profile_id')
+      .equals(gym_profile_id)
+      .toArray()).filter((entry) => entry.deleted_at === null)
+  }
+
+  put_availability(entry: GymExerciseAvailability): Promise<string> {
+    return put_with_audit_and_outbox(
+      this.db,
+      this.db.gym_exercise_availability,
+      'gym_exercise_availability',
+      entry,
     )
   }
 }
@@ -1210,6 +1257,7 @@ export function create_repositories(
     devices: new DexieDeviceRepository(db),
     settings: new DexieSettingsRepository(db),
     exercises: new DexieExerciseRepository(db),
+    gyms: new DexieGymRepository(db),
     programme: new DexieProgrammeRepository(db),
     readiness: new DexieReadinessRepository(db),
     sessions: new DexieSessionRepository(db),

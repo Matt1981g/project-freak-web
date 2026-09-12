@@ -6,6 +6,8 @@ import type {
   ExerciseAlias,
   ExerciseMetrics,
   ExerciseMuscle,
+  GymExerciseAvailability,
+  GymProfile,
   Muscle,
   ProgrammeBlock,
   ReadinessEntry,
@@ -46,6 +48,14 @@ export interface ExerciseRepository {
     device_id: string,
     timestamp: string,
   ): Promise<ExerciseAlias[]>
+}
+
+export interface GymRepository {
+  list_profiles(): Promise<GymProfile[]>
+  get_profile(id: string): Promise<GymProfile | undefined>
+  put_profile(profile: GymProfile): Promise<string>
+  list_availability(gym_profile_id: string): Promise<GymExerciseAvailability[]>
+  put_availability(entry: GymExerciseAvailability): Promise<string>
 }
 
 export interface ProgrammeImportEntities {
@@ -142,6 +152,7 @@ export interface RepositoryBundle {
   devices: DeviceRepository
   settings: SettingsRepository
   exercises: ExerciseRepository
+  gyms: GymRepository
   programme: ProgrammeRepository
   readiness: ReadinessRepository
   sessions: SessionRepository

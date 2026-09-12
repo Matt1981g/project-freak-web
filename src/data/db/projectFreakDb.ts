@@ -8,6 +8,8 @@ import type {
   ExerciseAlias,
   ExerciseMetrics,
   ExerciseMuscle,
+  GymExerciseAvailability,
+  GymProfile,
   ImportBatch,
   ImportIssue,
   ImportRecord,
@@ -37,7 +39,7 @@ import {
   PROJECT_FREAK_DB_NAME,
   PROJECT_FREAK_DB_SCHEMA_VERSION,
   PROJECT_FREAK_SCHEMA_V1,
-  PROJECT_FREAK_SCHEMA_V2,
+  PROJECT_FREAK_SCHEMA_V3,
 } from './schema'
 
 export class ProjectFreakDatabase extends Dexie {
@@ -51,6 +53,8 @@ export class ProjectFreakDatabase extends Dexie {
   exercise_aliases!: Table<ExerciseAlias, string>
   muscles!: Table<Muscle, string>
   exercise_muscles!: Table<ExerciseMuscle, string>
+  gym_profiles!: Table<GymProfile, string>
+  gym_exercise_availability!: Table<GymExerciseAvailability, string>
 
   programme_blocks!: Table<ProgrammeBlock, string>
   workout_templates!: Table<WorkoutTemplate, string>
@@ -84,7 +88,7 @@ export class ProjectFreakDatabase extends Dexie {
 
     this.version(1).stores(PROJECT_FREAK_SCHEMA_V1)
     this.version(PROJECT_FREAK_DB_SCHEMA_VERSION).stores(
-      PROJECT_FREAK_SCHEMA_V2,
+      PROJECT_FREAK_SCHEMA_V3,
     )
   }
 

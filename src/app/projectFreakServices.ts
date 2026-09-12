@@ -103,8 +103,36 @@ import {
   parse_historical_workbook,
   type HistoricalImportPreview,
 } from '../importers/historical'
+import {
+  ensure_default_gym_profiles,
+  load_active_gym,
+  load_gym_profiles,
+  save_active_gym,
+} from '../application/gyms/gymProfiles'
 
 const repositories = create_repositories(projectFreakDb)
+
+export async function load_gym_profile_state() {
+  const device_id = await current_device_id()
+  await ensure_default_gym_profiles(
+    repositories.gyms,
+    repositories.exercises,
+    repositories.settings,
+    device_id,
+  )
+  return load_gym_profiles(repositories.gyms, repositories.settings)
+}
+
+export async function select_active_gym_profile(gym_profile_id: string) {
+  const profile = await save_active_gym(
+    gym_profile_id,
+    repositories.gyms,
+    repositories.settings,
+    await current_device_id(),
+  )
+  request_auto_sync('setting_changed')
+  return profile
+}
 
 function current_platform(): string {
   return typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent
@@ -813,11 +841,21 @@ export async function start_programmed_session_workout(
 
   const device_id = await current_device_id()
   const now_iso = new Date().toISOString()
+  await ensure_default_gym_profiles(
+    repositories.gyms,
+    repositories.exercises,
+    repositories.settings,
+    device_id,
+    now_iso,
+  )
+  const active_gym = await load_active_gym(repositories.gyms, repositories.settings)
   const result = await start_programmed_workout(detail, repositories.sessions, {
     device_id,
     now_iso,
     local_date: current_local_date(),
     timezone: current_timezone(),
+    gym_profile_id: active_gym?.id ?? null,
+    gym_name_snapshot: active_gym?.name ?? null,
   })
 
   const programme_changed = await set_programmed_status(

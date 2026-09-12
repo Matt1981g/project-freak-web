@@ -43,6 +43,8 @@ as $$
   select p_entity_type in (
     'exercise',
     'exercise_alias',
+    'gym_profile',
+    'gym_exercise_availability',
     'programme_block',
     'workout_template',
     'template_exercise',

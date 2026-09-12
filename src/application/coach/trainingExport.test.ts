@@ -239,6 +239,13 @@ function repositories(): RepositoryBundle {
       put: async () => 'exercise-1',
       merge_definitions: async () => [],
     },
+    gyms: {
+      list_profiles: async () => [],
+      get_profile: async () => undefined,
+      put_profile: async (profile) => profile.id,
+      list_availability: async () => [],
+      put_availability: async (entry) => entry.id,
+    },
     programme: {
       list_blocks: async () => [],
       list_templates_for_block: async () => [],

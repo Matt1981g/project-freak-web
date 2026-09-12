@@ -9,6 +9,8 @@ import type {
 } from '../enums/training'
 
 export interface CompletedSession extends MutableEntity {
+  gym_profile_id?: string | null
+  gym_name_snapshot?: string | null
   programmed_session_id: string | null
   programme_block_id: string | null
   workout_template_id_snapshot: string | null

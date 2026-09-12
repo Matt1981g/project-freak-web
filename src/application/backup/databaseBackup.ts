@@ -5,6 +5,7 @@ import {
   PROJECT_FREAK_DATA_CONTRACT_VERSION,
   PROJECT_FREAK_DB_SCHEMA_VERSION,
   PROJECT_FREAK_SCHEMA_V1,
+  PROJECT_FREAK_SCHEMA_V2,
   PROJECT_FREAK_STORE_NAMES,
 } from '../../data/db/schema'
 
@@ -398,18 +399,22 @@ export async function preview_backup_json(
   ) {
     throw new Error('Backup database schema version is invalid.')
   }
-  const upgrading_v1_backup =
-    db_schema_version === 1 && PROJECT_FREAK_DB_SCHEMA_VERSION === 2
+  const upgrading_legacy_backup =
+    (db_schema_version === 1 || db_schema_version === 2) &&
+    PROJECT_FREAK_DB_SCHEMA_VERSION === 3
   if (
     db_schema_version !== PROJECT_FREAK_DB_SCHEMA_VERSION &&
-    !upgrading_v1_backup
+    !upgrading_legacy_backup
   ) {
     throw new Error(
       `Backup database schema v${db_schema_version} is not compatible with this app (v${PROJECT_FREAK_DB_SCHEMA_VERSION}).`,
     )
   }
 
-  if (parsed.database.data_contract_version !== PROJECT_FREAK_DATA_CONTRACT_VERSION) {
+  if (
+    parsed.database.data_contract_version !== PROJECT_FREAK_DATA_CONTRACT_VERSION &&
+    !(upgrading_legacy_backup && parsed.database.data_contract_version === '1.0.0')
+  ) {
     throw new Error(
       `Backup data contract ${String(parsed.database.data_contract_version)} is not compatible with this app (${PROJECT_FREAK_DATA_CONTRACT_VERSION}).`,
     )
@@ -418,9 +423,18 @@ export async function preview_backup_json(
   assert_object(parsed.database.tables, 'Backup database tables')
 
   const actual_names = exact_store_names(parsed.database.tables)
-  const expected_names = upgrading_v1_backup
-    ? Object.keys(PROJECT_FREAK_SCHEMA_V1).sort()
-    : expected_store_names()
+  const legacy_required_names = Object.keys(
+    db_schema_version === 1 ? PROJECT_FREAK_SCHEMA_V1 : PROJECT_FREAK_SCHEMA_V2,
+  ).sort()
+  const current_names = expected_store_names()
+  const legacy_table_set_is_safe =
+    legacy_required_names.every((name) => actual_names.includes(name)) &&
+    actual_names.every((name) => current_names.includes(name))
+  const expected_names = upgrading_legacy_backup && legacy_table_set_is_safe
+    ? actual_names
+    : upgrading_legacy_backup
+      ? legacy_required_names
+      : current_names
   if (JSON.stringify(actual_names) !== JSON.stringify(expected_names)) {
     const missing = expected_names.filter((name) => !actual_names.includes(name))
     const extra = actual_names.filter((name) => !expected_names.includes(name))
@@ -483,10 +497,13 @@ export async function preview_backup_json(
     total_records += records.length
   }
 
-  if (upgrading_v1_backup) {
-    tables.synced_settings = []
-    checksums.synced_settings = await table_checksum([])
-    table_counts.synced_settings = 0
+  if (upgrading_legacy_backup) {
+    for (const table_name of expected_store_names()) {
+      if (tables[table_name]) continue
+      tables[table_name] = []
+      checksums[table_name] = await table_checksum([])
+      table_counts[table_name] = 0
+    }
   }
 
   const backup: ProjectFreakBackup = {

@@ -14,6 +14,8 @@ export interface StartWorkoutContext {
   now_iso: string
   local_date: string
   timezone: string | null
+  gym_profile_id?: string | null
+  gym_name_snapshot?: string | null
   id_factory?: () => string
 }
 
@@ -38,6 +40,8 @@ export async function start_programmed_workout(
   const session_id = make_id()
 
   const session: CompletedSession = {
+    gym_profile_id: context.gym_profile_id ?? null,
+    gym_name_snapshot: context.gym_name_snapshot ?? null,
     id: session_id,
     created_at: context.now_iso,
     updated_at: context.now_iso,

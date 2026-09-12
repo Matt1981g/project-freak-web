@@ -224,7 +224,7 @@ describe('PROJECT FREAK database backup', () => {
     expect(await db.settings.get('test-setting')).toBeDefined()
   })
 
-  it('upgrades a valid pre-v2 backup by adding the new synced settings table', async () => {
+  it('upgrades a valid legacy backup to the current schema', async () => {
     const backup = await build_full_backup(db, {
       now_iso: NOW,
       source_device_id: 'device-1',
@@ -236,7 +236,7 @@ describe('PROJECT FREAK database backup', () => {
 
     const preview = await preview_backup_json(JSON.stringify(backup))
     expect(preview.valid).toBe(true)
-    expect(preview.db_schema_version).toBe(2)
+    expect(preview.db_schema_version).toBe(3)
     expect(preview.backup.database.tables.synced_settings).toEqual([])
     expect(preview.backup.checksums.tables.synced_settings).toMatch(
       /^[a-f0-9]{64}$/,
