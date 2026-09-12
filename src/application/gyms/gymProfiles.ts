@@ -34,13 +34,22 @@ export async function edit_gym_machine_details(
   exercise_id: string, brand: string, model: string, device_id: string,
   timestamp = new Date().toISOString(),
 ) {
+  const profile = await gyms.get_profile(gym_id)
   const exercise = await exercises.get_by_id(exercise_id)
-  if (!exercise) throw new Error('Exercise was not found.')
-  return edit_gym_machine_details_with_name(
-    gyms, exercises, gym_id, exercise_id, brand, model,
-    gym_machine_details(exercise, (await gyms.list_availability(gym_id)).find(row => row.exercise_id === exercise_id)).display_name,
-    device_id, timestamp,
-  )
+  if (!profile || profile.deleted_at !== null || !exercise || exercise.deleted_at !== null) {
+    throw new Error('Gym or exercise was not found.')
+  }
+  if (brand.length > 120 || model.length > 120) throw new Error('Keep brand and model to 120 characters or fewer.')
+  const existing = (await gyms.list_availability(gym_id)).find(row => row.exercise_id === exercise_id)
+  if (!existing) throw new Error('Add this option to the gym before editing its details.')
+  await gyms.put_availability({
+    ...existing,
+    machine_brand: brand.trim() || null,
+    machine_model: model.trim() || null,
+    updated_at: timestamp,
+    revision: existing.revision + 1,
+    device_id,
+  })
 }
 
 export async function edit_gym_machine_details_with_name(
@@ -158,13 +167,13 @@ async function isolate_legacy_trident_machine_identity(
   if ((await settings.get(TRIDENT_MACHINE_IDENTITY_SPLIT_KEY))?.value_json === true) return
   if ((await settings.get(TRIDENT_COPY_KEY))?.value_json !== true) return
 
-  const [trident_rows, jackson_rows, all_exercises] = await Promise.all([
+  const [trident_rows, jackson_rows, active_exercises] = await Promise.all([
     gyms.list_availability(TRIDENT_GYM_ID),
     gyms.list_availability(JACKSONS_GYM_ID),
-    exercises.list_all(),
+    exercises.list_active(),
   ])
   const jackson_by_exercise = new Map(jackson_rows.map(row => [row.exercise_id, row]))
-  const exercise_by_id = new Map(all_exercises.map(row => [row.id, row]))
+  const exercise_by_id = new Map(active_exercises.map(row => [row.id, row]))
 
   for (const row of trident_rows) {
     const exercise = exercise_by_id.get(row.exercise_id)
