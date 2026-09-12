@@ -7,6 +7,7 @@ export const JACKSONS_GYM_ID = 'gym-jacksons-plymouth'
 export const GENERIC_GYM_ID = 'gym-generic-travel'
 export const ACTIVE_GYM_SETTING_KEY = 'active_gym_profile_id'
 export const TRIDENT_COPY_KEY = 'trident_jacksons_copy_v1'
+export const TRIDENT_MACHINE_IDENTITY_SPLIT_KEY = 'trident_machine_identity_split_v1'
 
 function base_exercise_name(exercise: Exercise) {
   const original_variant = [exercise.machine_brand, exercise.machine_model].filter(Boolean).join(' ')
@@ -147,6 +148,61 @@ export async function copy_jacksons_to_trident(
     updated_at: timestamp, device_id })
 }
 
+async function isolate_legacy_trident_machine_identity(
+  gyms: GymRepository,
+  exercises: ExerciseRepository,
+  settings: SettingsRepository,
+  device_id: string,
+  timestamp: string,
+) {
+  if ((await settings.get(TRIDENT_MACHINE_IDENTITY_SPLIT_KEY))?.value_json === true) return
+  if ((await settings.get(TRIDENT_COPY_KEY))?.value_json !== true) return
+
+  const [trident_rows, jackson_rows, all_exercises] = await Promise.all([
+    gyms.list_availability(TRIDENT_GYM_ID),
+    gyms.list_availability(JACKSONS_GYM_ID),
+    exercises.list_all(),
+  ])
+  const jackson_by_exercise = new Map(jackson_rows.map(row => [row.exercise_id, row]))
+  const exercise_by_id = new Map(all_exercises.map(row => [row.id, row]))
+
+  for (const row of trident_rows) {
+    const exercise = exercise_by_id.get(row.exercise_id)
+    if (!exercise || exercise.origin_gym_profile_id === TRIDENT_GYM_ID) continue
+    const jackson = jackson_by_exercise.get(row.exercise_id)
+
+    const inherited_brand = row.machine_brand === undefined ||
+      (jackson !== undefined && row.machine_brand === jackson.machine_brand)
+    const inherited_model = row.machine_model === undefined ||
+      (jackson !== undefined && row.machine_model === jackson.machine_model)
+    const inherited_label = row.equipment_label === exercise.equipment ||
+      (jackson !== undefined && row.equipment_label === jackson.equipment_label)
+
+    const next_brand = inherited_brand ? null : row.machine_brand ?? null
+    const next_model = inherited_model ? null : row.machine_model ?? null
+    const next_label = inherited_label ? null : row.equipment_label
+    if (row.machine_brand === next_brand && row.machine_model === next_model && row.equipment_label === next_label) continue
+
+    await gyms.put_availability({
+      ...row,
+      machine_brand: next_brand,
+      machine_model: next_model,
+      equipment_label: next_label,
+      updated_at: timestamp,
+      revision: row.revision + 1,
+      device_id,
+    })
+  }
+
+  await settings.put({
+    key: TRIDENT_MACHINE_IDENTITY_SPLIT_KEY,
+    scope: 'global',
+    value_json: true,
+    updated_at: timestamp,
+    device_id,
+  })
+}
+
 export async function set_gym_exercise_available(
   gyms: GymRepository, exercises: ExerciseRepository,
   gym_id: string, exercise_id: string, available: boolean, device_id: string,
@@ -254,6 +310,8 @@ export async function ensure_default_gym_profiles(
       await gyms.put_availability(availability_seed(gym_profile_id, exercise, device_id, timestamp))
     }
   }
+
+  await isolate_legacy_trident_machine_identity(gyms, exercises, settings, device_id, timestamp)
 
   if (!(await settings.get(ACTIVE_GYM_SETTING_KEY))) {
     await settings.put({
