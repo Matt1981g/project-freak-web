@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { GymProfile } from '../../domain/models'
-import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment, save_gym_machine_details } from '../../app/projectFreakServices'
+import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment } from '../../app/projectFreakServices'
+import { save_gym_machine_identity } from '../../app/gymMachineDetailsService'
 import styles from './GymProfilesScreen.module.css'
 
 type State = Awaited<ReturnType<typeof load_gym_profile_state>>
@@ -15,17 +16,17 @@ export function GymProfilesScreen() {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState({ name: '', brand: '', model: '', category: '' })
   const [notice, setNotice] = useState<string | null>(null)
-  const [details, setDetails] = useState<{ id: string; name: string; brand: string; model: string } | null>(null)
+  const [details, setDetails] = useState<{ id: string; name: string; display_name: string; brand: string; model: string } | null>(null)
 
   async function saveDetails() {
     if (!editing || !details) return
     setSaving(details.id)
     setError(null)
     try {
-      await save_gym_machine_details(editing.id, details.id, details.brand, details.model)
+      await save_gym_machine_identity(editing.id, details.id, details.display_name, details.brand, details.model)
       setEquipment(await load_gym_equipment(editing.id))
       setDetails(null)
-      setNotice('Details saved for this gym only. Existing workout history is unchanged.')
+      setNotice('Machine details saved for this gym only. Existing workout history and exercise ID are unchanged.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save details.')
     } finally { setSaving(null) }
@@ -170,11 +171,14 @@ export function GymProfilesScreen() {
           {details && (
             <form onSubmit={event => { event.preventDefault(); void saveDetails() }}>
               <fieldset className={styles.newMachine} disabled={saving !== null}>
-                <legend>Edit {details.name} — {editing.short_name} only</legend>
+                <legend>Edit machine details — {editing.short_name} only</legend>
+                <label>Display name
+                  <input required maxLength={120} value={details.display_name} onChange={event => setDetails({ ...details, display_name: event.target.value })} />
+                </label>
                 <label>Brand (optional)<input maxLength={120} value={details.brand} onChange={event => setDetails({ ...details, brand: event.target.value })} /></label>
                 <label>Model / variant (optional)<input maxLength={120} value={details.model} onChange={event => setDetails({ ...details, model: event.target.value })} /></label>
-                <p>Use this to identify the same machine. For a different physical machine, create a new option instead. Existing workout history will not be rewritten.</p>
-                <button type="submit">Save details</button>
+                <p>This changes how the existing machine is identified at {editing.short_name}. Its exercise ID stays the same, so linked workouts, sets and performance history remain intact. Historical workout names are not rewritten.</p>
+                <button type="submit">Save machine details</button>
                 <button type="button" onClick={() => setDetails(null)}>Cancel</button>
               </fieldset>
             </form>
@@ -184,9 +188,9 @@ export function GymProfilesScreen() {
               <div key={row.id} className={styles.option}>
                 <div><strong>{row.display_name}</strong><small>{row.machine_brand || 'Brand not specified'}{row.machine_model ? ` · ${row.machine_model}` : ''}</small>
                   {row.available && <button disabled={saving !== null} onClick={() => {
-                    setDetails({ id: row.id, name: row.canonical_name, brand: row.machine_brand ?? '', model: row.machine_model ?? '' })
+                    setDetails({ id: row.id, name: row.canonical_name, display_name: row.display_name, brand: row.machine_brand ?? '', model: row.machine_model ?? '' })
                     setAdding(false)
-                  }}>Edit details</button>}
+                  }}>Edit machine details</button>}
                 </div>
                 <button disabled={saving !== null} aria-label={`${row.available ? 'Remove' : 'Add'} ${row.canonical_name}`}
                   onClick={() => void toggle(row.id, !row.available)}>
