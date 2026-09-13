@@ -2021,7 +2021,8 @@
   letter-spacing: 0.08em;
 }
 
-.substitutionEditor select {
+.substitutionEditor select,
+.substitutionEditor input {
   width: 100%;
   min-height: 44px;
   padding: 0 9px;
