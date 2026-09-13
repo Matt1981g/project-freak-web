@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
 import { create_repositories } from '../../data/repositories'
 import { build_full_backup, preview_backup_json } from '../backup/databaseBackup'
-import { create_gym_exercise, ensure_default_gym_profiles, TRIDENT_GYM_ID, JACKSONS_GYM_ID, GENERIC_GYM_ID, edit_gym_machine_details, gym_machine_details, set_gym_exercise_available } from './gymProfiles'
+import { create_gym_exercise, ensure_default_gym_profiles, TRIDENT_GYM_ID, JACKSONS_GYM_ID, GENERIC_GYM_ID, edit_gym_machine_details, gym_machine_details, install_trident_catalogue_baseline, set_gym_exercise_available } from './gymProfiles'
+import { TRIDENT_CATALOGUE } from './tridentCatalogue'
 
 describe('new gym machines', () => {
   let db: ProjectFreakDatabase
@@ -69,5 +70,16 @@ describe('new gym machines', () => {
     await expect(create_gym_exercise(repos.gyms, repos.exercises, TRIDENT_GYM_ID,
       { ...input, name: '  ' }, 'test-device')).rejects.toThrow('Enter a machine')
     expect(await db.exercises.count()).toBe(1)
+  })
+
+  it('installs the Trident catalogue inside the complete IndexedDB transaction scope', async () => {
+    await db.transaction('rw', [
+      db.devices, db.settings, db.synced_settings, db.gym_profiles, db.exercises,
+      db.gym_exercise_availability, db.audit_events, db.sync_outbox,
+    ], () => install_trident_catalogue_baseline(
+      repos.gyms, repos.exercises, repos.settings, 'test-device',
+    ))
+
+    expect((await repos.gyms.list_availability(TRIDENT_GYM_ID)).filter(row => row.available)).toHaveLength(TRIDENT_CATALOGUE.length)
   })
 })

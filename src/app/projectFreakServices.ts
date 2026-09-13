@@ -140,7 +140,8 @@ export async function load_gym_profile_state() {
   )
   await copy_jacksons_to_trident(repositories.gyms, repositories.settings, device_id)
   await projectFreakDb.transaction('rw', [
-    projectFreakDb.settings, projectFreakDb.gym_profiles, projectFreakDb.exercises,
+    projectFreakDb.devices, projectFreakDb.settings, projectFreakDb.synced_settings,
+    projectFreakDb.gym_profiles, projectFreakDb.exercises,
     projectFreakDb.gym_exercise_availability, projectFreakDb.audit_events, projectFreakDb.sync_outbox,
   ], () => install_trident_catalogue_baseline(
     repositories.gyms, repositories.exercises, repositories.settings, device_id,
