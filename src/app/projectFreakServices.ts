@@ -113,6 +113,8 @@ import {
   create_gym_exercise,
   gym_machine_details,
   edit_gym_machine_details,
+  install_trident_catalogue_baseline,
+  set_gym_equipment_verified,
   type NewGymExercise,
 } from '../application/gyms/gymProfiles'
 
@@ -137,6 +139,12 @@ export async function load_gym_profile_state() {
     device_id,
   )
   await copy_jacksons_to_trident(repositories.gyms, repositories.settings, device_id)
+  await projectFreakDb.transaction('rw', [
+    projectFreakDb.settings, projectFreakDb.gym_profiles, projectFreakDb.exercises,
+    projectFreakDb.gym_exercise_availability, projectFreakDb.audit_events, projectFreakDb.sync_outbox,
+  ], () => install_trident_catalogue_baseline(
+    repositories.gyms, repositories.exercises, repositories.settings, device_id,
+  ))
   request_auto_sync('setting_changed')
   return load_gym_profiles(repositories.gyms, repositories.settings)
 }
@@ -146,9 +154,20 @@ export async function load_gym_equipment(gym_id: string) {
     repositories.exercises.list_active(), repositories.gyms.list_availability(gym_id),
   ])
   const available = new Set(mappings.filter(row => row.available).map(row => row.exercise_id))
-  return exercises.map(exercise => ({ ...exercise,
-    ...gym_machine_details(exercise, mappings.find(row => row.exercise_id === exercise.id)),
-    available: available.has(exercise.id) }))
+  return exercises.map(exercise => {
+    const mapping = mappings.find(row => row.exercise_id === exercise.id)
+    return { ...exercise,
+      ...gym_machine_details(exercise, mapping),
+      gym_notes: mapping?.notes ?? null,
+      available: available.has(exercise.id) }
+  })
+}
+
+export async function verify_gym_equipment(gym_id: string, exercise_id: string, verified: boolean) {
+  await set_gym_equipment_verified(
+    repositories.gyms, gym_id, exercise_id, verified, await current_device_id(),
+  )
+  request_auto_sync('setting_changed')
 }
 
 export async function save_gym_machine_details(gym_id: string, exercise_id: string, brand: string, model: string) {

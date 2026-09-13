@@ -9,3 +9,4 @@
 .editor button:disabled{opacity:.5;cursor:wait}
 .newMachine{margin:16px 0;padding:16px;border:1px solid var(--pf-border);border-radius:12px;min-width:0}
 .newMachine button{margin-right:8px;margin-bottom:8px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.filters button[aria-pressed="true"]{background:var(--pf-accent);color:#071006}.option>div{min-width:0;flex:1}.option>button:last-child{flex:0 0 auto}.detail{max-width:640px;margin-top:5px;font-size:12px;line-height:1.4}.option .confirmed,.option .unconfirmed{min-height:34px;margin:8px 8px 0 0;padding:4px 9px;font-size:12px}.option .confirmed{border-color:var(--pf-accent);background:rgba(198,255,0,.12)}.option .unconfirmed{border-color:var(--pf-orange);color:var(--pf-orange)}

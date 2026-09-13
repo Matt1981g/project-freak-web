@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { GymProfile } from '../../domain/models'
-import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment } from '../../app/projectFreakServices'
+import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment, verify_gym_equipment } from '../../app/projectFreakServices'
 import { save_gym_machine_identity } from '../../app/gymMachineDetailsService'
 import styles from './GymProfilesScreen.module.css'
 
@@ -17,6 +17,7 @@ export function GymProfilesScreen() {
   const [draft, setDraft] = useState({ name: '', brand: '', model: '', category: '' })
   const [notice, setNotice] = useState<string | null>(null)
   const [details, setDetails] = useState<{ id: string; name: string; display_name: string; brand: string; model: string } | null>(null)
+  const [equipmentView, setEquipmentView] = useState<'available' | 'unconfirmed' | 'all'>('available')
 
   async function saveDetails() {
     if (!editing || !details) return
@@ -62,6 +63,7 @@ export function GymProfilesScreen() {
       setAdding(false)
       setDraft({ name: '', brand: '', model: '', category: '' })
       setNotice(null)
+      setEquipmentView('available')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load equipment.')
     } finally { setSaving(null) }
@@ -77,6 +79,18 @@ export function GymProfilesScreen() {
       setState(await load_gym_profile_state())
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save equipment.')
+    } finally { setSaving(null) }
+  }
+
+  async function verify(exercise_id: string, verified: boolean) {
+    if (!editing) return
+    setSaving(exercise_id)
+    setError(null)
+    try {
+      await verify_gym_equipment(editing.id, exercise_id, verified)
+      setEquipment(await load_gym_equipment(editing.id))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save verification.')
     } finally { setSaving(null) }
   }
 
@@ -168,6 +182,17 @@ export function GymProfilesScreen() {
           <label>Search equipment or exercise
             <input value={search} onChange={event => setSearch(event.target.value)} placeholder="e.g. curl, cable, leg press" />
           </label>
+          <div className={styles.filters}>
+            <button type="button" aria-pressed={equipmentView === 'available'} onClick={() => setEquipmentView('available')}>
+              Available ({equipment.filter(row => row.available).length})
+            </button>
+            <button type="button" aria-pressed={equipmentView === 'unconfirmed'} onClick={() => setEquipmentView('unconfirmed')}>
+              Unconfirmed ({equipment.filter(row => row.available && row.gym_notes?.startsWith('[UNCONFIRMED]')).length})
+            </button>
+            <button type="button" aria-pressed={equipmentView === 'all'} onClick={() => setEquipmentView('all')}>
+              Show all ({equipment.length})
+            </button>
+          </div>
           {details && (
             <form onSubmit={event => { event.preventDefault(); void saveDetails() }}>
               <fieldset className={styles.newMachine} disabled={saving !== null}>
@@ -184,9 +209,27 @@ export function GymProfilesScreen() {
             </form>
           )}
           <div className={styles.options}>
-            {equipment.filter(row => `${row.display_name} ${row.equipment ?? ''}`.toLowerCase().includes(search.toLowerCase())).map(row => (
+            {equipment
+              .filter(row => (
+                equipmentView === 'all' ||
+                (equipmentView === 'available' && row.available) ||
+                (equipmentView === 'unconfirmed' && row.available && row.gym_notes?.startsWith('[UNCONFIRMED]'))
+              ) && `${row.display_name} ${row.equipment ?? ''} ${row.gym_notes ?? ''}`.toLowerCase().includes(search.toLowerCase()))
+              .sort((a, b) => Number(b.available) - Number(a.available) || a.display_name.localeCompare(b.display_name))
+              .map(row => {
+                const unconfirmed = row.gym_notes?.startsWith('[UNCONFIRMED]') ?? false
+                const confirmed = row.gym_notes?.startsWith('[CONFIRMED]') ?? false
+                const note = row.gym_notes?.replace(/^\[(?:UNCONFIRMED|CONFIRMED)\]\s*/, '')
+                return (
               <div key={row.id} className={styles.option}>
                 <div><strong>{row.display_name}</strong><small>{row.machine_brand || 'Brand not specified'}{row.machine_model ? ` · ${row.machine_model}` : ''}</small>
+                  {note && <small className={styles.detail}>{note}</small>}
+                  {row.available && (unconfirmed || confirmed) && (
+                    <button className={confirmed ? styles.confirmed : styles.unconfirmed} disabled={saving !== null}
+                      onClick={() => void verify(row.id, !confirmed)}>
+                      {confirmed ? 'Confirmed present' : 'Confirm present'}
+                    </button>
+                  )}
                   {row.available && <button disabled={saving !== null} onClick={() => {
                     setDetails({ id: row.id, name: row.canonical_name, display_name: row.display_name, brand: row.machine_brand ?? '', model: row.machine_model ?? '' })
                     setAdding(false)
@@ -197,7 +240,8 @@ export function GymProfilesScreen() {
                   {saving === row.id ? 'Saving…' : row.available ? 'Remove' : 'Add'}
                 </button>
               </div>
-            ))}
+                )
+              })}
           </div>
           <button disabled={saving !== null} onClick={() => setEditing(null)}>Done</button>
         </section>

@@ -1,6 +1,7 @@
 import type { Exercise, GymExerciseAvailability, GymProfile } from '../../domain/models'
 import { create_uuid } from '../../domain/ids/uuid'
 import type { ExerciseRepository, GymRepository, SettingsRepository } from '../../data/repositories/contracts'
+import { TRIDENT_CATALOGUE, type TridentCatalogueSeed } from './tridentCatalogue'
 
 export const TRIDENT_GYM_ID = 'gym-trident-plymouth'
 export const JACKSONS_GYM_ID = 'gym-jacksons-plymouth'
@@ -8,6 +9,7 @@ export const GENERIC_GYM_ID = 'gym-generic-travel'
 export const ACTIVE_GYM_SETTING_KEY = 'active_gym_profile_id'
 export const TRIDENT_COPY_KEY = 'trident_jacksons_copy_v1'
 export const TRIDENT_MACHINE_IDENTITY_SPLIT_KEY = 'trident_machine_identity_split_v1'
+export const TRIDENT_CATALOGUE_BASELINE_KEY = 'trident_catalogue_baseline_v1'
 
 function base_exercise_name(exercise: Exercise) {
   const original_variant = [exercise.machine_brand, exercise.machine_model].filter(Boolean).join(' ')
@@ -284,6 +286,152 @@ function availability_seed(
     source_kind: 'user',
     source_id: null,
   }
+}
+
+function candidate_note(seed: TridentCatalogueSeed): string {
+  return seed.verification === 'candidate'
+    ? `[UNCONFIRMED] ${seed.notes}`
+    : `[CONFIRMED] ${seed.notes}`
+}
+
+function seeded_exercise(seed: TridentCatalogueSeed, device_id: string, timestamp: string): Exercise {
+  const variant = [seed.brand, seed.model].filter(Boolean).join(' ')
+  return {
+    id: seed.id,
+    canonical_name: variant ? `${seed.name} — ${variant}` : seed.name,
+    short_name: seed.name,
+    category: seed.category,
+    equipment: seed.equipment,
+    machine_brand: seed.brand,
+    machine_model: seed.model,
+    origin_gym_profile_id: TRIDENT_GYM_ID,
+    default_load_type: 'normal',
+    rep_mode_default: 'total',
+    archived_at: null,
+    notes: seed.notes,
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted_at: null,
+    revision: 1,
+    device_id,
+    source_kind: 'user',
+    source_id: 'trident-catalogue-v1',
+  }
+}
+
+function same_seed_machine(exercise: Exercise, seed: TridentCatalogueSeed): boolean {
+  return exercise.origin_gym_profile_id === TRIDENT_GYM_ID &&
+    (exercise.machine_brand ?? '').toLocaleLowerCase('en-GB') === (seed.brand ?? '').toLocaleLowerCase('en-GB') &&
+    (exercise.machine_model ?? '').toLocaleLowerCase('en-GB') === (seed.model ?? '').toLocaleLowerCase('en-GB') &&
+    base_exercise_name(exercise).toLocaleLowerCase('en-GB') === seed.name.toLocaleLowerCase('en-GB')
+}
+
+/**
+ * Replaces only the copied Jacksons baseline. No exercise, workout, set, or Jacksons
+ * availability record is deleted. Existing Trident-created machines are retained.
+ */
+export async function install_trident_catalogue_baseline(
+  gyms: GymRepository,
+  exercises: ExerciseRepository,
+  settings: SettingsRepository,
+  device_id: string,
+  timestamp = new Date().toISOString(),
+): Promise<void> {
+  if ((await settings.get(TRIDENT_CATALOGUE_BASELINE_KEY))?.value_json === true) return
+  const profile = await gyms.get_profile(TRIDENT_GYM_ID)
+  if (!profile || profile.deleted_at !== null) throw new Error('Trident profile was not found.')
+
+  const all_exercises = await exercises.list_all()
+  const exercise_by_id = new Map(all_exercises.map(row => [row.id, row]))
+  const trident_rows = await gyms.list_availability(TRIDENT_GYM_ID)
+  const mapping_by_exercise = new Map(trident_rows.map(row => [row.exercise_id, row]))
+  const installed_ids = new Set<string>()
+
+  for (const seed of TRIDENT_CATALOGUE) {
+    let exercise = exercise_by_id.get(seed.id) ?? all_exercises.find(row => same_seed_machine(row, seed))
+    if (!exercise) {
+      exercise = seeded_exercise(seed, device_id, timestamp)
+      await exercises.put(exercise)
+      all_exercises.push(exercise)
+      exercise_by_id.set(exercise.id, exercise)
+    }
+    installed_ids.add(exercise.id)
+
+    const existing = mapping_by_exercise.get(exercise.id)
+    const mapping = existing ?? availability_seed(TRIDENT_GYM_ID, exercise, device_id, timestamp)
+    await gyms.put_availability({
+      ...mapping,
+      available: true,
+      equipment_label: seed.display_name,
+      machine_brand: seed.brand,
+      machine_model: seed.model,
+      notes: candidate_note(seed),
+      updated_at: timestamp,
+      revision: existing ? existing.revision + 1 : 1,
+      device_id,
+      source_kind: 'user',
+      source_id: 'trident-catalogue-v1',
+    })
+  }
+
+  // Hide the copied Jacksons choices at Trident without deleting any definition or history.
+  for (const row of trident_rows) {
+    if (!row.available || installed_ids.has(row.exercise_id)) continue
+    const exercise = exercise_by_id.get(row.exercise_id)
+    if (exercise?.origin_gym_profile_id === TRIDENT_GYM_ID) continue
+    await gyms.put_availability({
+      ...row,
+      available: false,
+      notes: 'Removed from the Trident starting list when the Jacksons copy was replaced. The Jacksons record and all history remain intact.',
+      updated_at: timestamp,
+      revision: row.revision + 1,
+      device_id,
+    })
+  }
+
+  await gyms.put_profile({
+    ...profile,
+    notes: 'Provisional catalogue: 22 Pure Strength plate-loaded models, the Selection 700 pin-loaded range, and confirmed cable/free-weight options. Confirm or remove catalogue candidates during the next visit.',
+    is_inventory_complete: false,
+    updated_at: timestamp,
+    revision: profile.revision + 1,
+    device_id,
+  })
+  await settings.put({
+    key: TRIDENT_COPY_KEY,
+    scope: 'global',
+    value_json: true,
+    updated_at: timestamp,
+    device_id,
+  })
+  await settings.put({
+    key: TRIDENT_CATALOGUE_BASELINE_KEY,
+    scope: 'global',
+    value_json: true,
+    updated_at: timestamp,
+    device_id,
+  })
+}
+
+export async function set_gym_equipment_verified(
+  gyms: GymRepository,
+  gym_id: string,
+  exercise_id: string,
+  verified: boolean,
+  device_id: string,
+  timestamp = new Date().toISOString(),
+): Promise<void> {
+  const existing = (await gyms.list_availability(gym_id)).find(row => row.exercise_id === exercise_id)
+  if (!existing || existing.deleted_at !== null) throw new Error('Gym equipment option was not found.')
+  const note = existing.notes ?? ''
+  const detail = note.replace(/^\[(?:UNCONFIRMED|CONFIRMED)\]\s*/, '')
+  await gyms.put_availability({
+    ...existing,
+    notes: `${verified ? '[CONFIRMED]' : '[UNCONFIRMED]'} ${detail}`.trim(),
+    updated_at: timestamp,
+    revision: existing.revision + 1,
+    device_id,
+  })
 }
 
 export async function ensure_default_gym_profiles(
