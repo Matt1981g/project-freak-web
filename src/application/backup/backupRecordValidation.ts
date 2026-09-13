@@ -100,6 +100,7 @@ const schemas: Record<string, z.ZodTypeAny> = {
     equipment_label: nullable_string,
     machine_brand: nullable_string.optional(),
     machine_model: nullable_string.optional(),
+    setup_notes: nullable_string.optional(),
     notes: nullable_string,
   }),
   muscles: z.object({

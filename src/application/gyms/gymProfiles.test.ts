@@ -145,6 +145,48 @@ describe('gym profiles', () => {
     expect(f.exercises.find(row => row.id === 'pendulum')?.canonical_name).toBe('Pendulum Squat')
   })
 
+  it('stores and clears a gym-specific setup note without changing another gym or exercise history', async () => {
+    const f = fixtures()
+    await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
+    await copy_jacksons_to_trident(f.gymRepo, f.settingsRepo, DEVICE, NOW)
+
+    await edit_gym_machine_details_with_name(
+      f.gymRepo,
+      f.exerciseRepo,
+      TRIDENT_GYM_ID,
+      'pendulum',
+      'Technogym',
+      'MG5000',
+      'Pure Leg Press',
+      DEVICE,
+      NOW,
+      '  Seat 4 · backrest 2  ',
+    )
+
+    const trident = (await f.gymRepo.list_availability(TRIDENT_GYM_ID))
+      .find(row => row.exercise_id === 'pendulum')!
+    const jackson = (await f.gymRepo.list_availability(JACKSONS_GYM_ID))
+      .find(row => row.exercise_id === 'pendulum')!
+    expect(trident.setup_notes).toBe('Seat 4 · backrest 2')
+    expect(jackson.setup_notes).toBeNull()
+    expect(f.exercises.find(row => row.id === 'pendulum')?.canonical_name).toBe('Pendulum Squat')
+
+    await edit_gym_machine_details_with_name(
+      f.gymRepo,
+      f.exerciseRepo,
+      TRIDENT_GYM_ID,
+      'pendulum',
+      'Technogym',
+      'MG5000',
+      'Pure Leg Press',
+      DEVICE,
+      NOW,
+      '   ',
+    )
+    expect((await f.gymRepo.list_availability(TRIDENT_GYM_ID))
+      .find(row => row.exercise_id === 'pendulum')?.setup_notes).toBeNull()
+  })
+
   it('cleans inherited Jacksons identity from an already-copied Trident mapping', async () => {
     const f = fixtures()
     await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)

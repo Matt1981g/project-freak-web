@@ -2676,6 +2676,12 @@ export function WorkoutScreen() {
                       {exercise.tempo && <span>tempo {exercise.tempo}</span>}
                     </div>
                     {exercise.technique_cue && <p>{exercise.technique_cue}</p>}
+                    {entry.setup_notes && (
+                      <p className={styles.machineSetupNote}>
+                        <strong>MACHINE SETUP</strong>
+                        <span>{entry.setup_notes}</span>
+                      </p>
+                    )}
                   </div>
                   <span className={styles.exerciseStatus}>
                     {exercise_complete

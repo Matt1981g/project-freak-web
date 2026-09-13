@@ -2,7 +2,8 @@
 .editor{margin-top:20px;padding:20px;border:1px solid var(--pf-border);border-radius:20px;background:var(--pf-panel);color:var(--pf-text-strong)}
 .editor p,.option small{color:var(--pf-text-muted)}
 .editor label,.option small{display:block}
-.editor input{display:block;box-sizing:border-box;width:100%;margin:8px 0 16px;padding:14px;color:var(--pf-text-strong);background:var(--pf-panel);border:1px solid var(--pf-border);border-radius:10px;font:inherit}
+.editor input,.editor textarea{display:block;box-sizing:border-box;width:100%;margin:8px 0 16px;padding:14px;color:var(--pf-text-strong);background:var(--pf-panel);border:1px solid var(--pf-border);border-radius:10px;font:inherit}
+.editor textarea{resize:vertical;line-height:1.45}
 .options{max-height:65vh;overflow:auto}
 .option{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--pf-border)}
 .editor button{min-height:44px;min-width:85px;padding:8px 14px;border-radius:10px;border:1px solid var(--pf-accent);background:transparent;color:var(--pf-accent);font:inherit;cursor:pointer}
@@ -10,3 +11,4 @@
 .newMachine{margin:16px 0;padding:16px;border:1px solid var(--pf-border);border-radius:12px;min-width:0}
 .newMachine button{margin-right:8px;margin-bottom:8px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.filters button[aria-pressed="true"]{background:var(--pf-accent);color:#071006}.option>div{min-width:0;flex:1}.option>button:last-child{flex:0 0 auto}.detail{max-width:640px;margin-top:5px;font-size:12px;line-height:1.4}.option .confirmed,.option .unconfirmed{min-height:34px;margin:8px 8px 0 0;padding:4px 9px;font-size:12px}.option .confirmed{border-color:var(--pf-accent);background:rgba(198,255,0,.12)}.option .unconfirmed{border-color:var(--pf-orange);color:var(--pf-orange)}
+.setupNote{max-width:640px;margin-top:8px;padding:8px 10px;border-left:3px solid var(--pf-accent);border-radius:4px;background:rgba(198,255,0,.07);color:var(--pf-text);font-size:12px;line-height:1.4}.setupNote b{display:block;margin-bottom:2px;color:var(--pf-accent);font-size:10px;letter-spacing:.1em}

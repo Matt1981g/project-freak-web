@@ -16,7 +16,14 @@ export function GymProfilesScreen() {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState({ name: '', brand: '', model: '', category: '' })
   const [notice, setNotice] = useState<string | null>(null)
-  const [details, setDetails] = useState<{ id: string; name: string; display_name: string; brand: string; model: string } | null>(null)
+  const [details, setDetails] = useState<{
+    id: string
+    name: string
+    display_name: string
+    brand: string
+    model: string
+    setup_notes: string
+  } | null>(null)
   const [equipmentView, setEquipmentView] = useState<'available' | 'unconfirmed' | 'all'>('available')
 
   async function saveDetails() {
@@ -24,10 +31,17 @@ export function GymProfilesScreen() {
     setSaving(details.id)
     setError(null)
     try {
-      await save_gym_machine_identity(editing.id, details.id, details.display_name, details.brand, details.model)
+      await save_gym_machine_identity(
+        editing.id,
+        details.id,
+        details.display_name,
+        details.brand,
+        details.model,
+        details.setup_notes,
+      )
       setEquipment(await load_gym_equipment(editing.id))
       setDetails(null)
-      setNotice('Machine details saved for this gym only. Existing workout history and exercise ID are unchanged.')
+      setNotice('Machine details and setup note saved for this gym only. Existing workout history and exercise ID are unchanged.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save details.')
     } finally { setSaving(null) }
@@ -202,8 +216,14 @@ export function GymProfilesScreen() {
                 </label>
                 <label>Brand (optional)<input maxLength={120} value={details.brand} onChange={event => setDetails({ ...details, brand: event.target.value })} /></label>
                 <label>Model / variant (optional)<input maxLength={120} value={details.model} onChange={event => setDetails({ ...details, model: event.target.value })} /></label>
+                <label>Setup note (optional)
+                  <textarea maxLength={500} rows={3} value={details.setup_notes}
+                    placeholder="e.g. Seat 4 · backrest 2 · handles neutral"
+                    onChange={event => setDetails({ ...details, setup_notes: event.target.value })} />
+                </label>
+                <p>Use the setup note for repeatable settings such as seat, backrest, pin or handle position. It appears on the machine here and during your workout.</p>
                 <p>This changes how the existing machine is identified at {editing.short_name}. Its exercise ID stays the same, so linked workouts, sets and performance history remain intact. Historical workout names are not rewritten.</p>
-                <button type="submit">Save machine details</button>
+                <button type="submit">Save machine & setup</button>
                 <button type="button" onClick={() => setDetails(null)}>Cancel</button>
               </fieldset>
             </form>
@@ -214,7 +234,7 @@ export function GymProfilesScreen() {
                 equipmentView === 'all' ||
                 (equipmentView === 'available' && row.available) ||
                 (equipmentView === 'unconfirmed' && row.available && row.gym_notes?.startsWith('[UNCONFIRMED]'))
-              ) && `${row.display_name} ${row.equipment ?? ''} ${row.gym_notes ?? ''}`.toLowerCase().includes(search.toLowerCase()))
+              ) && `${row.display_name} ${row.equipment ?? ''} ${row.gym_notes ?? ''} ${row.setup_notes ?? ''}`.toLowerCase().includes(search.toLowerCase()))
               .sort((a, b) => Number(b.available) - Number(a.available) || a.display_name.localeCompare(b.display_name))
               .map(row => {
                 const unconfirmed = row.gym_notes?.startsWith('[UNCONFIRMED]') ?? false
@@ -223,6 +243,7 @@ export function GymProfilesScreen() {
                 return (
               <div key={row.id} className={styles.option}>
                 <div><strong>{row.display_name}</strong><small>{row.machine_brand || 'Brand not specified'}{row.machine_model ? ` · ${row.machine_model}` : ''}</small>
+                  {row.setup_notes && <small className={styles.setupNote}><b>SETUP</b>{row.setup_notes}</small>}
                   {note && <small className={styles.detail}>{note}</small>}
                   {row.available && (unconfirmed || confirmed) && (
                     <button className={confirmed ? styles.confirmed : styles.unconfirmed} disabled={saving !== null}
@@ -231,9 +252,16 @@ export function GymProfilesScreen() {
                     </button>
                   )}
                   {row.available && <button disabled={saving !== null} onClick={() => {
-                    setDetails({ id: row.id, name: row.canonical_name, display_name: row.display_name, brand: row.machine_brand ?? '', model: row.machine_model ?? '' })
+                    setDetails({
+                      id: row.id,
+                      name: row.canonical_name,
+                      display_name: row.display_name,
+                      brand: row.machine_brand ?? '',
+                      model: row.machine_model ?? '',
+                      setup_notes: row.setup_notes ?? '',
+                    })
                     setAdding(false)
-                  }}>Edit machine details</button>}
+                  }}>Edit machine & setup</button>}
                 </div>
                 <button disabled={saving !== null} aria-label={`${row.available ? 'Remove' : 'Add'} ${row.canonical_name}`}
                   onClick={() => void toggle(row.id, !row.available)}>

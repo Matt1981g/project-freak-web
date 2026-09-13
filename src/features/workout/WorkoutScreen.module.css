@@ -708,6 +708,27 @@
   font-size: 12px;
 }
 
+.exerciseBody .machineSetupNote {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  align-items: baseline;
+  padding: 7px 9px;
+  border-left: 3px solid var(--pf-accent);
+  border-radius: 5px;
+  background: rgba(198, 255, 0, 0.07);
+}
+
+.machineSetupNote strong {
+  color: var(--pf-accent);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.machineSetupNote span {
+  color: var(--pf-text-strong);
+}
+
 .exerciseStatus {
   padding-top: 3px;
   color: var(--pf-accent);

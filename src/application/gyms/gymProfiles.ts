@@ -57,7 +57,7 @@ export async function edit_gym_machine_details(
 export async function edit_gym_machine_details_with_name(
   gyms: GymRepository, exercises: ExerciseRepository, gym_id: string,
   exercise_id: string, brand: string, model: string, display_name: string,
-  device_id: string, timestamp = new Date().toISOString(),
+  device_id: string, timestamp = new Date().toISOString(), setup_notes?: string,
 ) {
   const profile = await gyms.get_profile(gym_id)
   const exercise = await exercises.get_by_id(exercise_id)
@@ -66,6 +66,9 @@ export async function edit_gym_machine_details_with_name(
   }
   if ([brand, model, display_name].some(value => value.length > 120)) {
     throw new Error('Keep brand, model and display name to 120 characters or fewer.')
+  }
+  if (setup_notes !== undefined && setup_notes.length > 500) {
+    throw new Error('Keep the machine setup note to 500 characters or fewer.')
   }
   const existing = (await gyms.list_availability(gym_id)).find(row => row.exercise_id === exercise_id)
   if (!existing) throw new Error('Add this option to the gym before editing its details.')
@@ -76,6 +79,7 @@ export async function edit_gym_machine_details_with_name(
     machine_brand: brand.trim() || null,
     machine_model: model.trim() || null,
     equipment_label: trimmed_name,
+    ...(setup_notes === undefined ? {} : { setup_notes: setup_notes.trim() || null }),
     updated_at: timestamp,
     revision: existing.revision + 1,
     device_id,
@@ -143,6 +147,7 @@ export async function copy_jacksons_to_trident(
       machine_brand: null,
       machine_model: null,
       equipment_label: null,
+      setup_notes: null,
       created_at: timestamp,
       updated_at: timestamp,
       revision: 1,
@@ -277,6 +282,7 @@ function availability_seed(
     exercise_id: exercise.id,
     available: true,
     equipment_label: exercise.equipment,
+    setup_notes: null,
     notes: null,
     created_at: timestamp,
     updated_at: timestamp,

@@ -20,8 +20,10 @@ export async function save_gym_machine_identity(
   display_name: string,
   brand: string,
   model: string,
+  setup_notes?: string,
 ) {
   const device_id = await current_device_id()
+  const timestamp = new Date().toISOString()
   await projectFreakDb.transaction('rw', [
     projectFreakDb.gym_profiles,
     projectFreakDb.exercises,
@@ -37,6 +39,8 @@ export async function save_gym_machine_identity(
     model,
     display_name,
     device_id,
+    timestamp,
+    setup_notes,
   ))
   request_auto_sync('setting_changed')
 }

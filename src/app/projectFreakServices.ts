@@ -160,6 +160,7 @@ export async function load_gym_equipment(gym_id: string) {
     return { ...exercise,
       ...gym_machine_details(exercise, mapping),
       gym_notes: mapping?.notes ?? null,
+      setup_notes: mapping?.setup_notes ?? null,
       available: available.has(exercise.id) }
   })
 }
@@ -1002,13 +1003,20 @@ export async function load_live_workout(completed_session_id: string) {
     return undefined
   }
 
-  const actual_exercises =
-    await repositories.sessions.list_session_exercises(completed_session_id)
-  const programmed_detail = session.programmed_session_id
-    ? await repositories.programme.get_programmed_session_detail(
-        session.programmed_session_id,
-      )
-    : undefined
+  const [actual_exercises, programmed_detail, gym_mappings] = await Promise.all([
+    repositories.sessions.list_session_exercises(completed_session_id),
+    session.programmed_session_id
+      ? repositories.programme.get_programmed_session_detail(
+          session.programmed_session_id,
+        )
+      : Promise.resolve(undefined),
+    session.gym_profile_id
+      ? repositories.gyms.list_availability(session.gym_profile_id)
+      : Promise.resolve([]),
+  ])
+  const setup_notes_by_exercise_id = new Map(
+    gym_mappings.map(mapping => [mapping.exercise_id, mapping.setup_notes ?? null]),
+  )
 
   const planned_by_id = new Map(
     programmed_detail?.exercises.map((detail) => [
@@ -1080,6 +1088,7 @@ export async function load_live_workout(completed_session_id: string) {
 
         return {
           exercise,
+          setup_notes: setup_notes_by_exercise_id.get(exercise.exercise_id) ?? null,
           sets,
           metrics,
           previous_comparable,

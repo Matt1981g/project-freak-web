@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
 import { create_repositories } from '../../data/repositories'
 import { build_full_backup, preview_backup_json } from '../backup/databaseBackup'
-import { create_gym_exercise, ensure_default_gym_profiles, TRIDENT_GYM_ID, JACKSONS_GYM_ID, GENERIC_GYM_ID, edit_gym_machine_details, gym_machine_details, install_trident_catalogue_baseline, set_gym_exercise_available } from './gymProfiles'
+import { create_gym_exercise, ensure_default_gym_profiles, TRIDENT_GYM_ID, JACKSONS_GYM_ID, GENERIC_GYM_ID, edit_gym_machine_details, edit_gym_machine_details_with_name, gym_machine_details, install_trident_catalogue_baseline, set_gym_exercise_available } from './gymProfiles'
 import { TRIDENT_CATALOGUE } from './tridentCatalogue'
 
 describe('new gym machines', () => {
@@ -22,11 +22,13 @@ describe('new gym machines', () => {
     await set_gym_exercise_available(repos.gyms, repos.exercises, TRIDENT_GYM_ID, exercise.id, true, 'test-device')
     const trident = await repos.gyms.list_availability(TRIDENT_GYM_ID)
     const historyBefore = await db.audit_events.toArray()
-    await edit_gym_machine_details(repos.gyms, repos.exercises, JACKSONS_GYM_ID,
-      exercise.id, ' Panatta ', '45 degree', 'test-device')
+    await edit_gym_machine_details_with_name(repos.gyms, repos.exercises, JACKSONS_GYM_ID,
+      exercise.id, ' Panatta ', '45 degree', 'Leg Press', 'test-device', undefined,
+      'Seat 4 · backrest 2')
     const mapping = (await repos.gyms.list_availability(JACKSONS_GYM_ID))[0]
     expect(mapping.exercise_id).toBe(exercise.id)
     expect(mapping.available).toBe(true)
+    expect(mapping.setup_notes).toBe('Seat 4 · backrest 2')
     expect(gym_machine_details(exercise, mapping).display_name).toBe('Leg Press — Panatta 45 degree')
     expect(await repos.exercises.get_by_id(exercise.id)).toEqual(exercise)
     expect(await repos.gyms.list_availability(TRIDENT_GYM_ID)).toEqual(trident)
@@ -36,6 +38,7 @@ describe('new gym machines', () => {
     expect(newEvents[0].entity_type).toBe('gym_exercise_availability')
     const backup = await build_full_backup(db, { now_iso: new Date().toISOString(), source_device_id: 'test-device' })
     expect((await preview_backup_json(JSON.stringify(backup))).valid).toBe(true)
+    expect(backup.database.tables.gym_exercise_availability[0]?.setup_notes).toBe('Seat 4 · backrest 2')
     await edit_gym_machine_details(repos.gyms, repos.exercises, JACKSONS_GYM_ID,
       exercise.id, '', '', 'test-device')
     expect(gym_machine_details(exercise, (await repos.gyms.list_availability(JACKSONS_GYM_ID))[0]).display_name).toBe('Leg Press')
