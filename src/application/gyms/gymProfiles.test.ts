@@ -248,8 +248,8 @@ describe('gym profiles', () => {
     await install_trident_catalogue_baseline(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
 
     expect(TRIDENT_PURE_STRENGTH_CATALOGUE).toHaveLength(22)
-    expect(TRIDENT_SELECTION_700_CATALOGUE).toHaveLength(20)
-    expect(TRIDENT_REPORTED_EXERCISES).toHaveLength(29)
+    expect(TRIDENT_SELECTION_700_CATALOGUE).toHaveLength(22)
+    expect(TRIDENT_REPORTED_EXERCISES).toHaveLength(43)
     expect(new Set(TRIDENT_CATALOGUE.map(row => row.id)).size).toBe(TRIDENT_CATALOGUE.length)
 
     const trident = await f.gymRepo.list_availability(TRIDENT_GYM_ID)
