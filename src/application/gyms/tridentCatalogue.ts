@@ -88,12 +88,14 @@ export const TRIDENT_PURE_STRENGTH_CATALOGUE: readonly TridentCatalogueSeed[] = 
 ] as const
 
 // Selection 700 is deliberately a candidate range until each physical unit is checked at Trident.
-// Dual machines are separate exercise options so PF can programme and track each movement correctly.
+// Multi-function stations are split into explicit movements so PF can programme and track muscle stimulus correctly.
 export const TRIDENT_SELECTION_700_CATALOGUE: readonly TridentCatalogueSeed[] = [
   selection('MNFC', 'Chest Press', 'Chest', ['Pectorals', 'Deltoids', 'Triceps']),
   selection('MNGC', 'Vertical Traction', 'Lats', ['Latissimus Dorsi', 'Biceps']),
   selection('MNHC', 'Low Row', 'Back', ['Latissimus Dorsi', 'Biceps', 'Rhomboids']),
-  selection('MNDC', 'Multi Hip', 'Glutes', ['Gluteals', 'Hip flexors', 'Hip extensors', 'Abductors', 'Adductors']),
+  selection('MNDC', 'Multi Hip — Hip Extension', 'Glutes', ['Gluteals', 'Hamstrings']),
+  selection('MNDC', 'Multi Hip — Hip Abduction', 'Glutes', ['Gluteals', 'Abductors']),
+  selection('MNDC', 'Multi Hip — Hip Adduction', 'Adductors', ['Adductors']),
   selection('MNIC', 'Leg Curl', 'Hamstrings', ['Hamstrings']),
   selection('MNJC', 'Leg Extension', 'Quads', ['Quadriceps']),
   selection('MNLC', 'Lat Machine', 'Lats', ['Latissimus Dorsi', 'Biceps']),
@@ -103,7 +105,7 @@ export const TRIDENT_SELECTION_700_CATALOGUE: readonly TridentCatalogueSeed[] = 
   selection('MNKC', 'Delts Machine', 'Shoulders', ['Deltoids']),
   selection('MNEC', 'Shoulder Press', 'Shoulders', ['Deltoids', 'Triceps']),
   selection('MNOC', 'Hip Abduction', 'Glutes', ['Abductors', 'Gluteals']),
-  selection('MNOC', 'Hip Adduction', 'Glutes', ['Adductors']),
+  selection('MNOC', 'Hip Adduction', 'Adductors', ['Adductors']),
   selection('MNNC', 'Pectoral Fly', 'Chest', ['Pectorals', 'Anterior Deltoids']),
   selection('MNNC', 'Reverse Fly', 'Shoulders', ['Posterior Deltoids', 'Rhomboids', 'Trapezius']),
   selection('MNMC', 'Seated Leg Curl', 'Hamstrings', ['Hamstrings']),
@@ -115,17 +117,25 @@ export const TRIDENT_SELECTION_700_CATALOGUE: readonly TridentCatalogueSeed[] = 
 const CABLE_ATTACHMENTS = 'Four generic cable stations with standard handles and bars'
 const DUMBBELLS = 'Large dumbbell range'
 const OLYMPIC = 'Squat racks with Olympic bars and plates'
+const EZ_BAR = 'EZ curl bar + plates'
 
 export const TRIDENT_REPORTED_EXERCISES: readonly TridentCatalogueSeed[] = [
-  reported('cable-lat-pulldown', 'Cable Lat Pulldown', 'Lats', 'Cable', CABLE_ATTACHMENTS),
-  reported('seated-cable-row', 'Seated Cable Row', 'Back', 'Cable', CABLE_ATTACHMENTS),
+  reported('cable-lat-pulldown-wide-grip', 'Wide-Grip Cable Lat Pulldown', 'Lats', 'Cable', 'Wide-grip pulldown bar'),
+  reported('cable-lat-pulldown-narrow-neutral', 'Narrow Neutral-Grip Cable Lat Pulldown', 'Lats', 'Cable', 'Close neutral/V handle'),
+  reported('single-arm-cable-lat-pulldown', 'Single-Arm Cable Lat Pulldown', 'Lats', 'Cable', 'Single D-handle'),
+  reported('seated-cable-row-wide-grip', 'Wide-Grip Seated Cable Row', 'Back', 'Cable', 'Wide-grip row bar'),
+  reported('seated-cable-row-narrow-neutral', 'Narrow Neutral-Grip Seated Cable Row', 'Lats', 'Cable', 'Close neutral/V handle'),
+  reported('single-arm-seated-cable-row', 'Single-Arm Seated Cable Row — Lat Bias', 'Lats', 'Cable', 'Single D-handle'),
   reported('straight-arm-cable-pulldown', 'Straight-Arm Cable Pulldown', 'Lats', 'Cable', CABLE_ATTACHMENTS),
   reported('cable-fly', 'Cable Fly', 'Chest', 'Cable', CABLE_ATTACHMENTS),
+  reported('low-to-high-cable-fly', 'Low-to-High Cable Fly', 'Chest', 'Cable', 'Two single D-handles'),
+  reported('high-to-low-cable-fly', 'High-to-Low Cable Fly', 'Chest', 'Cable', 'Two single D-handles'),
   reported('cable-lateral-raise', 'Cable Lateral Raise', 'Shoulders', 'Cable', CABLE_ATTACHMENTS),
   reported('cable-rear-delt-fly', 'Cable Rear-Delt Fly', 'Shoulders', 'Cable', CABLE_ATTACHMENTS),
   reported('face-pull', 'Face Pull', 'Traps', 'Cable', CABLE_ATTACHMENTS),
   reported('cable-upright-row', 'Cable Upright Row', 'Traps', 'Cable', CABLE_ATTACHMENTS),
   reported('cable-biceps-curl', 'Cable Biceps Curl', 'Biceps', 'Cable', CABLE_ATTACHMENTS),
+  reported('bayesian-cable-curl', 'Bayesian Cable Curl', 'Biceps', 'Cable', 'Single D-handle'),
   reported('rope-hammer-curl', 'Rope Hammer Curl', 'Biceps', 'Cable', CABLE_ATTACHMENTS),
   reported('triceps-pressdown', 'Cable Triceps Pressdown', 'Triceps', 'Cable', CABLE_ATTACHMENTS),
   reported('overhead-cable-triceps-extension', 'Overhead Cable Triceps Extension', 'Triceps', 'Cable', CABLE_ATTACHMENTS),
@@ -133,19 +143,26 @@ export const TRIDENT_REPORTED_EXERCISES: readonly TridentCatalogueSeed[] = [
   reported('cable-pull-through', 'Cable Pull-Through', 'Glutes', 'Cable', CABLE_ATTACHMENTS),
   reported('dumbbell-curl', 'Dumbbell Curl', 'Biceps', 'Dumbbells', DUMBBELLS),
   reported('hammer-curl', 'Dumbbell Hammer Curl', 'Biceps', 'Dumbbells', DUMBBELLS),
+  reported('incline-dumbbell-curl', 'Incline Dumbbell Curl', 'Biceps', 'Dumbbells', `${DUMBBELLS} + adjustable bench`),
   reported('dumbbell-lateral-raise', 'Dumbbell Lateral Raise', 'Shoulders', 'Dumbbells', DUMBBELLS),
   reported('dumbbell-rear-delt-raise', 'Dumbbell Rear-Delt Raise', 'Shoulders', 'Dumbbells', DUMBBELLS),
   reported('dumbbell-shoulder-press', 'Dumbbell Shoulder Press', 'Shoulders', 'Dumbbells', DUMBBELLS),
   reported('dumbbell-shrug', 'Dumbbell Shrug', 'Traps', 'Dumbbells', DUMBBELLS),
   reported('one-arm-dumbbell-row', 'One-Arm Dumbbell Row', 'Back', 'Dumbbells', DUMBBELLS),
+  reported('chest-supported-dumbbell-row', 'Chest-Supported Dumbbell Row', 'Back', 'Dumbbells', `${DUMBBELLS} + adjustable bench`),
   reported('dumbbell-romanian-deadlift', 'Dumbbell Romanian Deadlift', 'Hamstrings', 'Dumbbells', DUMBBELLS),
   reported('goblet-squat', 'Dumbbell Goblet Squat', 'Quads', 'Dumbbells', DUMBBELLS),
+  reported('dumbbell-flat-bench-press', 'Flat Dumbbell Bench Press', 'Chest', 'Dumbbells', `${DUMBBELLS} + flat/adjustable bench`),
+  reported('dumbbell-incline-press', 'Incline Dumbbell Press', 'Chest', 'Dumbbells', `${DUMBBELLS} + adjustable bench`),
+  reported('dumbbell-overhead-triceps-extension', 'Dumbbell Overhead Triceps Extension', 'Triceps', 'Dumbbells', DUMBBELLS),
   reported('barbell-back-squat', 'Barbell Back Squat', 'Quads', 'Barbell', OLYMPIC),
-  reported('barbell-romanian-deadlift', 'Barbell Romanian Deadlift', 'Hamstrings', 'Barbell', OLYMPIC),
-  reported('barbell-deadlift', 'Barbell Deadlift', 'Hamstrings', 'Barbell', OLYMPIC),
   reported('barbell-bent-over-row', 'Barbell Bent-Over Row', 'Back', 'Barbell', OLYMPIC),
-  reported('barbell-overhead-press', 'Barbell Overhead Press', 'Shoulders', 'Barbell', OLYMPIC),
   reported('barbell-curl', 'Barbell Curl', 'Biceps', 'Barbell', OLYMPIC),
+  reported('barbell-bench-press', 'Barbell Bench Press', 'Chest', 'Barbell', 'Olympic barbell + bench/rack'),
+  reported('ez-bar-curl', 'EZ-Bar Curl', 'Biceps', 'EZ Bar', EZ_BAR),
+  reported('ez-bar-reverse-curl', 'EZ-Bar Reverse Curl', 'Biceps', 'EZ Bar', EZ_BAR),
+  reported('ez-bar-lying-triceps-extension', 'EZ-Bar Lying Triceps Extension', 'Triceps', 'EZ Bar', `${EZ_BAR} + flat/adjustable bench`),
+  reported('ez-bar-overhead-triceps-extension', 'EZ-Bar Overhead Triceps Extension', 'Triceps', 'EZ Bar', EZ_BAR),
 ] as const
 
 export const TRIDENT_CATALOGUE: readonly TridentCatalogueSeed[] = [
