@@ -24,14 +24,47 @@ function repository_fixture() {
 }
 
 describe('training priorities', () => {
-  it('starts unconfigured with the 12 allowed areas in the supplied order', async () => {
+  it('starts unconfigured with the 13 allowed areas in the supplied order', async () => {
     const fixture = repository_fixture()
     const state = await load_training_priorities(fixture.repository)
 
     expect(state.configured).toBe(false)
     expect(state.current).toEqual(TRAINING_PRIORITY_AREAS)
+    expect(state.current).toHaveLength(13)
+    expect(state.current.at(-1)).toBe('Adductors')
     expect(state.history).toEqual([])
     expect(Object.values(state.intent_by_area).every((value) => value === 'grow')).toBe(true)
+  })
+
+  it('migrates legacy 12-area state without changing its existing order', async () => {
+    const fixture = repository_fixture()
+    const legacyOrder = TRAINING_PRIORITY_AREAS.filter((area) => area !== 'Adductors')
+    fixture.values.set('training-priorities-v1', {
+      key: 'training-priorities-v1',
+      scope: 'global',
+      value_json: {
+        schema_version: '1.0.0',
+        configured: true,
+        current: legacyOrder,
+        intent_by_area: Object.fromEntries(legacyOrder.map((area) => [area, 'grow'])),
+        history: [
+          {
+            effective_from_date_local: '2026-09-13',
+            updated_at: '2026-09-13T10:00:00.000Z',
+            ordered_areas: legacyOrder,
+          },
+        ],
+      },
+      updated_at: '2026-09-13T10:00:00.000Z',
+      device_id: 'device-1',
+    })
+
+    const state = await load_training_priorities(fixture.repository)
+
+    expect(state.current.slice(0, -1)).toEqual(legacyOrder)
+    expect(state.current.at(-1)).toBe('Adductors')
+    expect(state.intent_by_area.Adductors).toBe('maintain')
+    expect(state.history[0].ordered_areas.at(-1)).toBe('Adductors')
   })
 
   it('moves one priority directly to a new rank', () => {
@@ -39,7 +72,7 @@ describe('training priorities', () => {
 
     expect(moved[0]).toBe('Chest')
     expect(moved[1]).toBe('Biceps')
-    expect(moved).toHaveLength(12)
+    expect(moved).toHaveLength(13)
   })
 
   it('saves one dated snapshot and replaces same-day edits', async () => {
@@ -73,7 +106,11 @@ describe('training priorities', () => {
   it('stores Grow / Maintain intent without changing priority order', async () => {
     const fixture = repository_fixture()
     const initial = await load_training_priorities(fixture.repository)
-    const intents = { ...initial.intent_by_area, Chest: 'maintain' as const }
+    const intents = {
+      ...initial.intent_by_area,
+      Chest: 'maintain' as const,
+      Adductors: 'maintain' as const,
+    }
 
     const state = await save_training_intents(intents, fixture.repository, {
       now_iso: '2026-09-04T18:00:00.000Z',
@@ -81,6 +118,7 @@ describe('training priorities', () => {
 
     expect(state.current).toEqual(TRAINING_PRIORITY_AREAS)
     expect(state.intent_by_area.Chest).toBe('maintain')
+    expect(state.intent_by_area.Adductors).toBe('maintain')
     expect(state.intent_by_area.Biceps).toBe('grow')
   })
 
