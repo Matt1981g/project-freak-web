@@ -3,7 +3,7 @@ import type { SettingsRepository } from '../../data/repositories/contracts'
 
 export const TRAINING_PRIORITY_SETTING_KEY = 'training-priorities-v1'
 
-export const TRAINING_PRIORITY_AREAS = [
+const LEGACY_TRAINING_PRIORITY_AREAS = [
   'Biceps',
   'Triceps',
   'Shoulders',
@@ -16,6 +16,11 @@ export const TRAINING_PRIORITY_AREAS = [
   'Calfs',
   'Abs',
   'Chest',
+] as const
+
+export const TRAINING_PRIORITY_AREAS = [
+  ...LEGACY_TRAINING_PRIORITY_AREAS,
+  'Adductors',
 ] as const
 
 export type TrainingPriorityArea = (typeof TRAINING_PRIORITY_AREAS)[number]
@@ -50,22 +55,39 @@ function is_priority_area(value: unknown): value is TrainingPriorityArea {
   )
 }
 
+function normalise_priority_order(
+  ordered_areas: readonly string[],
+): TrainingPriorityArea[] | null {
+  const unique = new Set(ordered_areas)
+  if (unique.size !== ordered_areas.length) return null
+  if (!ordered_areas.every(is_priority_area)) return null
+
+  if (
+    ordered_areas.length === TRAINING_PRIORITY_AREAS.length &&
+    TRAINING_PRIORITY_AREAS.every((area) => unique.has(area))
+  ) {
+    return [...ordered_areas] as TrainingPriorityArea[]
+  }
+
+  const legacy = new Set<string>(LEGACY_TRAINING_PRIORITY_AREAS)
+  if (
+    ordered_areas.length === LEGACY_TRAINING_PRIORITY_AREAS.length &&
+    !unique.has('Adductors') &&
+    ordered_areas.every((area) => legacy.has(area))
+  ) {
+    return [...ordered_areas, 'Adductors'] as TrainingPriorityArea[]
+  }
+
+  return null
+}
+
 export function validate_priority_order(
   ordered_areas: readonly string[],
 ): asserts ordered_areas is readonly TrainingPriorityArea[] {
-  if (ordered_areas.length !== TRAINING_PRIORITY_AREAS.length) {
-    throw new Error('Training priorities must contain all 12 body parts.')
-  }
-
-  const unique = new Set(ordered_areas)
-  if (unique.size !== TRAINING_PRIORITY_AREAS.length) {
-    throw new Error('Training priorities cannot contain duplicate body parts.')
-  }
-
-  for (const area of ordered_areas) {
-    if (!is_priority_area(area)) {
-      throw new Error(`Unknown training priority: ${area}`)
-    }
+  if (!normalise_priority_order(ordered_areas) || ordered_areas.length !== TRAINING_PRIORITY_AREAS.length) {
+    throw new Error(
+      `Training priorities must contain all ${TRAINING_PRIORITY_AREAS.length} body parts.`,
+    )
   }
 }
 
@@ -110,14 +132,11 @@ function parse_state(value: JsonValue): TrainingPriorityState | null {
   }
 
   const current_values = current.filter(
-    (value): value is string => typeof value === 'string',
+    (entry): entry is string => typeof entry === 'string',
   )
-
-  try {
-    validate_priority_order(current_values)
-  } catch {
-    return null
-  }
+  const migrated_legacy_state = !current_values.includes('Adductors')
+  const normalised_current = normalise_priority_order(current_values)
+  if (!normalised_current) return null
 
   const parsed_history: TrainingPrioritySnapshot[] = []
 
@@ -134,28 +153,26 @@ function parse_state(value: JsonValue): TrainingPriorityState | null {
     }
 
     const ordered = snapshot.ordered_areas.filter(
-      (value): value is string => typeof value === 'string',
+      (entry): entry is string => typeof entry === 'string',
     )
-
-    try {
-      validate_priority_order(ordered)
-    } catch {
-      continue
-    }
+    const normalised_order = normalise_priority_order(ordered)
+    if (!normalised_order) continue
 
     parsed_history.push({
       effective_from_date_local: snapshot.effective_from_date_local,
       updated_at: snapshot.updated_at,
-      ordered_areas: [...ordered],
+      ordered_areas: normalised_order,
     })
   }
 
   const intent_by_area = default_muscle_intents()
+  if (migrated_legacy_state) intent_by_area.Adductors = 'maintain'
+
   if (intent_record) {
     for (const area of TRAINING_PRIORITY_AREAS) {
-      const value = intent_record[area]
-      if (value === 'grow' || value === 'maintain') {
-        intent_by_area[area] = value
+      const intent = intent_record[area]
+      if (intent === 'grow' || intent === 'maintain') {
+        intent_by_area[area] = intent
       }
     }
   }
@@ -163,7 +180,7 @@ function parse_state(value: JsonValue): TrainingPriorityState | null {
   return {
     schema_version: '1.0.0',
     configured: configured === true,
-    current: [...current_values],
+    current: normalised_current,
     intent_by_area,
     history: parsed_history.sort((a, b) =>
       a.effective_from_date_local.localeCompare(b.effective_from_date_local),
@@ -233,7 +250,6 @@ export async function save_training_priorities(
   return state
 }
 
-
 export async function save_training_intents(
   intent_by_area: MuscleIntentMap,
   repository: SettingsRepository,
@@ -245,11 +261,11 @@ export async function save_training_intents(
   const cleaned = default_muscle_intents()
 
   for (const area of TRAINING_PRIORITY_AREAS) {
-    const value = intent_by_area[area]
-    if (value !== 'grow' && value !== 'maintain') {
+    const intent = intent_by_area[area]
+    if (intent !== 'grow' && intent !== 'maintain') {
       throw new Error(`Intent for ${area} must be Grow or Maintain.`)
     }
-    cleaned[area] = value
+    cleaned[area] = intent
   }
 
   const state: TrainingPriorityState = {
