@@ -97,8 +97,10 @@ export async function backfill_known_legacy_exercises(
 
     const current = exercise.exercise_intelligence
     if (current?.metadata_status === 'verified' || current?.metadata_status === 'user_confirmed') continue
-    if (current && current.metadata_status !== 'needs_review' && current.metadata_confidence >= candidate.metadata_confidence) continue
+    if (current?.metadata_sources.includes('PF legacy exercise audit')) continue
 
+    // An exact known PF exercise name is more specific than a generic movement-family
+    // rule, even when both happen to carry the same confidence score.
     await repository.put({
       ...exercise,
       exercise_intelligence: candidate,
