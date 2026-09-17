@@ -12,6 +12,10 @@ import {
 const nullable_string = z.string().nullable()
 const nullable_number = z.number().nullable()
 const nullable_integer = z.number().int().nullable()
+const equipment_snapshot_schema = z.object({
+  profile_id: z.string().min(1), gym_profile_id: z.string().min(1), label: z.string().min(1),
+  comparable: z.boolean(), setup_notes: nullable_string,
+}).passthrough()
 
 const mutable = {
   id: z.string().min(1),
@@ -87,6 +91,12 @@ const schemas: Record<string, z.ZodTypeAny> = {
     normalized_alias: z.string().min(1),
   }),
   gym_profiles: mutable_record({
+    equipment_attribution_version: z.number().int().min(1).optional(),
+    equipment_profiles: z.array(z.object({
+      id: z.string().min(1), gym_profile_id: z.string().min(1), label: z.string().min(1),
+      kind: z.enum(['machine', 'cable', 'dumbbell', 'barbell', 'bodyweight', 'unknown']),
+      status: z.enum(['identified', 'needs_review']), source: z.enum(['gym_record', 'user_confirmed']), notes: nullable_string,
+    }).passthrough()).optional(),
     name: z.string().min(1),
     short_name: z.string().min(1),
     kind: z.enum(['home', 'previous', 'travel']),
@@ -94,6 +104,8 @@ const schemas: Record<string, z.ZodTypeAny> = {
     notes: nullable_string,
   }),
   gym_exercise_availability: mutable_record({
+    equipment_profile_id: nullable_string.optional(),
+    equipment_identity_signature: nullable_string.optional(),
     gym_profile_id: z.string().min(1),
     exercise_id: z.string().min(1),
     available: z.boolean(),
@@ -204,6 +216,7 @@ const schemas: Record<string, z.ZodTypeAny> = {
     notes: nullable_string,
   }),
   programmed_session_sets: mutable_record({
+    equipment_snapshot: equipment_snapshot_schema.nullable().optional(),
     programmed_session_exercise_id: z.string().min(1),
     set_number: z.number().int().min(1),
     set_role: z.enum(SET_ROLES),
@@ -280,6 +293,7 @@ const schemas: Record<string, z.ZodTypeAny> = {
     notes: nullable_string,
   }),
   session_exercises: mutable_record({
+    equipment_snapshot: equipment_snapshot_schema.nullable().optional(),
     completed_session_id: z.string().min(1),
     programmed_session_exercise_id: nullable_string,
     exercise_id: z.string().min(1),

@@ -1,4 +1,5 @@
 import type { MutableEntity } from './common'
+import type { EquipmentSnapshot } from './gym'
 import type {
   FailureTarget,
   LoadType,
@@ -103,6 +104,7 @@ export interface ProgrammedSessionExercise extends MutableEntity {
 }
 
 export interface ProgrammedSessionSet extends MutableEntity {
+  equipment_snapshot?: EquipmentSnapshot | null
   programmed_session_exercise_id: string
   set_number: number
   set_role: SetRole

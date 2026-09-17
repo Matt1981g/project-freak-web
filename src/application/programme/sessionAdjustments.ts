@@ -1,4 +1,5 @@
 import type {
+  EquipmentSnapshot,
   ProgrammedSession,
   ProgrammedSessionExercise,
   SessionExercise,
@@ -129,6 +130,7 @@ export async function substitute_live_exercise(
   input: {
     session_exercise_id: string
     replacement_exercise_id: string
+    replacement_equipment_snapshot?: EquipmentSnapshot | null
     scope: ExerciseSubstitutionScope
   },
   repositories: {
@@ -193,6 +195,7 @@ export async function substitute_live_exercise(
   const updated: SessionExercise = {
     ...appearance,
     exercise_id: replacement.id,
+    equipment_snapshot: structuredClone(input.replacement_equipment_snapshot ?? null),
     exercise_name_snapshot: replacement.canonical_name,
     notes: append_note(
       appearance.notes,

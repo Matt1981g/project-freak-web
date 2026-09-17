@@ -1,9 +1,11 @@
 import type {
   ExerciseMetrics,
   TrainingSet,
+  EquipmentSnapshot,
 } from '../../domain/models'
 import type { ExerciseHistoryResult } from '../history/exerciseHistory'
 import { is_training_set_completed } from '../../domain/rules/completion'
+import { comparable_equipment } from '../gyms/equipmentProfiles'
 
 export interface PreviousComparableSet {
   set_number: number
@@ -36,6 +38,7 @@ export function select_previous_comparable(
   history: ExerciseHistoryResult,
   current_session_id: string,
   current_session_date_local: string,
+  context?: { gym_profile_id: string | null; equipment_snapshot: EquipmentSnapshot | null },
 ): PreviousComparablePerformance | null {
   for (const entry of history.entries) {
     if (entry.session.id === current_session_id) continue
@@ -43,6 +46,8 @@ export function select_previous_comparable(
     if (entry.session.session_date_local > current_session_date_local) continue
 
     for (const appearance of entry.appearances) {
+      if (context && (!context.gym_profile_id || entry.session.gym_profile_id !== context.gym_profile_id ||
+          !comparable_equipment(context.equipment_snapshot, appearance.session_exercise.equipment_snapshot))) continue
       const sets = appearance.sets
         .filter(is_comparable_set)
         .sort((a, b) => a.set_number - b.set_number)

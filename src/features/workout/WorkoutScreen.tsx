@@ -2160,7 +2160,7 @@ export function WorkoutScreen() {
     }
   }
 
-  async function save_setup_note(exercise_id: string) {
+  async function save_setup_note(exercise_id: string, session_exercise_id: string) {
     if (!workout?.session.gym_profile_id || setup_note_saving) {
       if (!workout?.session.gym_profile_id) {
         setSetupNoteError('This workout is not linked to a gym profile.')
@@ -2185,6 +2185,7 @@ export function WorkoutScreen() {
         machine.machine_brand ?? '',
         machine.machine_model ?? '',
         setup_note_draft,
+        session_exercise_id,
       )
 
       setSetupNoteOpenId(null)
@@ -2722,6 +2723,14 @@ export function WorkoutScreen() {
                       {exercise.tempo && <span>tempo {exercise.tempo}</span>}
                     </div>
                     {exercise.technique_cue && <p>{exercise.technique_cue}</p>}
+                    {exercise.equipment_snapshot && (
+                      <p className={styles.machineSetupNote}>
+                        <strong>EQUIPMENT</strong>
+                        <span>{exercise.equipment_snapshot.label}
+                          {!exercise.equipment_snapshot.comparable && ' · Loads kept separate until equipment and setup are confirmed.'}
+                        </span>
+                      </p>
+                    )}
                     {entry.setup_notes && (
                       <p className={styles.machineSetupNote}>
                         <strong>MACHINE SETUP</strong>
@@ -2902,7 +2911,7 @@ export function WorkoutScreen() {
                                 className={styles.substitutionApply}
                                 disabled={setup_note_saving}
                                 onClick={() =>
-                                  void save_setup_note(exercise.exercise_id)
+                                  void save_setup_note(exercise.exercise_id, exercise.id)
                                 }
                               >
                                 {setup_note_saving ? 'SAVING…' : 'SAVE SETUP NOTE'}

@@ -4,6 +4,7 @@
 .editor label,.option small{display:block}
 .editor input,.editor textarea{display:block;box-sizing:border-box;width:100%;margin:8px 0 16px;padding:14px;color:var(--pf-text-strong);background:var(--pf-panel);border:1px solid var(--pf-border);border-radius:10px;font:inherit}
 .editor textarea{resize:vertical;line-height:1.45}
+.editor select{display:block;box-sizing:border-box;width:100%;max-width:100%;margin:8px 0 16px;padding:14px;color:var(--pf-text-strong);background:var(--pf-panel);border:1px solid var(--pf-border);border-radius:10px;font:inherit}
 .options{max-height:65vh;overflow:auto}
 .option{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--pf-border)}
 .editor button{min-height:44px;min-width:85px;padding:8px 14px;border-radius:10px;border:1px solid var(--pf-accent);background:transparent;color:var(--pf-accent);font:inherit;cursor:pointer}

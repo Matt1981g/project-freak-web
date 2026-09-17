@@ -191,6 +191,17 @@ function history(rows: Array<{
 }
 
 describe('exercise progression analysis', () => {
+  it('maintains independent baselines for different machines and excludes uncertain equipment', () => {
+    const data = history([1, 2, 3, 4].map(n => ({ session: { ...session(`s${n}`, `2026-09-0${n}`), gym_profile_id: 'gym' },
+      form: 9, sets: [set(`set${n}`, `s${n}`, n === 2 ? 100 : 40, n === 3 ? 12 : 10)] })))
+    data.entries.forEach((entry, i) => {
+      entry.appearances[0].session_exercise.equipment_snapshot = { profile_id: i === 1 ? 'other-machine' : 'machine',
+        gym_profile_id: 'gym', label: 'Machine', comparable: i !== 3, setup_notes: null }
+    })
+    expect(build_exercise_progression(data).rows.map(r => [r.session_id, r.verdict])).toEqual([
+      ['s4', 'not_comparable'], ['s3', 'improved'], ['s2', 'baseline'], ['s1', 'baseline'],
+    ])
+  })
   it('excludes warmups and incomplete sessions while keeping historical completed work', () => {
     const first = session('first', '2026-09-01')
     const active = session('active', '2026-09-02', 'in_progress')

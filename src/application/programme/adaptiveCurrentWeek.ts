@@ -20,6 +20,7 @@ import {
 } from './progressionChallenge'
 import { can_apply_adaptive_change } from './prescriptionAuthority'
 import { read_target_stimulus } from '../workout/targetStimulus'
+import { comparable_equipment } from '../gyms/equipmentProfiles'
 
 export type AdaptiveCurrentWeekVerdict =
   | 'increase_load'
@@ -355,6 +356,7 @@ export async function adapt_current_week_after_session(
   >()
 
   for (const source of source_exercises) {
+    if (source.equipment_snapshot !== undefined && !source.equipment_snapshot?.comparable) continue
     const [sets, metrics] = await Promise.all([
       repositories.sessions.list_sets_for_session_exercise(source.id),
       repositories.sessions.get_exercise_metrics(source.id),
@@ -378,6 +380,7 @@ export async function adapt_current_week_after_session(
 
     const challenge_baseline_loads = new Map<number, number>()
     for (const planned_set of source_programmed?.sets ?? []) {
+      if (source.equipment_snapshot !== undefined && !comparable_equipment(source.equipment_snapshot, planned_set.set.equipment_snapshot)) continue
       const challenge = parse_adaptive_challenge(planned_set.set.notes)
       if (challenge?.baseline_load_kg !== null && challenge?.baseline_load_kg !== undefined) {
         challenge_baseline_loads.set(
@@ -439,11 +442,14 @@ export async function adapt_current_week_after_session(
             ? progressed_load_kg(evidence_load, unit)
             : evidence_load
 
-        if (same_load(set.target_load_kg, desired_load)) continue
+        const same_equipment = comparable_equipment(set.equipment_snapshot, evidence.source.equipment_snapshot)
+        if (same_load(set.target_load_kg, desired_load) && (evidence.source.equipment_snapshot === undefined || same_equipment)) continue
 
-        const existing_challenge = parse_adaptive_challenge(set.notes)
+        const existing_challenge = evidence.source.equipment_snapshot !== undefined && !same_equipment
+          ? null : parse_adaptive_challenge(set.notes)
         const baseline_load =
-          existing_challenge?.baseline_load_kg ?? set.target_load_kg
+          evidence.source.equipment_snapshot !== undefined && !same_equipment ? null
+            : existing_challenge?.baseline_load_kg ?? set.target_load_kg
         const challenge = encode_adaptive_challenge({
           source_session_id: session.id,
           baseline_load_kg: baseline_load,
@@ -461,6 +467,7 @@ export async function adapt_current_week_after_session(
           `Adaptive current week · ${session.session_date_local} · ${evidence.decision.label} · ${baseline_label} → ${desired_load} kg: ${evidence.decision.reason}\n${challenge}\n${marker}`
         const updated: ProgrammedSessionSet = {
           ...set,
+          equipment_snapshot: structuredClone(evidence.source.equipment_snapshot ?? null),
           target_load_kg: desired_load,
           notes: append_note(set.notes, note),
           updated_at: context.now_iso,

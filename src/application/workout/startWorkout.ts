@@ -2,12 +2,14 @@ import { create_uuid } from '../../domain/ids/uuid'
 import type {
   CompletedSession,
   SessionExercise,
+  EquipmentSnapshot,
 } from '../../domain/models'
 import type {
   ProgrammedSessionDetail,
   SessionRepository,
 } from '../../data/repositories/contracts'
 import { progression_challenge_lines } from '../programme/progressionChallenge'
+import { equipment_scoped_prescription } from '../gyms/equipmentProfiles'
 
 export interface StartWorkoutContext {
   device_id: string
@@ -17,6 +19,7 @@ export interface StartWorkoutContext {
   gym_profile_id?: string | null
   gym_name_snapshot?: string | null
   gym_exercise_names?: Record<string, string>
+  gym_equipment_snapshots?: Record<string, EquipmentSnapshot | null>
   id_factory?: () => string
 }
 
@@ -70,7 +73,7 @@ export async function start_programmed_workout(
   const exercises: SessionExercise[] = detail.exercises.map(({ exercise, sets }) => {
     const challenge_lines = [
       ...new Set(
-        sets.flatMap(({ set }) => progression_challenge_lines(set.notes)),
+        sets.flatMap(({ set }) => progression_challenge_lines(equipment_scoped_prescription(set, context.gym_equipment_snapshots?.[exercise.exercise_id]).notes)),
       ),
     ]
     const programme_notes = [
@@ -93,6 +96,7 @@ export async function start_programmed_workout(
     programmed_session_exercise_id: exercise.id,
     exercise_id: exercise.exercise_id,
     exercise_name_snapshot: context.gym_exercise_names?.[exercise.exercise_id] ?? exercise.exercise_name_snapshot,
+    equipment_snapshot: structuredClone(context.gym_equipment_snapshots?.[exercise.exercise_id] ?? null),
     planned_order: exercise.planned_order,
     actual_order: exercise.planned_order,
     rotation_group_key: exercise.rotation_group_key,

@@ -2,6 +2,8 @@ import Dexie from 'dexie'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
 import { PROJECT_FREAK_STORE_NAMES } from '../../data/db/schema'
+import { create_repositories } from '../../data/repositories'
+import type { GymProfile, GymExerciseAvailability } from '../../domain/models'
 import {
   BACKUP_FORMAT,
   build_full_backup,
@@ -68,6 +70,30 @@ describe('PROJECT FREAK database backup', () => {
     )
     expect(backup.database.tables.settings).toHaveLength(1)
     expect(backup.checksums.tables.settings).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('preserves equipment links in sync payloads and through a validated backup restore', async () => {
+    const base = { created_at: NOW, updated_at: NOW, deleted_at: null, revision: 1,
+      device_id: 'device-1', source_kind: 'user' as const, source_id: null }
+    const gym: GymProfile = { ...base, id: 'gym', name: 'Gym', short_name: 'Gym', kind: 'home',
+      is_inventory_complete: true, notes: null, equipment_attribution_version: 1,
+      equipment_profiles: [{ id: 'machine', gym_profile_id: 'gym', label: 'Shared machine', kind: 'machine',
+        status: 'identified', source: 'user_confirmed', notes: null }] }
+    const link: GymExerciseAvailability = { ...base, id: 'link', gym_profile_id: 'gym', exercise_id: 'exercise',
+      available: true, equipment_label: 'Curl', notes: null, equipment_profile_id: 'machine', equipment_identity_signature: 'user_confirmed' }
+    const repositories = create_repositories(db)
+    await repositories.gyms.put_profile(gym)
+    await repositories.gyms.put_availability(link)
+    const pending = await repositories.sync.list_pending(10)
+    expect(JSON.stringify(pending)).toContain('Shared machine')
+    expect(JSON.stringify(pending)).toContain('equipment_profile_id')
+    const backup = await build_full_backup(db, { now_iso: NOW, source_device_id: 'device-1' })
+    const preview = await preview_backup_json(JSON.stringify(backup))
+    await db.gym_profiles.clear()
+    await db.gym_exercise_availability.clear()
+    await restore_validated_backup(db, preview, { now_iso: NOW, source_device_id: 'device-1' })
+    expect(await db.gym_profiles.get('gym')).toEqual(gym)
+    expect(await db.gym_exercise_availability.get('link')).toEqual(link)
   })
 
   it('round-trips through validated restore preview without writing data', async () => {

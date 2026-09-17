@@ -3,6 +3,7 @@ import type { GymProfile } from '../../domain/models'
 import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment, verify_gym_equipment } from '../../app/projectFreakServices'
 import { save_gym_machine_identity } from '../../app/gymMachineDetailsService'
 import styles from './GymProfilesScreen.module.css'
+import { save_equipment_profile_link } from '../../app/equipmentProfileService'
 
 type State = Awaited<ReturnType<typeof load_gym_profile_state>>
 
@@ -24,6 +25,20 @@ export function GymProfilesScreen() {
     model: string
     setup_notes: string
   } | null>(null)
+  const [profileLink, setProfileLink] = useState<{ exercise_id: string; name: string; profile_id: string; label: string } | null>(null)
+
+  async function saveProfileLink() {
+    if (!editing || !profileLink) return
+    setSaving(profileLink.exercise_id)
+    setError(null)
+    try {
+      await save_equipment_profile_link(editing.id, profileLink.exercise_id, profileLink.profile_id || null, profileLink.label)
+      setEquipment(await load_gym_equipment(editing.id))
+      setProfileLink(null)
+      setNotice('Equipment profile saved. Past workouts are unchanged; new workouts will record this equipment.')
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to save equipment profile.') }
+    finally { setSaving(null) }
+  }
   const [equipmentView, setEquipmentView] = useState<'available' | 'unconfirmed' | 'all'>('available')
 
   async function saveDetails() {
@@ -72,6 +87,7 @@ export function GymProfilesScreen() {
       const rows = await load_gym_equipment(profile.id)
       setEquipment(rows)
       setEditing(profile)
+      setProfileLink(null)
       setDetails(null)
       setSearch('')
       setAdding(false)
@@ -169,6 +185,30 @@ export function GymProfilesScreen() {
         <section className={styles.editor} aria-label={`${editing.name} equipment`}>
           <h2>{editing.name} — equipment & exercise options</h2>
           <p>Add or remove existing options, or create a new machine below. Availability changes apply to this gym only.</p>
+          <p>{new Set(equipment.filter(row => row.available && row.equipment_profile).map(row => row.equipment_profile!.id)).size} equipment profiles linked.
+            {' '}{equipment.filter(row => row.available && row.equipment_profile?.status === 'needs_review').length} options need equipment confirmation.
+            Multiple exercises can share a machine while keeping their own performance records.</p>
+          {profileLink && (
+            <form onSubmit={event => { event.preventDefault(); void saveProfileLink() }}>
+              <fieldset className={styles.newMachine} disabled={saving !== null}>
+                <legend>Equipment used for {profileLink.name}</legend>
+                <label>Physical machine or equivalent equipment
+                  <select value={profileLink.profile_id} onChange={event => setProfileLink({ ...profileLink, profile_id: event.target.value })}>
+                    <option value="">Create a separate equipment profile</option>
+                    {[...new Map(equipment.filter(row => row.equipment_profile).map(row => [row.equipment_profile!.id, row.equipment_profile!])).values()]
+                      .sort((a, b) => a.label.localeCompare(b.label)).map(profile => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+                  </select>
+                </label>
+                {!profileLink.profile_id && <label>Distinct equipment label
+                  <input required maxLength={120} value={profileLink.label} onChange={event => setProfileLink({ ...profileLink, label: event.target.value })}
+                    placeholder="e.g. Hotel gym A — seated cable row" />
+                </label>}
+                <p>Only link the same physical machine or equipment you know has equivalent loads. Keep different exercise variants separate.</p>
+                <button type="submit">Confirm equipment</button>
+                <button type="button" onClick={() => setProfileLink(null)}>Cancel</button>
+              </fieldset>
+            </form>
+          )}
           {notice && <p role="status">{notice}</p>}
           <button disabled={saving !== null} onClick={() => setAdding(!adding)}>Add new machine / exercise</button>
           {adding && (
@@ -201,7 +241,7 @@ export function GymProfilesScreen() {
               Available ({equipment.filter(row => row.available).length})
             </button>
             <button type="button" aria-pressed={equipmentView === 'unconfirmed'} onClick={() => setEquipmentView('unconfirmed')}>
-              Unconfirmed ({equipment.filter(row => row.available && row.gym_notes?.startsWith('[UNCONFIRMED]')).length})
+              Needs confirmation ({equipment.filter(row => row.available && (row.gym_notes?.startsWith('[UNCONFIRMED]') || row.equipment_profile?.status === 'needs_review')).length})
             </button>
             <button type="button" aria-pressed={equipmentView === 'all'} onClick={() => setEquipmentView('all')}>
               Show all ({equipment.length})
@@ -233,7 +273,7 @@ export function GymProfilesScreen() {
               .filter(row => (
                 equipmentView === 'all' ||
                 (equipmentView === 'available' && row.available) ||
-                (equipmentView === 'unconfirmed' && row.available && row.gym_notes?.startsWith('[UNCONFIRMED]'))
+                (equipmentView === 'unconfirmed' && row.available && (row.gym_notes?.startsWith('[UNCONFIRMED]') || row.equipment_profile?.status === 'needs_review'))
               ) && `${row.display_name} ${row.equipment ?? ''} ${row.gym_notes ?? ''} ${row.setup_notes ?? ''}`.toLowerCase().includes(search.toLowerCase()))
               .sort((a, b) => Number(b.available) - Number(a.available) || a.display_name.localeCompare(b.display_name))
               .map(row => {
@@ -243,6 +283,13 @@ export function GymProfilesScreen() {
                 return (
               <div key={row.id} className={styles.option}>
                 <div><strong>{row.display_name}</strong><small>{row.machine_brand || 'Brand not specified'}{row.machine_model ? ` · ${row.machine_model}` : ''}</small>
+                  {row.available && row.equipment_profile && <small>Equipment: {row.equipment_profile.label}
+                    {row.equipment_profile.status === 'needs_review' ? ' — confirm before comparing loads' : ' — linked'}</small>}
+                  {row.available && <button disabled={saving !== null} onClick={() => {
+                    setProfileLink({ exercise_id: row.id, name: row.display_name,
+                      profile_id: row.equipment_profile?.id ?? '', label: row.display_name })
+                    setDetails(null)
+                  }}>Link equipment</button>}
                   {row.setup_notes && <small className={styles.setupNote}><b>SETUP</b>{row.setup_notes}</small>}
                   {note && <small className={styles.detail}>{note}</small>}
                   {row.available && (unconfirmed || confirmed) && (

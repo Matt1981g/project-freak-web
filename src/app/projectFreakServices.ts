@@ -69,6 +69,8 @@ import {
 } from '../application/workout/readiness'
 import { start_programmed_workout } from '../application/workout/startWorkout'
 import { select_previous_comparable } from '../application/workout/previousComparable'
+import { load_equipment_profile_state } from './equipmentProfileService'
+import { equipment_snapshot, equipment_scoped_prescription } from '../application/gyms/equipmentProfiles'
 import { build_progression_suggestion } from '../application/workout/progressionSuggestion'
 import {
   commit_programme_import,
@@ -151,6 +153,7 @@ export async function load_gym_profile_state() {
 }
 
 export async function load_gym_equipment(gym_id: string) {
+  const profile_state = await load_equipment_profile_state(gym_id)
   const [exercises, mappings] = await Promise.all([
     repositories.exercises.list_active(), repositories.gyms.list_availability(gym_id),
   ])
@@ -161,6 +164,8 @@ export async function load_gym_equipment(gym_id: string) {
       ...gym_machine_details(exercise, mapping),
       gym_notes: mapping?.notes ?? null,
       setup_notes: mapping?.setup_notes ?? null,
+      equipment_profile: profile_state.profiles.find(profile => profile.id === mapping?.equipment_profile_id) ?? null,
+      equipment_snapshot: profile_state.gym ? equipment_snapshot(profile_state.gym, mapping) : null,
       available: available.has(exercise.id) }
   })
 }
@@ -758,8 +763,12 @@ export async function substitute_workout_exercise(
   replacement_exercise_id: string,
   scope: ExerciseSubstitutionScope,
 ) {
+  const appearance = await repositories.sessions.get_session_exercise?.(session_exercise_id)
+  const session = appearance ? await repositories.sessions.get_session(appearance.completed_session_id) : undefined
+  const equipment = session?.gym_profile_id ? await load_gym_equipment(session.gym_profile_id) : []
   const result = await substitute_live_exercise(
-    { session_exercise_id, replacement_exercise_id, scope },
+    { session_exercise_id, replacement_exercise_id, scope,
+      replacement_equipment_snapshot: equipment.find(row => row.id === replacement_exercise_id)?.equipment_snapshot ?? null },
     {
       exercises: repositories.exercises,
       programme: repositories.programme,
@@ -919,6 +928,7 @@ export async function start_programmed_session_workout(
     gym_profile_id: active_gym?.id ?? null,
     gym_name_snapshot: active_gym?.name ?? null,
     gym_exercise_names: Object.fromEntries(gym_equipment.filter(row => row.available).map(row => [row.id, row.display_name])),
+    gym_equipment_snapshots: Object.fromEntries(gym_equipment.filter(row => row.available).map(row => [row.id, row.equipment_snapshot])),
   })
 
   const programme_changed = await set_programmed_status(
@@ -1063,12 +1073,15 @@ export async function load_live_workout(completed_session_id: string) {
           exercise.programmed_session_exercise_id === null
             ? undefined
             : planned_by_id.get(exercise.programmed_session_exercise_id)
-        const planned_sets = planned_detail?.sets ?? []
+        const planned_sets = (planned_detail?.sets ?? []).map(detail => ({
+          ...detail, set: equipment_scoped_prescription(detail.set, exercise.equipment_snapshot),
+        }))
         const previous_comparable = history
           ? select_previous_comparable(
               history,
               session.id,
               session.session_date_local,
+              { gym_profile_id: session.gym_profile_id ?? null, equipment_snapshot: exercise.equipment_snapshot ?? null },
             )
           : null
         const progression_targets =
@@ -1088,7 +1101,8 @@ export async function load_live_workout(completed_session_id: string) {
 
         return {
           exercise,
-          setup_notes: setup_notes_by_exercise_id.get(exercise.exercise_id) ?? null,
+          setup_notes: exercise.equipment_snapshot ? exercise.equipment_snapshot.setup_notes
+            : setup_notes_by_exercise_id.get(exercise.exercise_id) ?? null,
           sets,
           metrics,
           previous_comparable,

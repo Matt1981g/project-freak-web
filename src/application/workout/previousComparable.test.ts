@@ -152,6 +152,24 @@ function history(entries: ExerciseHistoryResult['entries']): ExerciseHistoryResu
 }
 
 describe('select_previous_comparable', () => {
+  it('uses only confirmed matching equipment and never guesses legacy equipment', () => {
+    const snapshot = { profile_id: 'machine-a', gym_profile_id: 'gym-a', label: 'Machine A', comparable: true, setup_notes: null }
+    const previous = { ...session('previous', '2026-09-01'), gym_profile_id: 'gym-a' }
+    const entries = history([{
+      session: previous,
+      appearances: [{ session_exercise: { ...appearance('appearance-previous', previous.id), equipment_snapshot: snapshot },
+        sets: [set('previous-set', previous.id, 1, 40, 10)], metrics: undefined }],
+      completed_sets: 1, total_volume_kg: 400,
+    }])
+    const context = { gym_profile_id: 'gym-a', equipment_snapshot: snapshot }
+    expect(select_previous_comparable(entries, 'current', '2026-09-04', context)?.session_id).toBe('previous')
+    for (const changed of [null, { ...snapshot, comparable: false }, { ...snapshot, profile_id: 'machine-b' },
+      { ...snapshot, gym_profile_id: 'gym-b' }, { ...snapshot, setup_notes: 'Seat 3' }]) {
+      expect(select_previous_comparable(entries, 'current', '2026-09-04', { ...context, equipment_snapshot: changed })).toBeNull()
+    }
+    entries.entries[0].appearances[0].session_exercise.equipment_snapshot = null
+    expect(select_previous_comparable(entries, 'current', '2026-09-04', context)).toBeNull()
+  })
   it('selects the newest prior completed comparable performance', () => {
     const current = session('current', '2026-09-04', 'in_progress')
     const previous = session('previous', '2026-09-01')

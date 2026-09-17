@@ -77,6 +77,7 @@ function programmed_detail(): ProgrammedSessionDetail {
               target_rep_max: 12,
               target_duration_seconds: null,
               target_load_kg: 41.25,
+              equipment_snapshot: { profile_id: 'machine-a', gym_profile_id: 'gym-trident-plymouth', label: 'Machine A', comparable: true, setup_notes: 'Seat 3' },
               target_load_type: 'normal',
               failure_target: 'none',
               notes: 'PF_ADAPTIVE_CHALLENGE:{"source_session_id":"source-1","baseline_load_kg":40,"target_load_kg":41.25,"baseline_rep_min":8,"baseline_rep_max":12,"target_rep_min":8,"target_rep_max":12}',
@@ -144,6 +145,7 @@ function repository_fixture(existing?: CompletedSession) {
 
 describe('start_programmed_workout', () => {
   it('creates one actual workout graph from the programmed snapshot', async () => {
+    const equipment = { profile_id: 'machine-a', gym_profile_id: 'gym-trident-plymouth', label: 'Machine A', comparable: true, setup_notes: 'Seat 3' }
     const fixture = repository_fixture()
     const ids = ['session-1', 'session-exercise-1', 'session-exercise-2']
     let id_index = 0
@@ -159,6 +161,7 @@ describe('start_programmed_workout', () => {
         gym_profile_id: 'gym-trident-plymouth',
         gym_name_snapshot: 'Trident Gym Plymouth',
         gym_exercise_names: { 'exercise-1': 'Nautilus Bicep Curl — Trident model' },
+        gym_equipment_snapshots: { 'exercise-1': equipment },
         id_factory: () => ids[id_index++],
       },
     )
@@ -166,6 +169,10 @@ describe('start_programmed_workout', () => {
     expect(result).toEqual({ session_id: 'session-1', created: true })
 
     const graph = fixture.get_graph()
+    expect(graph?.exercises[0].equipment_snapshot).toEqual(equipment)
+    equipment.label = 'Changed after start'
+    expect(graph?.exercises[0].equipment_snapshot?.label).toBe('Machine A')
+    expect(graph?.exercises[1].equipment_snapshot).toBeNull()
     expect(graph?.session.programmed_session_id).toBe('programmed-session-1')
     expect(graph?.session.session_date_local).toBe('2026-09-04')
     expect(graph?.session.status).toBe('in_progress')

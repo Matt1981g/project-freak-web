@@ -228,9 +228,17 @@ export function build_exercise_progression(
     })
 
   const rows: ExerciseProgressionRow[] = []
-  let previous_comparable: ExerciseProgressionRow | null = null
+  const previous_by_equipment = new Map<string, ExerciseProgressionRow>()
 
   for (const entry of chronological) {
+    const equipment_keys = new Set(entry.appearances.map(({ session_exercise }) => {
+      const snapshot = session_exercise.equipment_snapshot
+      if (!snapshot) return `legacy:${entry.session.gym_profile_id ?? 'unattributed'}`
+      if (!snapshot.comparable) return null
+      return JSON.stringify([snapshot.gym_profile_id, snapshot.profile_id, snapshot.setup_notes?.trim().toLowerCase() ?? ''])
+    }))
+    const equipment_key = equipment_keys.size === 1 ? [...equipment_keys][0] : null
+    const previous_comparable = equipment_key ? previous_by_equipment.get(equipment_key) ?? null : null
     const sets_by_id = new Map<string, TrainingSet>()
     const metrics: Array<ExerciseMetrics | undefined> = []
 
@@ -270,6 +278,7 @@ export function build_exercise_progression(
     }
 
     let classification = classify_progression(row, previous_comparable)
+    if (!equipment_key) classification = { verdict: 'not_comparable', reason: 'Equipment is unconfirmed or more than one setup was used.' }
     if (
       row.challenge_attempt &&
       classification.verdict === 'regressed' &&
@@ -285,8 +294,8 @@ export function build_exercise_progression(
     row.reason = classification.reason
     rows.push(row)
 
-    if (best_set) {
-      previous_comparable = row
+    if (best_set && equipment_key) {
+      previous_by_equipment.set(equipment_key, row)
     }
   }
 

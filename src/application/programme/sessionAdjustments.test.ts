@@ -164,4 +164,22 @@ describe('programme session adjustments', () => {
 
     expect(fixture.put_programmed_session_exercise).not.toHaveBeenCalled()
   })
+
+  it('replaces equipment provenance when substituting and does not inherit the old machine', async () => {
+    const old = { profile_id: 'old', gym_profile_id: 'gym', label: 'Old', comparable: true, setup_notes: null }
+    const appearance = { id: 'se', deleted_at: null, completed_session_id: 's', exercise_id: 'old-exercise',
+      exercise_name_snapshot: 'Old', revision: 1, notes: null, equipment_snapshot: old } as SessionExercise
+    const put = vi.fn(async (row: SessionExercise) => row.id)
+    const sessions = { get_session_exercise: async () => appearance,
+      get_session: async () => ({ id: 's', deleted_at: null, status: 'in_progress' }),
+      list_sets_for_session_exercise: async () => [], put_session_exercise: put } as unknown as SessionRepository
+    const exercises = { get_by_id: async () => ({ id: 'new', canonical_name: 'New', deleted_at: null, archived_at: null }) } as unknown as ExerciseRepository
+    const equipment = { ...old, profile_id: 'new-machine', label: 'New machine' }
+    const run = (replacement_equipment_snapshot?: typeof old) => substitute_live_exercise({ session_exercise_id: 'se',
+      replacement_exercise_id: 'new', scope: 'today', replacement_equipment_snapshot },
+    { exercises, sessions, programme: programme_repo().repository }, { device_id: DEVICE, now_iso: NOW })
+    expect((await run(equipment)).session_exercise.equipment_snapshot).toEqual(equipment)
+    expect((await run()).session_exercise.equipment_snapshot).toBeNull()
+    expect(appearance.equipment_snapshot).toEqual(old)
+  })
 })
