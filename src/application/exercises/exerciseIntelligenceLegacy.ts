@@ -1,5 +1,6 @@
 import type { Exercise, ExerciseIntelligence } from '../../domain/models'
 import type { ExerciseRepository } from '../../data/repositories/contracts'
+import { exercise_intelligence_schema } from '../../domain/rules/exerciseIntelligenceValidation'
 
 function normalise(value: string): string {
   return value
@@ -80,7 +81,8 @@ const LEGACY: Record<string, ExerciseIntelligence> = {
 }
 
 export function classify_known_legacy_exercise(exercise: Exercise): ExerciseIntelligence | null {
-  return LEGACY[normalise(exercise.canonical_name)] ?? null
+  const candidate = LEGACY[normalise(exercise.canonical_name)]
+  return candidate ? structuredClone(candidate) : null
 }
 
 export async function backfill_known_legacy_exercises(
@@ -91,12 +93,13 @@ export async function backfill_known_legacy_exercises(
   let updated = 0
 
   for (const exercise of exercises) {
-    if (exercise.deleted_at !== null) continue
+    if (exercise.deleted_at !== null || exercise.archived_at !== null) continue
     const candidate = classify_known_legacy_exercise(exercise)
     if (!candidate) continue
 
     const current = exercise.exercise_intelligence
     if (current?.metadata_status === 'verified' || current?.metadata_status === 'user_confirmed') continue
+    if (current && !exercise_intelligence_schema.safeParse(current).success) continue
     if (current?.metadata_sources.includes('PF legacy exercise audit')) continue
 
     // An exact known PF exercise name is more specific than a generic movement-family

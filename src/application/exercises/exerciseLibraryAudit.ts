@@ -3,6 +3,8 @@ import { find_case_only_exercise_alias_candidates } from '../../domain/rules/exe
 import { backfill_exercise_intelligence } from './exerciseIntelligence'
 import { backfill_known_legacy_exercises } from './exerciseIntelligenceLegacy'
 import { apply_exercise_intelligence_review_policy } from './exerciseIntelligenceReviewPolicy'
+import { inspect_exercise_intelligence, type ExerciseIntelligenceFinding } from './exerciseIntelligenceAudit'
+import { cleanup_exercise_intelligence } from './exerciseIntelligenceCleanup'
 
 export interface ExerciseLibraryAudit {
   total_definitions: number
@@ -15,6 +17,7 @@ export interface ExerciseLibraryAudit {
   intelligence_missing: number
   intelligence_needs_review: number
   intelligence_average_confidence: number | null
+  intelligence_validation_findings: ExerciseIntelligenceFinding[]
   intelligence_review_items: Array<{
     exercise_id: string
     exercise_name: string
@@ -29,6 +32,7 @@ export async function audit_exercise_library(
   await backfill_known_legacy_exercises(repository)
   await backfill_exercise_intelligence(repository)
   await apply_exercise_intelligence_review_policy(repository)
+  await cleanup_exercise_intelligence(repository)
 
   const [exercises, aliases] = await Promise.all([
     repository.list_all(),
@@ -56,8 +60,11 @@ export async function audit_exercise_library(
     live_aliases,
   ).length
 
+  const validation = inspect_exercise_intelligence(exercises, aliases)
+  const invalid_ids = new Set(validation.findings.filter((finding) =>
+    ['missing_metadata', 'invalid_metadata', 'unresolved_classification'].includes(finding.code)).map((finding) => finding.exercise_id))
   const intelligence_complete = active_exercises.filter(
-    (exercise) => exercise.exercise_intelligence !== null && exercise.exercise_intelligence !== undefined,
+    (exercise) => !invalid_ids.has(exercise.id),
   ).length
   const intelligence_missing = active_definitions - intelligence_complete
   const intelligence_review_items = active_exercises
@@ -71,7 +78,7 @@ export async function audit_exercise_library(
   const intelligence_needs_review = intelligence_review_items.length
   const confidence_values = active_exercises
     .map((exercise) => exercise.exercise_intelligence?.metadata_confidence)
-    .filter((value): value is number => typeof value === 'number')
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1)
   const intelligence_average_confidence =
     confidence_values.length > 0
       ? confidence_values.reduce((sum, value) => sum + value, 0) /
@@ -89,11 +96,13 @@ export async function audit_exercise_library(
     intelligence_missing,
     intelligence_needs_review,
     intelligence_average_confidence,
+    intelligence_validation_findings: validation.findings,
     intelligence_review_items,
     status:
       unresolved_case_groups === 0 &&
       orphan_aliases === 0 &&
       intelligence_missing === 0 &&
+      validation.status === 'clean' &&
       intelligence_needs_review === 0
         ? 'clean'
         : 'warning',

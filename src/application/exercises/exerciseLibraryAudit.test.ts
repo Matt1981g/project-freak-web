@@ -114,6 +114,7 @@ describe('audit_exercise_library', () => {
       intelligence_needs_review: 0,
       intelligence_average_confidence: 0.95,
       intelligence_review_items: [],
+      intelligence_validation_findings: [],
       status: 'clean',
     })
   })

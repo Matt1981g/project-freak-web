@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "audit:intelligence": "node scripts/audit-exercise-intelligence.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

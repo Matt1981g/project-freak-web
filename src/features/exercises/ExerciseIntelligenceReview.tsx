@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Exercise, ExerciseIntelligence } from '../../domain/models'
 import { save_confirmed_exercise_intelligence } from '../../app/exerciseIntelligenceReviewService'
 import styles from './ExerciseIntelligenceReview.module.css'
+import { exercise_intelligence_schema, validate_exercise_intelligence } from '../../domain/rules/exerciseIntelligenceValidation'
 
 const MECHANICS: ExerciseIntelligence['mechanic'][] = ['compound', 'isolation', 'isometric', 'mixed']
 const LATERALITY: ExerciseIntelligence['laterality'][] = ['bilateral', 'unilateral', 'alternating', 'either']
@@ -180,18 +181,28 @@ function ReviewCard({ exercise, on_confirmed }: ReviewCardProps) {
 interface Props {
   exercises: Exercise[]
   on_confirmed: () => Promise<void>
+  validation_findings?: number
 }
 
-export function ExerciseIntelligenceReview({ exercises, on_confirmed }: Props) {
+export function ExerciseIntelligenceReview({ exercises, on_confirmed, validation_findings = 0 }: Props) {
   const review = useMemo(
     () => exercises.filter((exercise) =>
       exercise.archived_at === null &&
-      exercise.exercise_intelligence?.metadata_status === 'needs_review',
+      exercise.deleted_at === null &&
+      exercise_intelligence_schema.safeParse(exercise.exercise_intelligence).success &&
+      (exercise.exercise_intelligence?.metadata_status === 'needs_review' ||
+       validate_exercise_intelligence(exercise.exercise_intelligence).length > 0),
     ),
     [exercises],
   )
 
   if (review.length === 0) {
+    if (validation_findings > 0) return (
+      <section className={styles.panel}>
+        <strong>Exercise intelligence needs attention</strong>
+        <p>See the validation findings in Library Integrity above. Existing confirmations are preserved.</p>
+      </section>
+    )
     return (
       <section className={styles.complete}>
         <div>

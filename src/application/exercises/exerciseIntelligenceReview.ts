@@ -1,8 +1,15 @@
 import type { Exercise, ExerciseIntelligence } from '../../domain/models'
 import type { ExerciseRepository } from '../../data/repositories/contracts'
+import { intelligence_key, validate_exercise_intelligence } from '../../domain/rules/exerciseIntelligenceValidation'
 
 function clean_list(values: readonly string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+  const seen = new Set<string>()
+  return values.map((value) => value.trim()).filter((value) => {
+    const key = intelligence_key(value)
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 function validate_intelligence(intelligence: ExerciseIntelligence): ExerciseIntelligence {
@@ -16,13 +23,15 @@ function validate_intelligence(intelligence: ExerciseIntelligence): ExerciseInte
   if (!movement_pattern) throw new Error('Movement pattern cannot be blank.')
   if (!exercise_family) throw new Error('Exercise family cannot be blank.')
 
-  return {
+  const secondary_muscles = clean_list(intelligence.secondary_muscles).filter(
+    (muscle) => !primary_muscles.some((primary) => intelligence_key(primary) === intelligence_key(muscle)),
+  )
+  const confirmed: ExerciseIntelligence = {
     ...intelligence,
     primary_muscles,
-    secondary_muscles: clean_list(intelligence.secondary_muscles).filter(
-      (muscle) => !primary_muscles.includes(muscle),
-    ),
-    stabilizer_muscles: clean_list(intelligence.stabilizer_muscles),
+    secondary_muscles,
+    stabilizer_muscles: clean_list(intelligence.stabilizer_muscles).filter((muscle) =>
+      ![...primary_muscles, ...secondary_muscles].some((other) => intelligence_key(other) === intelligence_key(muscle))),
     movement_pattern,
     exercise_family,
     grip_or_handle: intelligence.grip_or_handle?.trim() || null,
@@ -35,6 +44,9 @@ function validate_intelligence(intelligence: ExerciseIntelligence): ExerciseInte
       ]),
     ],
   }
+  const issues = validate_exercise_intelligence(confirmed)
+  if (issues.length) throw new Error(issues.map((issue) => issue.message).join(' '))
+  return confirmed
 }
 
 export async function confirm_exercise_intelligence(

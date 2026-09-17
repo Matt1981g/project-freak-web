@@ -1,5 +1,6 @@
 import type { Exercise, ExerciseIntelligence } from '../../domain/models'
 import type { ExerciseRepository } from '../../data/repositories/contracts'
+import { exercise_intelligence_schema } from '../../domain/rules/exerciseIntelligenceValidation'
 
 export interface IntelligenceReviewReason {
   code:
@@ -73,7 +74,7 @@ export function intelligence_review_reason(
   exercise: Exercise,
 ): IntelligenceReviewReason | null {
   const intelligence = exercise.exercise_intelligence
-  if (!intelligence || is_protected(intelligence)) return null
+  if (!intelligence || !exercise_intelligence_schema.safeParse(intelligence).success || is_protected(intelligence)) return null
 
   const name = normalise(exercise.canonical_name)
   const name_reason = ambiguous_name_reason(name)

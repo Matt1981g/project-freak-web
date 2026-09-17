@@ -11,6 +11,8 @@ import type {
   ExerciseHypertrophyRole,
 } from '../../domain/models'
 import type { ExerciseRepository } from '../../data/repositories/contracts'
+import { intelligence_review_reason } from './exerciseIntelligenceReviewPolicy'
+import { exercise_intelligence_schema } from '../../domain/rules/exerciseIntelligenceValidation'
 
 interface IntelligenceRule {
   matches: (text: string) => boolean
@@ -190,7 +192,7 @@ const RULES: IntelligenceRule[] = [
     confidence: 0.98,
   },
   {
-    matches: (t) => has(t, 'row', 't bar') && !has(t, 'upright row'),
+    matches: (t) => (/\brow\b/.test(t) || has(t, 't bar')) && !has(t, 'upright row'),
     intelligence: base(['Back'], ['Lats', 'Biceps', 'Traps', 'Shoulders'], 'Horizontal pull', 'Row', 'compound', 'either', 'lengthened', 'moderate', 'moderate', 'high', 'high', 'good', 'primary'),
   },
   {
@@ -287,17 +289,27 @@ export function classify_exercise_intelligence(exercise: Exercise): ExerciseInte
     ? ['Technogym equipment catalogue', 'PF biomechanics classification']
     : ['PF biomechanics classification']
 
-  return {
-    ...rule.intelligence,
+  const candidate: ExerciseIntelligence = {
+    ...structuredClone(rule.intelligence),
     metadata_status: 'high_confidence',
     metadata_confidence: rule.confidence ?? 0.94,
     metadata_sources: rule.sources ?? manufacturer_source,
   }
+  const reason = intelligence_review_reason({ ...exercise, exercise_intelligence: candidate })
+  if (reason) {
+    candidate.metadata_status = 'needs_review'
+    candidate.metadata_confidence = Math.min(candidate.metadata_confidence, 0.78)
+    candidate.metadata_sources = [...candidate.metadata_sources, `PF review policy: ${reason.message}`]
+  }
+  return candidate
 }
 
 function should_replace(existing: ExerciseIntelligence | null | undefined, candidate: ExerciseIntelligence): boolean {
   if (!existing) return true
   if (existing.metadata_status === 'verified' || existing.metadata_status === 'user_confirmed') return false
+  // Invalid stored data needs explicit repair, not silent reclassification.
+  if (!exercise_intelligence_schema.safeParse(existing).success) return false
+  if (existing.metadata_sources.includes('PF legacy exercise audit')) return false
   if (existing.metadata_status === 'needs_review' && candidate.metadata_status !== 'needs_review') return true
   return candidate.metadata_confidence > existing.metadata_confidence + 0.02
 }
@@ -314,7 +326,7 @@ export async function backfill_exercise_intelligence(
   repository: ExerciseRepository,
   timestamp = new Date().toISOString(),
 ): Promise<ExerciseIntelligenceBackfillResult> {
-  const exercises = (await repository.list_active()).filter((exercise) => exercise.deleted_at === null)
+  const exercises = (await repository.list_active()).filter((exercise) => exercise.deleted_at === null && exercise.archived_at === null)
   let updated = 0
 
   for (const exercise of exercises) {

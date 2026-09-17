@@ -514,10 +514,23 @@ export function ExerciseLibraryScreen() {
             Total source definitions: {library_audit.total_definitions}. Archived
             definitions remain available for historical traceability.
           </p>
+          {library_audit.intelligence_validation_findings.length > 0 && (
+            <details>
+              <summary>Exercise intelligence: {library_audit.intelligence_validation_findings.length} validation findings</summary>
+              <ul>
+                {library_audit.intelligence_validation_findings.map((finding, index) => (
+                  <li key={`${finding.exercise_id}-${index}`}>
+                    <strong>{finding.exercise_name}</strong>: {finding.message}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
       )}
 
-      <ExerciseIntelligenceReview exercises={exercises} on_confirmed={refresh} />
+      <ExerciseIntelligenceReview exercises={exercises} on_confirmed={refresh}
+        validation_findings={library_audit?.intelligence_validation_findings.length ?? 0} />
 
       {muscle_audit && (
         <details
