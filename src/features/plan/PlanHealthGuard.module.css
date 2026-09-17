@@ -1,0 +1,177 @@
+.guard {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 82px);
+  right: 14px;
+  z-index: 140;
+  max-width: min(380px, calc(100vw - 28px));
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+}
+
+.ok,
+.checking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--pf-accent-border);
+  color: var(--pf-accent);
+  background: color-mix(in srgb, var(--pf-panel) 90%, transparent);
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.warning,
+.failed,
+.runtimeError {
+  padding: 14px;
+  background: color-mix(in srgb, var(--pf-panel) 95%, transparent);
+}
+
+.warning {
+  border: 1px solid var(--pf-warning-border);
+}
+
+.failed,
+.runtimeError {
+  border: 1px solid var(--pf-danger-border);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.header strong,
+.header span {
+  display: block;
+}
+
+.warning .header strong {
+  color: var(--pf-warning);
+}
+
+.failed .header strong,
+.runtimeError .header strong {
+  color: var(--pf-danger);
+}
+
+.header strong {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header span {
+  margin-top: 3px;
+  color: var(--pf-text-muted);
+  font-size: 11px;
+}
+
+.recheck {
+  flex: 0 0 auto;
+  min-height: 30px;
+  border: 1px solid var(--pf-border);
+  border-radius: 9px;
+  padding: 0 9px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.recheck:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.issues {
+  margin-top: 10px;
+  border-top: 1px solid var(--pf-border);
+  padding-top: 9px;
+}
+
+.issues summary {
+  color: var(--pf-text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.issueList {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.issueError,
+.issueWarning {
+  padding: 8px 9px;
+  border-radius: 9px;
+}
+
+.issueError {
+  border: 1px solid var(--pf-danger-border);
+  background: var(--pf-danger-soft);
+}
+
+.issueWarning {
+  border: 1px solid var(--pf-warning-border);
+  background: var(--pf-warning-soft);
+}
+
+.issueError strong,
+.issueWarning strong,
+.issueError span,
+.issueWarning span {
+  display: block;
+}
+
+.issueError strong,
+.issueWarning strong {
+  color: var(--pf-text-strong);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.issueError span,
+.issueWarning span {
+  margin-top: 3px;
+  color: var(--pf-text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.runtimeMessage {
+  margin-top: 6px;
+  color: var(--pf-text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+  .guard {
+    top: calc(env(safe-area-inset-top, 0px) + 76px);
+    right: 10px;
+    max-width: min(350px, calc(100vw - 20px));
+  }
+
+  .ok,
+  .checking {
+    min-height: 30px;
+    font-size: 9px;
+  }
+}
