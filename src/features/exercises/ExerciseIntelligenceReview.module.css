@@ -1,0 +1,258 @@
+.panel,
+.complete {
+  margin-bottom: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--pf-panel);
+}
+
+.panel {
+  border: 1px solid var(--pf-warning-border);
+}
+
+.complete {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid var(--pf-accent-border);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.header h2,
+.complete strong {
+  margin: 0;
+  color: var(--pf-text-strong);
+}
+
+.header h2 {
+  font-size: 21px;
+}
+
+.header p,
+.complete p,
+.help {
+  margin: 6px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 13px;
+}
+
+.kicker {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--pf-accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.queueBadge,
+.reviewBadge,
+.completeBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.queueBadge,
+.reviewBadge {
+  color: var(--pf-warning);
+  background: var(--pf-warning-soft);
+  border: 1px solid var(--pf-warning-border);
+}
+
+.completeBadge {
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  border: 1px solid var(--pf-accent-border);
+}
+
+.cards {
+  display: grid;
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid var(--pf-border);
+  border-radius: 14px;
+  background: var(--pf-panel-raised);
+  overflow: hidden;
+}
+
+.card summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.card summary::-webkit-details-marker {
+  display: none;
+}
+
+.card summary > div {
+  display: grid;
+  gap: 3px;
+}
+
+.card summary strong {
+  color: var(--pf-text-strong);
+  font-size: 14px;
+}
+
+.card summary span:not(.reviewBadge) {
+  color: var(--pf-text-muted);
+  font-size: 11px;
+}
+
+.proposal {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.proposal div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--pf-bg);
+}
+
+.proposal span,
+.formGrid label > span {
+  display: block;
+  color: var(--pf-text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.proposal strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--pf-text-strong);
+  font-size: 11px;
+}
+
+.help {
+  padding: 0 14px 12px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.formGrid label {
+  display: grid;
+  gap: 5px;
+}
+
+.wideField {
+  grid-column: 1 / -1;
+}
+
+.formGrid input,
+.formGrid select {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  border: 1px solid var(--pf-border);
+  border-radius: 10px;
+  padding: 0 11px;
+  color: var(--pf-text-strong);
+  background: var(--pf-panel);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.formGrid input:focus,
+.formGrid select:focus {
+  border-color: var(--pf-accent-border);
+  box-shadow: 0 0 0 3px var(--pf-accent-soft);
+}
+
+.error {
+  margin: 0 14px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--pf-danger-border);
+  border-radius: 10px;
+  color: var(--pf-danger);
+  background: var(--pf-danger-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-top: 1px solid var(--pf-border);
+}
+
+.actions span {
+  color: var(--pf-text-muted);
+  font-size: 11px;
+}
+
+.actions button {
+  min-height: 42px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 11px;
+  padding: 0 14px;
+  color: #071006;
+  background: var(--pf-accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+@media (max-width: 720px) {
+  .header,
+  .complete,
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .proposal,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .wideField {
+    grid-column: auto;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}
