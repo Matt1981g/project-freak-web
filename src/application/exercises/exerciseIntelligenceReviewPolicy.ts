@@ -4,6 +4,7 @@ import type { ExerciseRepository } from '../../data/repositories/contracts'
 export interface IntelligenceReviewReason {
   code:
     | 'unclassified'
+    | 'ambiguous_name'
     | 'pulldown_handle'
     | 'row_geometry'
     | 'cable_fly_angle'
@@ -31,11 +32,52 @@ function is_protected(intelligence: ExerciseIntelligence): boolean {
   )
 }
 
+function ambiguous_name_reason(name: string): IntelligenceReviewReason | null {
+  const ambiguous_exact = new Set([
+    'delts machine',
+    'delt machine',
+    'lunges',
+    'lunge',
+    'seated row',
+    'cable row',
+    'machine row',
+    'lat pulldown',
+    'pulldown machine',
+  ])
+
+  if (ambiguous_exact.has(name)) {
+    return {
+      code: 'ambiguous_name',
+      message: 'Exercise name does not specify enough geometry or setup detail.',
+    }
+  }
+
+  if (
+    name.includes('lunge') &&
+    !name.includes('reverse') &&
+    !name.includes('forward') &&
+    !name.includes('stationary') &&
+    !name.includes('walking') &&
+    !name.includes('split squat')
+  ) {
+    return {
+      code: 'ambiguous_name',
+      message: 'Lunge direction or execution style is unspecified.',
+    }
+  }
+
+  return null
+}
+
 export function intelligence_review_reason(
   exercise: Exercise,
 ): IntelligenceReviewReason | null {
   const intelligence = exercise.exercise_intelligence
   if (!intelligence || is_protected(intelligence)) return null
+
+  const name = normalise(exercise.canonical_name)
+  const name_reason = ambiguous_name_reason(name)
+  if (name_reason) return name_reason
 
   if (
     intelligence.movement_pattern === 'Needs classification' ||
@@ -68,7 +110,6 @@ export function intelligence_review_reason(
     }
   }
 
-  const name = normalise(exercise.canonical_name)
   if (
     name.includes('cable fly') &&
     !name.includes('low to high') &&
