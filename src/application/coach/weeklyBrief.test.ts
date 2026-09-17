@@ -59,6 +59,7 @@ const payload: TrainingExport = {
         'Calfs',
         'Abs',
         'Chest',
+        'Adductors',
       ],
       intent_by_area: {
         Biceps: 'grow',
@@ -73,6 +74,7 @@ const payload: TrainingExport = {
         Calfs: 'grow',
         Abs: 'grow',
         Chest: 'maintain',
+        Adductors: 'maintain',
       },
       history: [],
     },
