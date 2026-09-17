@@ -1,5 +1,6 @@
 import type { ExerciseRepository } from '../../data/repositories/contracts'
 import { find_case_only_exercise_alias_candidates } from '../../domain/rules/exerciseAliases'
+import { backfill_exercise_intelligence } from './exerciseIntelligence'
 
 export interface ExerciseLibraryAudit {
   total_definitions: number
@@ -12,12 +13,18 @@ export interface ExerciseLibraryAudit {
   intelligence_missing: number
   intelligence_needs_review: number
   intelligence_average_confidence: number | null
+  intelligence_review_items: Array<{
+    exercise_id: string
+    exercise_name: string
+    confidence: number
+  }>
   status: 'clean' | 'warning'
 }
 
 export async function audit_exercise_library(
   repository: ExerciseRepository,
 ): Promise<ExerciseLibraryAudit> {
+  const backfill = await backfill_exercise_intelligence(repository)
   const [exercises, aliases] = await Promise.all([
     repository.list_all(),
     repository.list_aliases(),
@@ -71,6 +78,7 @@ export async function audit_exercise_library(
     intelligence_missing,
     intelligence_needs_review,
     intelligence_average_confidence,
+    intelligence_review_items: backfill.review_items,
     status:
       unresolved_case_groups === 0 &&
       orphan_aliases === 0 &&
