@@ -29,6 +29,7 @@ export function PlanHealthGuard() {
   const [inspection, setInspection] = useState<PlanHealthInspection | null>(null)
   const [checking, setChecking] = useState(false)
   const [runtime_error, setRuntimeError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
   const timer_ref = useRef<number | null>(null)
 
   const run_check = useCallback(async () => {
@@ -93,22 +94,35 @@ export function PlanHealthGuard() {
 
   if (runtime_error) {
     return (
-      <aside className={`${styles.guard} ${styles.runtimeError}`} aria-live="polite">
-        <div className={styles.header}>
-          <div>
-            <strong>PLAN HEALTH FAILED</strong>
-            <span>Diagnostic check could not run.</span>
+      <aside className={`${styles.guard} ${styles.failed}`} aria-live="polite">
+        <button
+          type="button"
+          className={styles.summaryChip}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <strong>PLAN FAILED</strong>
+          <span>Tap for details</span>
+        </button>
+        {expanded && (
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div>
+                <strong>PLAN HEALTH FAILED</strong>
+                <span>Diagnostic check could not run.</span>
+              </div>
+              <button
+                type="button"
+                className={styles.recheck}
+                disabled={checking}
+                onClick={() => void run_check()}
+              >
+                {checking ? 'CHECKING…' : 'RECHECK'}
+              </button>
+            </div>
+            <div className={styles.runtimeMessage}>{runtime_error}</div>
           </div>
-          <button
-            type="button"
-            className={styles.recheck}
-            disabled={checking}
-            onClick={() => void run_check()}
-          >
-            {checking ? 'CHECKING…' : 'RECHECK'}
-          </button>
-        </div>
-        <div className={styles.runtimeMessage}>{runtime_error}</div>
+        )}
       </aside>
     )
   }
@@ -116,7 +130,10 @@ export function PlanHealthGuard() {
   if (!inspection) {
     return (
       <aside className={`${styles.guard} ${styles.checking}`} aria-live="polite">
-        PLAN HEALTH · CHECKING…
+        <div className={styles.summaryChip}>
+          <strong>PLAN HEALTH</strong>
+          <span>Checking…</span>
+        </div>
       </aside>
     )
   }
@@ -126,57 +143,73 @@ export function PlanHealthGuard() {
   if (report.status === 'ok') {
     return (
       <aside className={`${styles.guard} ${styles.ok}`} aria-live="polite">
-        PLAN OK ✓ · {report.visible_sessions} SESSION
-        {report.visible_sessions === 1 ? '' : 'S'} · {report.checked_exercises} EXERCISES
+        <div className={styles.summaryChip}>
+          <strong>PLAN OK ✓</strong>
+          <span>
+            {report.visible_sessions} session{report.visible_sessions === 1 ? '' : 's'} ·{' '}
+            {report.checked_exercises} exercises
+          </span>
+        </div>
       </aside>
     )
   }
 
-  const title = report.status === 'failed' ? 'PLAN HEALTH FAILED' : 'PLAN WARNING'
-  const container_class =
-    report.status === 'failed' ? styles.failed : styles.warning
+  const title = report.status === 'failed' ? 'PLAN FAILED' : 'PLAN WARNING'
+  const container_class = report.status === 'failed' ? styles.failed : styles.warning
 
   return (
     <aside className={`${styles.guard} ${container_class}`} aria-live="polite">
-      <div className={styles.header}>
-        <div>
-          <strong>{title}</strong>
-          <span>
-            {report.candidate_sessions} actionable · {report.visible_sessions} visible ·{' '}
-            {report.checked_exercises} exercises checked
-          </span>
-        </div>
-        <button
-          type="button"
-          className={styles.recheck}
-          disabled={checking}
-          onClick={() => void run_check()}
-        >
-          {checking ? 'CHECKING…' : 'RECHECK'}
-        </button>
-      </div>
+      <button
+        type="button"
+        className={styles.summaryChip}
+        aria-expanded={expanded}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        <strong>{title}</strong>
+        <span>
+          {report.visible_sessions} visible · {report.issues.length} issue
+          {report.issues.length === 1 ? '' : 's'}
+        </span>
+      </button>
 
-      {report.issues.length > 0 && (
-        <details className={styles.issues} open={report.status === 'failed'}>
-          <summary>
-            {report.issues.length} ISSUE{report.issues.length === 1 ? '' : 'S'}
-          </summary>
-          <div className={styles.issueList}>
-            {report.issues.map((entry, index) => (
-              <div
-                key={`${entry.code}-${entry.programmed_session_id ?? 'plan'}-${index}`}
-                className={
-                  entry.severity === 'error'
-                    ? styles.issueError
-                    : styles.issueWarning
-                }
-              >
-                <strong>{entry.code.replaceAll('_', ' ')}</strong>
-                <span>{entry.detail}</span>
-              </div>
-            ))}
+      {expanded && (
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <strong>{report.status === 'failed' ? 'PLAN HEALTH FAILED' : 'PLAN WARNING'}</strong>
+              <span>
+                {report.candidate_sessions} actionable · {report.visible_sessions} visible ·{' '}
+                {report.checked_exercises} exercises checked
+              </span>
+            </div>
+            <button
+              type="button"
+              className={styles.recheck}
+              disabled={checking}
+              onClick={() => void run_check()}
+            >
+              {checking ? 'CHECKING…' : 'RECHECK'}
+            </button>
           </div>
-        </details>
+
+          {report.issues.length > 0 && (
+            <div className={styles.issueList}>
+              {report.issues.map((entry, index) => (
+                <div
+                  key={`${entry.code}-${entry.programmed_session_id ?? 'plan'}-${index}`}
+                  className={
+                    entry.severity === 'error'
+                      ? styles.issueError
+                      : styles.issueWarning
+                  }
+                >
+                  <strong>{entry.code.replaceAll('_', ' ')}</strong>
+                  <span>{entry.detail}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </aside>
   )
