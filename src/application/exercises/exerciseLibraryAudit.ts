@@ -1,6 +1,7 @@
 import type { ExerciseRepository } from '../../data/repositories/contracts'
 import { find_case_only_exercise_alias_candidates } from '../../domain/rules/exerciseAliases'
 import { backfill_exercise_intelligence } from './exerciseIntelligence'
+import { backfill_known_legacy_exercises } from './exerciseIntelligenceLegacy'
 
 export interface ExerciseLibraryAudit {
   total_definitions: number
@@ -24,6 +25,7 @@ export interface ExerciseLibraryAudit {
 export async function audit_exercise_library(
   repository: ExerciseRepository,
 ): Promise<ExerciseLibraryAudit> {
+  await backfill_known_legacy_exercises(repository)
   const backfill = await backfill_exercise_intelligence(repository)
   const [exercises, aliases] = await Promise.all([
     repository.list_all(),
