@@ -5,6 +5,7 @@ import {
   type ExerciseAliasCandidateGroup,
 } from '../../domain/rules/exerciseAliases'
 import { backfill_exercise_intelligence } from './exerciseIntelligence'
+import { backfill_known_legacy_exercises } from './exerciseIntelligenceLegacy'
 
 export interface ExerciseLibraryQuery {
   search?: string
@@ -31,6 +32,7 @@ export async function query_exercise_library(
   repository: ExerciseRepository,
   query: ExerciseLibraryQuery = {},
 ): Promise<Exercise[]> {
+  await backfill_known_legacy_exercises(repository)
   await backfill_exercise_intelligence(repository)
 
   const exercises = query.include_archived
