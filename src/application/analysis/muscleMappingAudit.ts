@@ -16,7 +16,7 @@ export interface MuscleMappingAuditRow {
   canonical_name: string
   category: string | null
   equipment: string | null
-  status: 'explicit' | 'intelligence' | 'research' | 'fallback' | 'unmapped'
+  status: 'explicit' | 'research' | 'fallback' | 'unmapped'
   targets: ResolvedMuscleTarget[]
   research_confidence: ResearchConfidence | null
   research_sources: ResearchSource[]
@@ -26,7 +26,6 @@ export interface MuscleMappingAuditRow {
 export interface MuscleMappingAudit {
   active_exercises: number
   explicit: number
-  intelligence: number
   researched: number
   fallback: number
   unmapped: number
@@ -50,11 +49,12 @@ export async function audit_exercise_muscle_mappings(
         ? 'unmapped'
         : targets.some((target) => target.source === 'explicit')
           ? 'explicit'
-          : targets.some((target) => target.source === 'intelligence')
-            ? 'intelligence'
-            : targets.some((target) => target.source === 'research')
-              ? 'research'
-              : 'fallback'
+          : targets.some(
+                (target) =>
+                  target.source === 'intelligence' || target.source === 'research',
+              )
+            ? 'research'
+            : 'fallback'
     return {
       exercise_id: exercise.id,
       canonical_name: exercise.canonical_name,
@@ -62,27 +62,30 @@ export async function audit_exercise_muscle_mappings(
       equipment: exercise.equipment,
       status,
       targets,
-      research_confidence: researched?.confidence ?? null,
+      research_confidence:
+        exercise.exercise_intelligence &&
+        exercise.exercise_intelligence.metadata_status !== 'needs_review' &&
+        exercise.exercise_intelligence.metadata_confidence >= 0.8
+          ? 'high'
+          : researched?.confidence ?? null,
       research_sources: researched ? research_sources_for_mapping(researched) : [],
-      research_rationale: researched?.rationale ?? null,
+      research_rationale:
+        exercise.exercise_intelligence &&
+        exercise.exercise_intelligence.metadata_status !== 'needs_review' &&
+        exercise.exercise_intelligence.metadata_confidence >= 0.8
+          ? `Exercise Intelligence: ${exercise.exercise_intelligence.movement_pattern}; ${exercise.exercise_intelligence.exercise_family}; confidence ${Math.round(exercise.exercise_intelligence.metadata_confidence * 100)}%.`
+          : researched?.rationale ?? null,
     }
   })
 
   return {
     active_exercises: rows.length,
     explicit: rows.filter((row) => row.status === 'explicit').length,
-    intelligence: rows.filter((row) => row.status === 'intelligence').length,
     researched: rows.filter((row) => row.status === 'research').length,
     fallback: rows.filter((row) => row.status === 'fallback').length,
     unmapped: rows.filter((row) => row.status === 'unmapped').length,
     rows: rows.sort((a, b) => {
-      const rank = {
-        unmapped: 0,
-        fallback: 1,
-        research: 2,
-        intelligence: 3,
-        explicit: 4,
-      }
+      const rank = { unmapped: 0, fallback: 1, research: 2, explicit: 3 }
       const status = rank[a.status] - rank[b.status]
       return status || a.canonical_name.localeCompare(b.canonical_name)
     }),
