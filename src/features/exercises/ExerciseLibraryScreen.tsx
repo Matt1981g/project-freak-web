@@ -23,6 +23,7 @@ import {
   restore_exercise_definition,
   save_exercise_muscle_mapping,
 } from '../../app/projectFreakServices'
+import { ExerciseIntelligenceReview } from './ExerciseIntelligenceReview'
 import styles from './ExerciseLibraryScreen.module.css'
 
 function exercise_meta(exercise: Exercise): string {
@@ -71,13 +72,15 @@ export function ExerciseLibraryScreen() {
     setError(null)
 
     try {
-      const [library, candidates, audit, muscleAudit] = await Promise.all([
+      // The audit is the single writer for intelligence backfill. Run it first so
+      // the library and muscle audit always read the freshly enriched records.
+      const audit = await load_exercise_library_audit()
+      const [library, candidates, muscleAudit] = await Promise.all([
         load_exercise_library({
           search,
           include_archived,
         }),
         load_exercise_alias_candidates(),
-        load_exercise_library_audit(),
         load_muscle_mapping_audit(),
       ])
       setExercises(library)
@@ -513,6 +516,8 @@ export function ExerciseLibraryScreen() {
           </p>
         </section>
       )}
+
+      <ExerciseIntelligenceReview exercises={exercises} on_confirmed={refresh} />
 
       {muscle_audit && (
         <details
