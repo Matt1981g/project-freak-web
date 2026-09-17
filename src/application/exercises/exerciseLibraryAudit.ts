@@ -8,6 +8,10 @@ export interface ExerciseLibraryAudit {
   alias_records: number
   unresolved_case_groups: number
   orphan_aliases: number
+  intelligence_complete: number
+  intelligence_missing: number
+  intelligence_needs_review: number
+  intelligence_average_confidence: number | null
   status: 'clean' | 'warning'
 }
 
@@ -31,13 +35,30 @@ export async function audit_exercise_library(
       !exercise_ids.has(alias.source_exercise_id),
   ).length
 
-  const active_definitions = live_exercises.filter(
+  const active_exercises = live_exercises.filter(
     (exercise) => exercise.archived_at === null,
-  ).length
+  )
+  const active_definitions = active_exercises.length
   const unresolved_case_groups = find_case_only_exercise_alias_candidates(
     live_exercises,
     live_aliases,
   ).length
+
+  const intelligence_complete = active_exercises.filter(
+    (exercise) => exercise.exercise_intelligence !== null && exercise.exercise_intelligence !== undefined,
+  ).length
+  const intelligence_missing = active_definitions - intelligence_complete
+  const intelligence_needs_review = active_exercises.filter(
+    (exercise) => exercise.exercise_intelligence?.metadata_status === 'needs_review',
+  ).length
+  const confidence_values = active_exercises
+    .map((exercise) => exercise.exercise_intelligence?.metadata_confidence)
+    .filter((value): value is number => typeof value === 'number')
+  const intelligence_average_confidence =
+    confidence_values.length > 0
+      ? confidence_values.reduce((sum, value) => sum + value, 0) /
+        confidence_values.length
+      : null
 
   return {
     total_definitions: live_exercises.length,
@@ -46,8 +67,14 @@ export async function audit_exercise_library(
     alias_records: live_aliases.length,
     unresolved_case_groups,
     orphan_aliases,
+    intelligence_complete,
+    intelligence_missing,
+    intelligence_needs_review,
+    intelligence_average_confidence,
     status:
-      unresolved_case_groups === 0 && orphan_aliases === 0
+      unresolved_case_groups === 0 &&
+      orphan_aliases === 0 &&
+      intelligence_missing === 0
         ? 'clean'
         : 'warning',
   }

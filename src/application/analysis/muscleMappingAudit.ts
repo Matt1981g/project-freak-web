@@ -49,7 +49,10 @@ export async function audit_exercise_muscle_mappings(
         ? 'unmapped'
         : targets.some((target) => target.source === 'explicit')
           ? 'explicit'
-          : targets.some((target) => target.source === 'research')
+          : targets.some(
+                (target) =>
+                  target.source === 'intelligence' || target.source === 'research',
+              )
             ? 'research'
             : 'fallback'
     return {
@@ -59,9 +62,19 @@ export async function audit_exercise_muscle_mappings(
       equipment: exercise.equipment,
       status,
       targets,
-      research_confidence: researched?.confidence ?? null,
+      research_confidence:
+        exercise.exercise_intelligence &&
+        exercise.exercise_intelligence.metadata_status !== 'needs_review' &&
+        exercise.exercise_intelligence.metadata_confidence >= 0.8
+          ? 'high'
+          : researched?.confidence ?? null,
       research_sources: researched ? research_sources_for_mapping(researched) : [],
-      research_rationale: researched?.rationale ?? null,
+      research_rationale:
+        exercise.exercise_intelligence &&
+        exercise.exercise_intelligence.metadata_status !== 'needs_review' &&
+        exercise.exercise_intelligence.metadata_confidence >= 0.8
+          ? `Exercise Intelligence: ${exercise.exercise_intelligence.movement_pattern}; ${exercise.exercise_intelligence.exercise_family}; confidence ${Math.round(exercise.exercise_intelligence.metadata_confidence * 100)}%.`
+          : researched?.rationale ?? null,
     }
   })
 
