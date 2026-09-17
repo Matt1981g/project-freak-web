@@ -25,6 +25,7 @@ import { WorkoutScreen } from './features/workout/WorkoutScreen'
 import { AUTO_SYNC_COMPLETE_EVENT } from './application/sync/autoSyncEvents'
 import approvedBackgroundUrl from './pfApprovedBackground'
 import './App.css'
+import './features/plan/PlanHealthHeader.css'
 
 interface AutoSyncCompleteDetail {
   result?: {
@@ -196,13 +197,16 @@ function App() {
             </NavLink>
           </nav>
         )}
-        <PwaInstallControl />
+
+        <div className="app-header-actions">
+          <PlanHealthGuard key={`plan-health-${remote_data_revision}`} />
+          <PwaInstallControl />
+        </div>
         <div className="phase-chip">PHASE 15</div>
       </header>
 
       <AutoSyncRuntime />
       <DailySessionPrompt key={`daily-${remote_data_revision}`} />
-      <PlanHealthGuard key={`plan-health-${remote_data_revision}`} />
 
       <main>
         <Routes key={`routes-${remote_data_revision}`}>
