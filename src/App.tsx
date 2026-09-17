@@ -15,6 +15,7 @@ import { HistoryScreen } from './features/history/HistoryScreen'
 import { GymProfilesScreen } from './features/gyms/GymProfilesScreen'
 import { ExerciseHistoryScreen } from './features/history/ExerciseHistoryScreen'
 import { PlanScreen } from './features/plan/PlanScreen'
+import { PlanHealthGuard } from './features/plan/PlanHealthGuard'
 import { PrioritiesScreen } from './features/priorities/PrioritiesScreen'
 import { PwaInstallControl } from './features/pwa/PwaInstallControl'
 import { AutoSyncRuntime } from './features/sync/AutoSyncRuntime'
@@ -201,6 +202,7 @@ function App() {
 
       <AutoSyncRuntime />
       <DailySessionPrompt key={`daily-${remote_data_revision}`} />
+      <PlanHealthGuard key={`plan-health-${remote_data_revision}`} />
 
       <main>
         <Routes key={`routes-${remote_data_revision}`}>
