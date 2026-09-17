@@ -2,6 +2,7 @@ import type { ExerciseRepository } from '../../data/repositories/contracts'
 import { find_case_only_exercise_alias_candidates } from '../../domain/rules/exerciseAliases'
 import { backfill_exercise_intelligence } from './exerciseIntelligence'
 import { backfill_known_legacy_exercises } from './exerciseIntelligenceLegacy'
+import { apply_exercise_intelligence_review_policy } from './exerciseIntelligenceReviewPolicy'
 
 export interface ExerciseLibraryAudit {
   total_definitions: number
@@ -26,7 +27,9 @@ export async function audit_exercise_library(
   repository: ExerciseRepository,
 ): Promise<ExerciseLibraryAudit> {
   await backfill_known_legacy_exercises(repository)
-  const backfill = await backfill_exercise_intelligence(repository)
+  await backfill_exercise_intelligence(repository)
+  await apply_exercise_intelligence_review_policy(repository)
+
   const [exercises, aliases] = await Promise.all([
     repository.list_all(),
     repository.list_aliases(),
@@ -57,9 +60,15 @@ export async function audit_exercise_library(
     (exercise) => exercise.exercise_intelligence !== null && exercise.exercise_intelligence !== undefined,
   ).length
   const intelligence_missing = active_definitions - intelligence_complete
-  const intelligence_needs_review = active_exercises.filter(
-    (exercise) => exercise.exercise_intelligence?.metadata_status === 'needs_review',
-  ).length
+  const intelligence_review_items = active_exercises
+    .filter((exercise) => exercise.exercise_intelligence?.metadata_status === 'needs_review')
+    .map((exercise) => ({
+      exercise_id: exercise.id,
+      exercise_name: exercise.canonical_name,
+      confidence: exercise.exercise_intelligence?.metadata_confidence ?? 0,
+    }))
+    .sort((a, b) => a.exercise_name.localeCompare(b.exercise_name, 'en-GB'))
+  const intelligence_needs_review = intelligence_review_items.length
   const confidence_values = active_exercises
     .map((exercise) => exercise.exercise_intelligence?.metadata_confidence)
     .filter((value): value is number => typeof value === 'number')
@@ -80,7 +89,7 @@ export async function audit_exercise_library(
     intelligence_missing,
     intelligence_needs_review,
     intelligence_average_confidence,
-    intelligence_review_items: backfill.review_items,
+    intelligence_review_items,
     status:
       unresolved_case_groups === 0 &&
       orphan_aliases === 0 &&
