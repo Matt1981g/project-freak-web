@@ -82,7 +82,8 @@ export async function audit_exercise_library(
     status:
       unresolved_case_groups === 0 &&
       orphan_aliases === 0 &&
-      intelligence_missing === 0
+      intelligence_missing === 0 &&
+      intelligence_needs_review === 0
         ? 'clean'
         : 'warning',
   }
