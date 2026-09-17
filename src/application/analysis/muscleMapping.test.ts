@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Exercise } from '../../domain/models'
+import type { Exercise, ExerciseIntelligence } from '../../domain/models'
 import { resolve_exercise_muscle_targets } from './muscleMapping'
 
 const exercise: Exercise = {
@@ -19,6 +19,27 @@ const exercise: Exercise = {
   rep_mode_default: 'total',
   archived_at: null,
   notes: null,
+}
+
+const intelligence: ExerciseIntelligence = {
+  primary_muscles: ['Pectoralis major - clavicular'],
+  secondary_muscles: ['Triceps brachii', 'Anterior deltoid'],
+  stabilizer_muscles: [],
+  movement_pattern: 'horizontal push',
+  exercise_family: 'incline_press',
+  mechanic: 'compound',
+  laterality: 'bilateral',
+  muscle_length_bias: 'mixed',
+  stability_support: 'high',
+  systemic_fatigue: 'moderate',
+  local_fatigue: 'moderate',
+  loading_potential: 'high',
+  progression_reliability: 'excellent',
+  hypertrophy_role: 'primary',
+  grip_or_handle: null,
+  metadata_status: 'verified',
+  metadata_confidence: 0.98,
+  metadata_sources: ['manufacturer'],
 }
 
 describe('muscle mapping', () => {
@@ -55,8 +76,79 @@ describe('muscle mapping', () => {
       source: 'explicit',
     })
   })
-})
 
+  it('uses trusted exercise intelligence before generic research or category fallback', () => {
+    const candidate: Exercise = {
+      ...exercise,
+      canonical_name: 'Incline Chest Press — Test Machine',
+      exercise_intelligence: intelligence,
+    }
+    const targets = resolve_exercise_muscle_targets(candidate, {
+      muscles: [],
+      links: [],
+    })
+
+    expect(targets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          area: 'Chest',
+          role: 'primary',
+          source: 'intelligence',
+        }),
+        expect.objectContaining({
+          area: 'Triceps',
+          role: 'secondary',
+          source: 'intelligence',
+        }),
+        expect.objectContaining({
+          area: 'Shoulders',
+          role: 'secondary',
+          source: 'intelligence',
+        }),
+      ]),
+    )
+  })
+
+  it('does not use intelligence that is still awaiting review', () => {
+    const candidate: Exercise = {
+      ...exercise,
+      canonical_name: 'Incline Chest Press — Test Machine',
+      exercise_intelligence: {
+        ...intelligence,
+        metadata_status: 'needs_review',
+        metadata_confidence: 0.72,
+      },
+    }
+    const targets = resolve_exercise_muscle_targets(candidate, {
+      muscles: [],
+      links: [],
+    })
+
+    expect(targets.some((target) => target.source === 'intelligence')).toBe(false)
+    expect(targets.some((target) => target.source === 'research')).toBe(true)
+  })
+
+  it('maps hip adductors into the Adductors training area', () => {
+    const candidate: Exercise = {
+      ...exercise,
+      category: 'adductors',
+      exercise_intelligence: {
+        ...intelligence,
+        primary_muscles: ['Hip adductors'],
+        secondary_muscles: [],
+      },
+    }
+    const targets = resolve_exercise_muscle_targets(candidate, {
+      muscles: [],
+      links: [],
+    })
+    expect(targets[0]).toMatchObject({
+      area: 'Adductors',
+      role: 'primary',
+      source: 'intelligence',
+    })
+  })
+})
 
 describe('multi-source researched mappings', () => {
   it('auto-maps common machine exercises without user input', () => {
