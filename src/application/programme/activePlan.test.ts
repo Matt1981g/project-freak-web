@@ -98,7 +98,7 @@ describe('active plan selection', () => {
     expect(result.hidden_blocks).toBe(1)
   })
 
-  it('hides a future block when new completed evidence arrived before it started', () => {
+  it('keeps a future block visible when new completed evidence arrives before it starts', () => {
     const b = block('week', '2026-09-07', '2026-09-12', '2026-09-04T12:00:00.000Z')
     const s = planned('monday', b.id)
     const result = select_active_plan_programmes(
@@ -108,10 +108,11 @@ describe('active plan selection', () => {
       { today_local: '2026-09-05', latest_programming_input_at: null },
     )
 
-    expect(result.programmes).toHaveLength(0)
+    expect(result.programmes).toHaveLength(1)
+    expect(result.programmes[0].block.id).toBe(b.id)
   })
 
-  it('hides a not-yet-started block when priorities or mappings changed after generation', () => {
+  it('keeps a not-yet-started block visible when priorities or mappings change later', () => {
     const b = block('week')
     const s = planned('monday', b.id)
     const result = select_active_plan_programmes(
@@ -124,7 +125,10 @@ describe('active plan selection', () => {
       },
     )
 
-    expect(result.programmes).toHaveLength(0)
+    expect(result.programmes).toHaveLength(1)
+    expect(result.programmes[0].sessions.map((session) => session.id)).toEqual([
+      'monday',
+    ])
   })
 
   it('does not invalidate the rest of a week after that block has started', () => {
@@ -260,5 +264,4 @@ describe('active plan selection', () => {
       replacement.id,
     ])
   })
-
 })
