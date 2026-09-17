@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Exercise, ExerciseIntelligence, ExerciseRepository } from '../../domain/models'
-import type { ExerciseRepository as ExerciseRepositoryContract } from '../../data/repositories/contracts'
+import type { Exercise, ExerciseIntelligence } from '../../domain/models'
+import type { ExerciseRepository } from '../../data/repositories/contracts'
 import { confirm_exercise_intelligence } from './exerciseIntelligenceReview'
 
 const intelligence: ExerciseIntelligence = {
@@ -46,7 +46,7 @@ function exercise(): Exercise {
   }
 }
 
-function repository_fixture(seed: Exercise): ExerciseRepositoryContract {
+function repository_fixture(seed: Exercise): ExerciseRepository {
   let current = seed
   return {
     get_by_id: async (id) => id === current.id ? current : undefined,
