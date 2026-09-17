@@ -17,6 +17,7 @@ import { researched_mapping_for_exercise } from './researchedMuscleMappings'
 export type MuscleTargetRole = 'primary' | 'secondary'
 export type MuscleMappingSource =
   | 'explicit'
+  | 'intelligence'
   | 'research'
   | 'category_fallback'
 
@@ -76,6 +77,7 @@ const CATEGORY_FALLBACK: Record<
     { area: 'Hamstrings', role: 'primary', allocation_weight: 1 },
     { area: 'Glutes', role: 'secondary', allocation_weight: 0.35 },
   ],
+  adductors: [{ area: 'Adductors', role: 'primary', allocation_weight: 1 }],
   calves: [{ area: 'Calfs', role: 'primary', allocation_weight: 1 }],
   calfs: [{ area: 'Calfs', role: 'primary', allocation_weight: 1 }],
   abs: [{ area: 'Abs', role: 'primary', allocation_weight: 1 }],
@@ -118,6 +120,7 @@ export function muscle_area_from_name(
     value === 'quads'
   ) return 'Quads'
   if (value.includes('glute')) return 'Glutes'
+  if (value.includes('adductor')) return 'Adductors'
   if (
     value.includes('hamstring') ||
     value.includes('biceps femoris') ||
@@ -168,6 +171,55 @@ function fallback_targets(exercise: Exercise): ResolvedMuscleTarget[] {
     ...target,
     source: 'category_fallback' as const,
   }))
+}
+
+function intelligence_targets(exercise: Exercise): ResolvedMuscleTarget[] {
+  const intelligence = exercise.exercise_intelligence
+  if (
+    !intelligence ||
+    intelligence.metadata_status === 'needs_review' ||
+    intelligence.metadata_confidence < 0.8
+  ) {
+    return []
+  }
+
+  const candidates: ResolvedMuscleTarget[] = [
+    ...intelligence.primary_muscles.flatMap((name) => {
+      const area = muscle_area_from_name(name)
+      return area
+        ? [{
+            area,
+            role: 'primary' as const,
+            allocation_weight: 1,
+            source: 'intelligence' as const,
+          }]
+        : []
+    }),
+    ...intelligence.secondary_muscles.flatMap((name) => {
+      const area = muscle_area_from_name(name)
+      return area
+        ? [{
+            area,
+            role: 'secondary' as const,
+            allocation_weight: 0.5,
+            source: 'intelligence' as const,
+          }]
+        : []
+    }),
+  ]
+
+  const by_area = new Map<TrainingPriorityArea, ResolvedMuscleTarget>()
+  for (const target of candidates) {
+    const current = by_area.get(target.area)
+    if (
+      !current ||
+      target.role === 'primary' ||
+      target.allocation_weight > current.allocation_weight
+    ) {
+      by_area.set(target.area, target)
+    }
+  }
+  return [...by_area.values()]
 }
 
 export function resolve_exercise_muscle_targets(
@@ -225,6 +277,9 @@ export function resolve_exercise_muscle_targets(
     }
     return [...by_area.values()]
   }
+
+  const intelligent = intelligence_targets(exercise)
+  if (intelligent.length > 0) return intelligent
 
   const researched = researched_mapping_for_exercise(exercise)
   if (researched?.confidence === 'high') {
