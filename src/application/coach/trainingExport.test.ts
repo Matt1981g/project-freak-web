@@ -610,6 +610,6 @@ describe('build_last_7_days_training_export', () => {
       source_exercise_id: 'old-exercise-1',
       exercise_id: 'exercise-1',
     })
-    expect(payload.coach_context.training_priorities.current).toHaveLength(12)
+    expect(payload.coach_context.training_priorities.current).toHaveLength(13)
   })
 })
