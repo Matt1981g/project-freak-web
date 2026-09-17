@@ -1,9 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import type { ProgrammeImportPreview } from '../../application/programme/programmeImport'
-import {
-  commit_programme_json,
-  preview_programme_json,
-} from '../../app/projectFreakServices'
+import { preview_programme_json } from '../../app/projectFreakServices'
+import { commit_programme_json_revision } from '../../app/programmeImportRevisionService'
 import { format_local_date_display } from '../../utils/dateFormat'
 import styles from '../plan/PlanScreen.module.css'
 
@@ -43,6 +41,8 @@ export function ProgrammeImportPanel({
   const [preview, setPreview] = useState<ProgrammeImportPreview | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [committing, setCommitting] = useState(false)
+  const [replace_existing_on_matching_dates, setReplaceExistingOnMatchingDates] =
+    useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,6 +68,7 @@ export function ProgrammeImportPanel({
     setNotice(null)
     setError(null)
     setPreview(null)
+    setReplaceExistingOnMatchingDates(false)
 
     try {
       setJsonText(await file.text())
@@ -110,8 +111,28 @@ export function ProgrammeImportPanel({
     setError(null)
 
     try {
-      const result = await commit_programme_json(preview)
-      if (result === 'duplicate_noop') {
+      const result = await commit_programme_json_revision(preview, {
+        replace_existing_on_matching_dates,
+      })
+
+      if (replace_existing_on_matching_dates) {
+        const date_label =
+          result.replacement_dates.length === 1
+            ? '1 matching date'
+            : `${result.replacement_dates.length} matching dates`
+        const replaced_label =
+          result.replaced_sessions === 1
+            ? '1 previous prescription'
+            : `${result.replaced_sessions} previous prescriptions`
+        const reactivated_label =
+          result.reactivated_sessions === 1
+            ? '1 imported session reactivated'
+            : `${result.reactivated_sessions} imported sessions reactivated`
+
+        setNotice(
+          `Replacement applied across ${date_label}: ${replaced_label} superseded, ${reactivated_label}.`,
+        )
+      } else if (result.import_result === 'duplicate_noop') {
         setNotice('That exact programme is already imported. Nothing duplicated.')
       } else {
         setNotice(
@@ -121,6 +142,7 @@ export function ProgrammeImportPanel({
 
       setPreview(null)
       setJsonText('')
+      setReplaceExistingOnMatchingDates(false)
       await onImported?.()
     } catch (cause) {
       setError(
@@ -165,6 +187,7 @@ export function ProgrammeImportPanel({
           onChange={(event) => {
             setJsonText(event.target.value)
             setPreview(null)
+            setReplaceExistingOnMatchingDates(false)
           }}
           spellCheck={false}
           placeholder={'Paste PROJECT FREAK programme JSON here…'}
@@ -358,6 +381,23 @@ export function ProgrammeImportPanel({
             </div>
           )}
 
+          <div className={styles.importActions}>
+            <label>
+              <input
+                type="checkbox"
+                checked={replace_existing_on_matching_dates}
+                onChange={(event) =>
+                  setReplaceExistingOnMatchingDates(event.target.checked)
+                }
+              />{' '}
+              Replace existing uncompleted sessions on matching dates
+            </label>
+            <span>
+              Revision mode preserves history. Started workouts or any matching
+              session with workout history will block the replacement.
+            </span>
+          </div>
+
           <div className={styles.previewActions}>
             <button
               type="button"
@@ -372,7 +412,11 @@ export function ProgrammeImportPanel({
               disabled={!preview.can_commit || committing}
               onClick={() => void commit_preview()}
             >
-              {committing ? 'Importing…' : 'Import programme'}
+              {committing
+                ? 'Importing…'
+                : replace_existing_on_matching_dates
+                  ? 'Replace & import programme'
+                  : 'Import programme'}
             </button>
           </div>
         </section>
