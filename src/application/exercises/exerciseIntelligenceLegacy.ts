@@ -66,7 +66,7 @@ const LEGACY: Record<string, ExerciseIntelligence> = {
   'cable oh extension': intelligence(['Triceps'], [], 'Elbow extension', 'Overhead triceps extension', 'isolation', 'bilateral', 'lengthened', 'high', 'very_low', 'moderate', 'moderate', 'excellent', 'primary'),
   'oh cable triceps extension': intelligence(['Triceps'], [], 'Elbow extension', 'Overhead triceps extension', 'isolation', 'bilateral', 'lengthened', 'high', 'very_low', 'moderate', 'moderate', 'excellent', 'primary'),
   'single arm overhead triceps': intelligence(['Triceps'], [], 'Elbow extension', 'Overhead triceps extension', 'isolation', 'unilateral', 'lengthened', 'high', 'very_low', 'moderate', 'low', 'excellent', 'primary'),
-  'deadlift': intelligence(['Hamstrings', 'Glutes'], ['Back', 'Quads', 'Traps'], 'Hip hinge', 'Deadlift', 'compound', 'bilateral', 'lengthened', 'low', 'very_high', 'very_high', 'very_high', 'good', 'specialised'),
+  'deadlift': intelligence(['Hamstrings', 'Glutes'], ['Back', 'Quads', 'Traps'], 'Hip hinge', 'Deadlift', 'compound', 'bilateral', 'lengthened', 'low', 'very_high', 'very_high', 'high', 'good', 'specialised'),
   'decline chest press machine': intelligence(['Chest'], ['Triceps', 'Shoulders'], 'Horizontal press', 'Decline chest press', 'compound', 'bilateral', 'lengthened', 'high', 'moderate', 'high', 'high', 'excellent', 'primary'),
   'dips': intelligence(['Triceps', 'Chest'], ['Shoulders'], 'Press', 'Dip', 'compound', 'bilateral', 'lengthened', 'moderate', 'moderate', 'high', 'moderate', 'good', 'primary'),
   'dumbbell overhead press': intelligence(['Shoulders'], ['Triceps', 'Traps'], 'Vertical press', 'Shoulder press', 'compound', 'bilateral', 'mixed', 'moderate', 'moderate', 'high', 'high', 'good', 'primary'),
