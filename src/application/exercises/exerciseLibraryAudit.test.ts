@@ -113,6 +113,7 @@ describe('audit_exercise_library', () => {
       intelligence_missing: 0,
       intelligence_needs_review: 0,
       intelligence_average_confidence: 0.95,
+      intelligence_review_items: [],
       status: 'clean',
     })
   })
@@ -167,5 +168,8 @@ describe('audit_exercise_library', () => {
     const result = await audit_exercise_library(repository)
     expect(result.intelligence_needs_review).toBe(1)
     expect(result.intelligence_average_confidence).toBe(0.7)
+    expect(result.intelligence_review_items).toEqual([
+      { exercise_id: '1', exercise_name: 'Face Pull', confidence: 0.7 },
+    ])
   })
 })
