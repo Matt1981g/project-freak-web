@@ -17,6 +17,8 @@ export interface ActivePlanSelection {
 
 export interface ActivePlanContext {
   today_local: string
+  // Retained for compatibility and future non-destructive review warnings.
+  // A later programming-input timestamp must never silently hide a valid plan.
   latest_programming_input_at: string | null
 }
 
@@ -74,43 +76,6 @@ function is_superseded(
   })
 }
 
-function has_started_actual(
-  block: ProgrammeBlock,
-  actuals: readonly CompletedSession[],
-): boolean {
-  return actuals.some(
-    (actual) =>
-      actual.deleted_at === null &&
-      actual.programme_block_id === block.id &&
-      actual.status !== 'abandoned',
-  )
-}
-
-function changed_before_block_started(
-  block: ProgrammeBlock,
-  actuals: readonly CompletedSession[],
-  context: ActivePlanContext,
-): boolean {
-  if (!block.start_date_local) return false
-  if (context.today_local > block.start_date_local) return false
-  if (has_started_actual(block, actuals)) return false
-
-  if (
-    context.latest_programming_input_at &&
-    context.latest_programming_input_at > block.created_at
-  ) {
-    return true
-  }
-
-  return actuals.some(
-    (actual) =>
-      actual.deleted_at === null &&
-      is_final_actual(actual) &&
-      actual.session_date_local < block.start_date_local! &&
-      actual.updated_at > block.created_at,
-  )
-}
-
 function session_is_visible(
   session: ProgrammedSession,
   final_actual_programmed_ids: ReadonlySet<string>,
@@ -163,8 +128,11 @@ export function select_active_plan_programmes(
       continue
     }
 
+    // Programme visibility is controlled only by explicit programme/session
+    // lifecycle state. Changes to priorities, muscle mappings, exercise
+    // metadata, or newly completed evidence must never make a valid future
+    // programme silently disappear from Plan.
     if (is_superseded(block, blocks)) continue
-    if (changed_before_block_started(block, actuals, context)) continue
 
     const sessions = (sessions_by_block.get(block.id) ?? []).filter((session) =>
       session_is_visible(
