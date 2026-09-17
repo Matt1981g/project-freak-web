@@ -42,10 +42,13 @@ function ReviewCard({ exercise, on_confirmed }: ReviewCardProps) {
   }
 
   async function confirm() {
+    const candidate = draft
+    if (!candidate) return
+
     setSaving(true)
     setError(null)
     try {
-      await save_confirmed_exercise_intelligence(exercise.id, draft)
+      await save_confirmed_exercise_intelligence(exercise.id, candidate)
       await on_confirmed()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to confirm exercise intelligence.')
