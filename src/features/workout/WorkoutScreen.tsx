@@ -1884,7 +1884,7 @@ function ExerciseScoringPanel(props: {
       {slider('pump', 'PUMP', pump, pump_touched, setPump, setPumpTouched)}
       {slider('form', 'FORM', form, form_touched, setForm, setFormTouched)}
 
-      <div className={styles.targetStimulus}>
+      <div className={styles.targetStimulus} hidden aria-hidden="true">
         <div>
           <span>TARGET MUSCLE</span>
           <small>Optional · one tap. This can block load progression when stimulus is off-target.</small>
