@@ -2555,7 +2555,14 @@ export function WorkoutScreen() {
   }))
 
   return (
-    <div className={styles.screen} onPointerDown={prime_rest_audio}>
+    <div
+      className={`${styles.screen} ${
+        rest_timer && workout.session.status !== 'completed'
+          ? styles.screenRestTimerActive
+          : ''
+      }`}
+      onPointerDown={prime_rest_audio}
+    >
       <section className={styles.heading}>
         <div>
           <p className={styles.eyebrow}>WORKOUT</p>
