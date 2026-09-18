@@ -1677,7 +1677,7 @@ function ExerciseScoringPanel(props: {
           <strong>{label}</strong>
           <div>
             {!touched && <span>UNRATED</span>}
-            <b>{value}</b>
+            <b>{touched ? value : '—'}</b>
           </div>
         </div>
         <input
@@ -1706,7 +1706,7 @@ function ExerciseScoringPanel(props: {
           <span>10</span>
         </div>
         <strong className={styles.scoreDescription}>
-          {score_description(key, value)}
+          {touched ? score_description(key, value) : 'Move slider to record'}
         </strong>
         <details className={styles.scoreKey}>
           <summary>VIEW {label} SCALE</summary>
