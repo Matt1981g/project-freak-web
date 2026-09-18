@@ -48,6 +48,7 @@ import {
   select_set_load_prefill,
   type SetLoadPrefillSource,
 } from '../../application/workout/setLoadPrefill'
+import { rank_exercise_substitution_options } from '../../application/workout/exerciseSubstitutionOptions'
 import {
   adjust_display_load_by_step,
   display_load_to_kilograms,
@@ -1159,11 +1160,13 @@ function SetLoggerRow(props: {
             LOAD {load_unit === 'kg' ? 'KG' : 'LBS'}
             {challenge.load
               ? ' · CHALLENGE'
-              : load_prefill_source === 'programme'
-              ? ' · PROGRAMME'
-              : load_prefill_source === 'previous_comparable'
-                ? ' · PREVIOUS'
-                : ''}
+              : load_prefill_source === 'first_set_actual'
+                ? ' · SET 1'
+                : load_prefill_source === 'programme'
+                  ? ' · PROGRAMME'
+                  : load_prefill_source === 'previous_comparable'
+                    ? ' · PREVIOUS'
+                    : ''}
           </label>
           <div className={styles.stepper}>
             <button
@@ -1917,6 +1920,9 @@ export function WorkoutScreen() {
   const [active_exercises, setActiveExercises] = useState<
     Awaited<ReturnType<typeof load_active_exercise_options>>
   >([])
+  const [gym_exercises, setGymExercises] = useState<
+    Awaited<ReturnType<typeof load_gym_equipment>> | null
+  >(null)
   const [substitution_open_id, setSubstitutionOpenId] = useState<string | null>(null)
   const [substitution_target_id, setSubstitutionTargetId] = useState('')
   const [substitution_scope, setSubstitutionScope] = useState<
@@ -1940,6 +1946,7 @@ export function WorkoutScreen() {
     load_stored_rest_timer(completed_session_id),
   )
   const [rest_now_ms, setRestNowMs] = useState(() => Date.now())
+  const [session_now_ms, setSessionNowMs] = useState(() => Date.now())
   const [wake_lock_state, setWakeLockState] = useState<
     'idle' | 'active' | 'unavailable'
   >('idle')
@@ -2212,6 +2219,39 @@ export function WorkoutScreen() {
   }, [refresh_workout])
 
   useEffect(() => {
+    const gym_id = workout?.session.gym_profile_id
+    if (!gym_id) {
+      setGymExercises(null)
+      return
+    }
+
+    let active = true
+    setGymExercises(null)
+    void load_gym_equipment(gym_id)
+      .then((rows) => {
+        if (active) setGymExercises(rows)
+      })
+      .catch(() => {
+        if (active) setGymExercises([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [workout?.session.gym_profile_id])
+
+  useEffect(() => {
+    if (workout?.session.status !== 'in_progress') return
+
+    setSessionNowMs(Date.now())
+    const tick = window.setInterval(() => {
+      setSessionNowMs(Date.now())
+    }, 1000)
+
+    return () => window.clearInterval(tick)
+  }, [workout?.session.id, workout?.session.status])
+
+  useEffect(() => {
     if (!rest_timer) return
 
     const tick = window.setInterval(() => {
@@ -2412,6 +2452,27 @@ export function WorkoutScreen() {
       Math.max(entry.sets.length, 1),
   }))
 
+  const session_exercise_ids = new Set(
+    workout.exercises.map((entry) => entry.exercise.exercise_id),
+  )
+  const available_exercise_ids = workout.session.gym_profile_id
+    ? new Set(
+        (gym_exercises ?? [])
+          .filter((candidate) => candidate.available)
+          .map((candidate) => candidate.id),
+      )
+    : null
+  const started_ms = workout.session.started_at
+    ? Date.parse(workout.session.started_at)
+    : Number.NaN
+  const live_session_duration_seconds = Number.isFinite(started_ms)
+    ? Math.max(0, Math.floor((session_now_ms - started_ms) / 1000))
+    : null
+  const displayed_session_duration =
+    workout.session.status === 'completed'
+      ? workout.summary.duration_seconds
+      : live_session_duration_seconds
+
   return (
     <div
       className={`${styles.screen} ${
@@ -2470,6 +2531,12 @@ export function WorkoutScreen() {
                 })
               : workout.session.source_start_text ?? 'Not recorded'}
           </strong>
+        </div>
+        <div>
+          <span>
+            {workout.session.status === 'completed' ? 'Duration' : 'Elapsed'}
+          </span>
+          <strong>{format_duration(displayed_session_duration)}</strong>
         </div>
       </section>
 
@@ -2555,6 +2622,28 @@ export function WorkoutScreen() {
               { length: planned_count },
               (_, index) => index + 1,
             )
+            const first_completed_set =
+              sets.find(
+                (set) =>
+                  set.set_number === 1 &&
+                  is_training_set_completed(set),
+              ) ?? null
+            const first_programmed_set =
+              planned_sets.find(
+                (detail) => detail.set.set_number === 1,
+              ) ?? null
+            const library_exercise =
+              active_exercises.find(
+                (candidate) => candidate.id === exercise.exercise_id,
+              ) ?? null
+            const substitution_options = library_exercise
+              ? rank_exercise_substitution_options({
+                  original: library_exercise,
+                  candidates: active_exercises,
+                  session_exercise_ids,
+                  available_exercise_ids,
+                })
+              : []
 
             return (
               <article
@@ -2663,23 +2752,22 @@ export function WorkoutScreen() {
                                       setSubstitutionTargetId(event.target.value)
                                     }
                                   >
-                                    <option value="">Choose exercise…</option>
-                                    {active_exercises
-                                      .filter(
-                                        (candidate) =>
-                                          candidate.id !== exercise.exercise_id,
-                                      )
-                                      .map((candidate) => (
-                                        <option
-                                          key={candidate.id}
-                                          value={candidate.id}
-                                        >
-                                          {candidate.canonical_name}
-                                          {candidate.category
-                                            ? ` · ${candidate.category}`
-                                            : ''}
-                                        </option>
-                                      ))}
+                                    <option value="">
+                                      {substitution_options.length === 0
+                                        ? 'No matching replacements available'
+                                        : 'Choose exercise…'}
+                                    </option>
+                                    {substitution_options.map((candidate) => (
+                                      <option
+                                        key={candidate.id}
+                                        value={candidate.id}
+                                      >
+                                        {candidate.canonical_name}
+                                        {candidate.category
+                                          ? ` · ${candidate.category}`
+                                          : ''}
+                                      </option>
+                                    ))}
                                   </select>
                                 </label>
 
@@ -2713,10 +2801,13 @@ export function WorkoutScreen() {
                                 </div>
 
                                 <small>
-                                  Today changes only this live workout. Week /
-                                  Programme also change matching future planned
-                                  exercises; the original prescription remains
-                                  traceable.
+                                  Replacements are limited to the same primary
+                                  target area, available equipment at this gym,
+                                  and exercises not already planned or performed
+                                  today. Today changes only this live workout.
+                                  Week / Programme also change matching future
+                                  planned exercises; the original prescription
+                                  remains traceable.
                                 </small>
 
                                 <button
@@ -2859,6 +2950,10 @@ export function WorkoutScreen() {
                         existing_set: actual_set,
                         programmed_load_kg:
                           planned_set?.set.target_load_kg ?? null,
+                        first_completed_load_kg:
+                          first_completed_set?.load_kg ?? null,
+                        first_programmed_load_kg:
+                          first_programmed_set?.set.target_load_kg ?? null,
                         previous: entry.previous_comparable,
                         progression: entry.progression_suggestion,
                         set_number,
@@ -2866,7 +2961,7 @@ export function WorkoutScreen() {
 
                       return (
                         <SetLoggerRow
-                          key={set_number}
+                          key={`${set_number}:${load_prefill.source}:${load_prefill.load_kg ?? 'blank'}`}
                           exercise={exercise}
                           set_number={set_number}
                           planned_set={planned_set}
