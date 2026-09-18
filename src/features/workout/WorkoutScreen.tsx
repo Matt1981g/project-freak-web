@@ -17,7 +17,6 @@ import {
   load_live_workout,
   save_live_exercise_scores,
   save_live_readiness,
-  save_live_recovery,
   save_live_training_set,
   save_exercise_weight_unit_preference,
   substitute_workout_exercise,
@@ -717,147 +716,6 @@ function ReadinessPanel(props: {
   )
 }
 
-function RecoveryPanel(props: {
-  completed_session_id: string
-  readiness: LiveWorkout['readiness']
-}) {
-  const { completed_session_id, readiness } = props
-  const [form, setForm] = useState(() => ({
-    session_fatigue: readiness?.session_fatigue ?? null,
-    breathlessness: readiness?.breathlessness ?? null,
-    energy_stability: readiness?.energy_stability ?? null,
-    post_workout_intake: readiness?.post_workout_intake ?? '',
-  }))
-  const [dirty, setDirty] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(
-    readiness != null &&
-      (readiness.session_fatigue !== null ||
-        readiness.breathlessness !== null ||
-        readiness.energy_stability !== null ||
-        Boolean(readiness.post_workout_intake)),
-  )
-  const [error, setError] = useState<string | null>(null)
-
-  function update<K extends keyof typeof form>(
-    key: K,
-    value: (typeof form)[K],
-  ) {
-    setForm((current) => ({ ...current, [key]: value }))
-    setDirty(true)
-    setSaved(false)
-  }
-
-  useEffect(() => {
-    if (!dirty) return
-
-    const timer = window.setTimeout(() => {
-      setSaving(true)
-      setError(null)
-
-      void save_live_recovery({
-        completed_session_id,
-        session_fatigue: form.session_fatigue,
-        breathlessness: form.breathlessness,
-        energy_stability: form.energy_stability,
-        post_workout_intake: form.post_workout_intake || null,
-      })
-        .then(() => {
-          setDirty(false)
-          setSaved(true)
-        })
-        .catch((cause) => {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : 'Unable to save recovery.',
-          )
-        })
-        .finally(() => setSaving(false))
-    }, 400)
-
-    return () => window.clearTimeout(timer)
-  }, [completed_session_id, dirty, form])
-
-  return (
-    <section className={styles.recoveryPanel}>
-      <div className={styles.recoveryHeader}>
-        <div>
-          <span>POST-WORKOUT</span>
-          <h2>Recovery check</h2>
-          <p>Optional. Record how hard the session actually cost you.</p>
-        </div>
-        <small>
-          {saving
-            ? 'AUTOSAVING…'
-            : error
-              ? 'SAVE ERROR'
-              : saved
-                ? 'SAVED ✓'
-                : 'OPTIONAL'}
-        </small>
-      </div>
-
-      <div className={styles.recoveryGrid}>
-        <label>
-          <span>SESSION FATIGUE 1–10</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min="1"
-            max="10"
-            value={form.session_fatigue ?? ''}
-            onChange={(event) =>
-              update('session_fatigue', numeric_value(event.target.value))
-            }
-          />
-        </label>
-
-        <label>
-          <span>BREATHLESSNESS 1–10</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min="1"
-            max="10"
-            value={form.breathlessness ?? ''}
-            onChange={(event) =>
-              update('breathlessness', numeric_value(event.target.value))
-            }
-          />
-        </label>
-
-        <label>
-          <span>ENERGY STABILITY 1–10</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min="1"
-            max="10"
-            value={form.energy_stability ?? ''}
-            onChange={(event) =>
-              update('energy_stability', numeric_value(event.target.value))
-            }
-          />
-        </label>
-
-        <label className={styles.recoveryIntake}>
-          <span>POST-WORKOUT INTAKE</span>
-          <input
-            type="text"
-            value={form.post_workout_intake}
-            onChange={(event) =>
-              update('post_workout_intake', event.target.value)
-            }
-            placeholder="e.g. whey isolate, meal, carbs"
-          />
-        </label>
-      </div>
-
-      {error && <div className={styles.setError}>{error}</div>}
-    </section>
-  )
-}
 
 function CompletedSetCorrection(props: {
   set: TrainingSet
@@ -1874,8 +1732,8 @@ function ExerciseScoringPanel(props: {
     <section className={styles.scoringPanel}>
       <div className={styles.scoringHeader}>
         <div>
-          <span>EXERCISE COMPLETE</span>
-          <h4>Rate the stimulus</h4>
+          <span>SETS COMPLETE</span>
+          <h4>Rate the exercise</h4>
         </div>
         <small>Untouched sliders are not recorded.</small>
       </div>
@@ -3217,12 +3075,6 @@ export function WorkoutScreen() {
         </section>
       ) : null}
 
-      {workout.session.status === 'completed' && (
-        <RecoveryPanel
-          completed_session_id={workout.session.id}
-          readiness={workout.readiness}
-        />
-      )}
     </div>
   )
 }
