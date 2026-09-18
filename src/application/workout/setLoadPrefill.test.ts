@@ -107,6 +107,48 @@ describe('select_set_load_prefill', () => {
     ).toEqual({ load_kg: null, source: 'saved' })
   })
 
+  it('carries the completed Set 1 load into later untouched sets', () => {
+    expect(
+      select_set_load_prefill({
+        existing_set: null,
+        programmed_load_kg: 50,
+        first_completed_load_kg: 52.5,
+        first_programmed_load_kg: 50,
+        previous,
+        progression: progression('add_reps'),
+        set_number: 2,
+      }),
+    ).toEqual({ load_kg: 52.5, source: 'first_set_actual' })
+  })
+
+  it('carries Set 1 into an open later set with no programmed load', () => {
+    expect(
+      select_set_load_prefill({
+        existing_set: null,
+        programmed_load_kg: null,
+        first_completed_load_kg: 52.5,
+        first_programmed_load_kg: 50,
+        previous,
+        progression: progression('hold_load'),
+        set_number: 3,
+      }),
+    ).toEqual({ load_kg: 52.5, source: 'first_set_actual' })
+  })
+
+  it('preserves a deliberately different later programmed load', () => {
+    expect(
+      select_set_load_prefill({
+        existing_set: null,
+        programmed_load_kg: 45,
+        first_completed_load_kg: 52.5,
+        first_programmed_load_kg: 50,
+        previous,
+        progression: progression('add_reps'),
+        set_number: 2,
+      }),
+    ).toEqual({ load_kg: 45, source: 'programme' })
+  })
+
   it('prefers an explicit programmed load over previous comparable load', () => {
     expect(
       select_set_load_prefill({
