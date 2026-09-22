@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router'
 import type {
   ExerciseMetrics,
@@ -1160,8 +1161,8 @@ function SetLoggerRow(props: {
             LOAD {load_unit === 'kg' ? 'KG' : 'LBS'}
             {challenge.load
               ? ' · CHALLENGE'
-              : load_prefill_source === 'first_set_actual'
-                ? ' · SET 1'
+              : load_prefill_source === 'previous_set_actual'
+                ? ' · PREV SET'
                 : load_prefill_source === 'programme'
                   ? ' · PROGRAMME'
                   : load_prefill_source === 'previous_comparable'
@@ -2622,16 +2623,6 @@ export function WorkoutScreen() {
               { length: planned_count },
               (_, index) => index + 1,
             )
-            const first_completed_set =
-              sets.find(
-                (set) =>
-                  set.set_number === 1 &&
-                  is_training_set_completed(set),
-              ) ?? null
-            const first_programmed_set =
-              planned_sets.find(
-                (detail) => detail.set.set_number === 1,
-              ) ?? null
             const library_exercise =
               active_exercises.find(
                 (candidate) => candidate.id === exercise.exercise_id,
@@ -2942,6 +2933,13 @@ export function WorkoutScreen() {
                               (set) => set.set_number === set_number - 1,
                             ) ?? null
                           : null
+                      const previous_planned_set =
+                        set_number > 1
+                          ? planned_sets.find(
+                              (detail) =>
+                                detail.set.set_number === set_number - 1,
+                            ) ?? null
+                          : null
                       const locked =
                         set_number > 1 &&
                         (previous_set === null ||
@@ -2950,10 +2948,12 @@ export function WorkoutScreen() {
                         existing_set: actual_set,
                         programmed_load_kg:
                           planned_set?.set.target_load_kg ?? null,
-                        first_completed_load_kg:
-                          first_completed_set?.load_kg ?? null,
-                        first_programmed_load_kg:
-                          first_programmed_set?.set.target_load_kg ?? null,
+                        previous_completed_load_kg:
+                          previous_set && is_training_set_completed(previous_set)
+                            ? previous_set.load_kg
+                            : null,
+                        previous_programmed_load_kg:
+                          previous_planned_set?.set.target_load_kg ?? null,
                         previous: entry.previous_comparable,
                         progression: entry.progression_suggestion,
                         set_number,
@@ -3039,29 +3039,33 @@ export function WorkoutScreen() {
         </div>
       </section>
 
-      {rest_timer && workout.session.status !== 'completed' && (
-        <RestTimerPanel
-          timer={rest_timer}
-          now_ms={rest_now_ms}
-          on_change={(timer) => {
-            setRestNowMs(Date.now())
-            setRestTimer(timer)
-          }}
-          on_end={() => setRestTimer(null)}
-          on_go={() => {
-            const next_id = rest_timer.next_exercise_id
-            setRestTimer(null)
-            setPairingPrompt(null)
-            if (!next_id) return
-            setOpenExerciseId(next_id)
-            window.requestAnimationFrame(() => {
-              document
-                .getElementById(`exercise-${next_id}`)
-                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            })
-          }}
-        />
-      )}
+      {rest_timer &&
+        workout.session.status !== 'completed' &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <RestTimerPanel
+            timer={rest_timer}
+            now_ms={rest_now_ms}
+            on_change={(timer) => {
+              setRestNowMs(Date.now())
+              setRestTimer(timer)
+            }}
+            on_end={() => setRestTimer(null)}
+            on_go={() => {
+              const next_id = rest_timer.next_exercise_id
+              setRestTimer(null)
+              setPairingPrompt(null)
+              if (!next_id) return
+              setOpenExerciseId(next_id)
+              window.requestAnimationFrame(() => {
+                document
+                  .getElementById(`exercise-${next_id}`)
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              })
+            }}
+          />,
+          document.body,
+        )}
 
       {workout.session.status === 'completed' && (
         <section className={styles.workoutSummary}>

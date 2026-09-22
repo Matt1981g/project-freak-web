@@ -241,9 +241,45 @@ function repositories(): RepositoryBundle {
     },
     gyms: {
       list_profiles: async () => [],
-      get_profile: async () => undefined,
+      get_profile: async (id) =>
+        id === 'gym-trident-plymouth'
+          ? {
+              id,
+              created_at: NOW,
+              updated_at: NOW,
+              deleted_at: null,
+              revision: 1,
+              device_id: 'device-1',
+              source_kind: 'user',
+              source_id: null,
+              name: 'Trident',
+              short_name: 'Trident',
+              kind: 'home',
+              is_inventory_complete: true,
+              notes: null,
+            }
+          : undefined,
       put_profile: async (profile) => profile.id,
-      list_availability: async () => [],
+      list_availability: async (gym_profile_id) =>
+        gym_profile_id === 'gym-trident-plymouth'
+          ? [
+              {
+                id: 'gym-trident-plymouth:exercise-1',
+                created_at: NOW,
+                updated_at: NOW,
+                deleted_at: null,
+                revision: 1,
+                device_id: 'device-1',
+                source_kind: 'user',
+                source_id: null,
+                gym_profile_id,
+                exercise_id: 'exercise-1',
+                available: true,
+                equipment_label: 'Nautilus Bicep Curl',
+                notes: '[CONFIRMED]',
+              },
+            ]
+          : [],
       put_availability: async (entry) => entry.id,
     },
     programme: {
@@ -403,6 +439,25 @@ describe('build_training_export scopes', () => {
     )
   })
 
+  it('excludes explicitly unconfirmed equipment from the Coach catalogue', async () => {
+    const repo = repositories()
+    const current = await repo.gyms.list_availability('gym-trident-plymouth')
+    repo.gyms.list_availability = async () =>
+      current.map((entry) => ({ ...entry, notes: '[UNCONFIRMED]' }))
+
+    const payload = await build_training_export(
+      repo,
+      {
+        now_iso: NOW,
+        to_date_local: '2026-09-04',
+        db_schema_version: 1,
+      },
+      { type: 'today' },
+    )
+
+    expect(payload.coach_context.exercise_catalogue).toEqual([])
+  })
+
   it('resolves merged aliases for Exercise scope', async () => {
     const repo = repositories()
 
@@ -549,7 +604,7 @@ describe('build_last_7_days_training_export', () => {
 
     expect(payload.format).toBe(TRAINING_EXPORT_FORMAT)
     expect(payload.coach_instructions).toMatchObject({
-      instruction_version: '1.1.0',
+      instruction_version: '1.2.0',
       user_command: 'Build next week.',
       next_block: {
         length_days: 7,

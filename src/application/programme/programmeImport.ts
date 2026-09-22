@@ -39,6 +39,12 @@ export interface ProgrammeExerciseResolution {
   revision: number
 }
 
+export interface ProgrammeImportGymGuard {
+  gym_profile_id: string
+  gym_name: string
+  allowed_exercise_ids: ReadonlySet<string>
+}
+
 export interface ProgrammeImportPreview {
   source_id: string
   document_hash: string
@@ -279,6 +285,7 @@ function validate_exercise(
 function validate_document_semantics(
   document: ProgrammeImportDocument,
   active_exercises: Exercise[],
+  gym_guard?: ProgrammeImportGymGuard,
 ): {
   issues: ProgrammeImportIssue[]
   resolutions: ProgrammeExerciseResolution[]
@@ -369,6 +376,20 @@ function validate_document_semantics(
           revision: resolved.revision,
         })
 
+        if (
+          gym_guard &&
+          !gym_guard.allowed_exercise_ids.has(exercise.exercise_id)
+        ) {
+          issues.push(
+            issue(
+              'error',
+              'exercise_unavailable_for_selected_gym',
+              exercise_path,
+              `Exercise ID "${exercise.exercise_id}" is not confirmed available at selected gym "${gym_guard.gym_name}".`,
+            ),
+          )
+        }
+
         if (exercise.exercise_name !== resolved.canonical_name) {
           issues.push(
             issue(
@@ -422,6 +443,7 @@ function validate_document_semantics(
 export async function preview_programme_import(
   json_text: string,
   exercises: ExerciseRepository,
+  gym_guard?: ProgrammeImportGymGuard,
 ): Promise<ProgrammeImportPreview> {
   let raw: unknown
 
@@ -472,6 +494,7 @@ export async function preview_programme_import(
   const semantic = validate_document_semantics(
     document,
     await exercises.list_active(),
+    gym_guard,
   )
 
   const all_exercises = document.programme.sessions.flatMap(

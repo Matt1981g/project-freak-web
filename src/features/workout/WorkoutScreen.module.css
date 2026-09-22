@@ -1511,19 +1511,20 @@
 .restTimer,
 .restTimerReady {
   position: fixed;
-  left: 50%;
-  bottom: max(12px, env(safe-area-inset-bottom));
-  z-index: 40;
-  width: min(980px, calc(100vw - 32px));
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  width: min(980px, 100vw);
   box-sizing: border-box;
-  margin-top: 0;
-  padding: 12px;
+  margin: 0 auto;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
   border: 1px solid var(--pf-accent-border);
-  border-radius: 15px;
+  border-bottom: 0;
+  border-radius: 15px 15px 0 0;
   background: rgba(28, 20, 14, 0.97);
   backdrop-filter: blur(14px);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
-  transform: translateX(-50%);
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.35);
 }
 
 .restTimerReady {
@@ -1792,7 +1793,7 @@
 
   .restTimer,
   .restTimerReady {
-    width: min(980px, calc(100vw - 24px));
+    width: 100vw;
   }
 
   .heading,

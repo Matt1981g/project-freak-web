@@ -12,10 +12,11 @@ import type {
 import { load_training_priorities } from '../priorities/trainingPriorities'
 import { load_analysis_dashboard_data } from '../analysis/dashboard'
 import { load_coach_excluded_sessions } from './coachExclusions'
+import { ACTIVE_GYM_SETTING_KEY, TRIDENT_GYM_ID } from '../gyms/gymProfiles'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
 export const TRAINING_EXPORT_SCHEMA_VERSION = '1.0.0' as const
-export const COACH_INSTRUCTIONS_VERSION = '1.1.0' as const
+export const COACH_INSTRUCTIONS_VERSION = '1.2.0' as const
 
 export type TrainingExportScopeType =
   | 'today'
@@ -94,6 +95,8 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
       'When deliberately prescribing a harder-than-proven load or rep target in the next programme, include PF_COACH_CHALLENGE in that programmed set notes so PROJECT FREAK can identify the stretch attempt.',
       'Do not fabricate missing loads, reps, scores or historical information',
       'Use only exercise IDs supplied in coach_context.exercise_catalogue',
+      'The exercise catalogue is hard-filtered to the currently selected gym; never use an exercise ID absent from it',
+      'Treat equipment explicitly marked unavailable or unconfirmed as prohibited for programming',
       'Use coach_context.exercise_aliases to resolve historical names without rewriting history',
       'Do not rewrite historical actuals',
       'Use advanced set methods only when justified by the evidence',
@@ -489,6 +492,32 @@ export async function build_training_export(
     load_coach_excluded_sessions(repositories.settings),
     load_analysis_dashboard_data(repositories),
   ])
+  const selected_gym_setting = await repositories.settings.get(
+    ACTIVE_GYM_SETTING_KEY,
+  )
+  const selected_gym_id =
+    typeof selected_gym_setting?.value_json === 'string'
+      ? selected_gym_setting.value_json
+      : TRIDENT_GYM_ID
+  const selected_gym = await repositories.gyms.get_profile(selected_gym_id)
+  const selected_gym_availability =
+    selected_gym && selected_gym.deleted_at === null
+      ? await repositories.gyms.list_availability(selected_gym_id)
+      : []
+  const coach_available_exercise_ids = new Set(
+    selected_gym_availability
+      .filter(
+        (entry) =>
+          entry.deleted_at === null &&
+          entry.available &&
+          !entry.notes?.trimStart().startsWith('[UNCONFIRMED]'),
+      )
+      .map((entry) => entry.exercise_id),
+  )
+  const coach_exercises = active_exercises.filter((exercise) =>
+    coach_available_exercise_ids.has(exercise.id),
+  )
+
   const excluded_ids = new Set(exclusions.session_ids)
   const exercise_filter =
     request.type === 'exercise'
@@ -616,7 +645,7 @@ export async function build_training_export(
     coach_context: {
       training_priorities: priorities,
       adaptive_analysis,
-      exercise_catalogue: active_exercises.map((exercise) => ({
+      exercise_catalogue: coach_exercises.map((exercise) => ({
         id: exercise.id,
         canonical_name: exercise.canonical_name,
         category: exercise.category,

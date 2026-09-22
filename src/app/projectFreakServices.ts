@@ -1284,8 +1284,31 @@ export async function complete_live_session_exercise(
   })
 }
 
-export function preview_programme_json(json_text: string) {
-  return preview_programme_import(json_text, repositories.exercises)
+export async function preview_programme_json(json_text: string) {
+  const selected_gym = await load_active_gym(
+    repositories.gyms,
+    repositories.settings,
+  )
+  const mappings =
+    selected_gym && selected_gym.deleted_at === null
+      ? await repositories.gyms.list_availability(selected_gym.id)
+      : []
+  const allowed_exercise_ids = new Set(
+    mappings
+      .filter(
+        (entry) =>
+          entry.deleted_at === null &&
+          entry.available &&
+          !entry.notes?.trimStart().startsWith('[UNCONFIRMED]'),
+      )
+      .map((entry) => entry.exercise_id),
+  )
+
+  return preview_programme_import(json_text, repositories.exercises, {
+    gym_profile_id: selected_gym?.id ?? 'missing-selected-gym',
+    gym_name: selected_gym?.name ?? 'Selected gym',
+    allowed_exercise_ids,
+  })
 }
 
 export async function commit_programme_json(

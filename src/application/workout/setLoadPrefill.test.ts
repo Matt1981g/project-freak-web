@@ -112,27 +112,41 @@ describe('select_set_load_prefill', () => {
       select_set_load_prefill({
         existing_set: null,
         programmed_load_kg: 50,
-        first_completed_load_kg: 52.5,
-        first_programmed_load_kg: 50,
+        previous_completed_load_kg: 52.5,
+        previous_programmed_load_kg: 50,
         previous,
         progression: progression('add_reps'),
         set_number: 2,
       }),
-    ).toEqual({ load_kg: 52.5, source: 'first_set_actual' })
+    ).toEqual({ load_kg: 52.5, source: 'previous_set_actual' })
   })
 
-  it('carries Set 1 into an open later set with no programmed load', () => {
+  it('carries a manually changed Set 2 load into Set 3', () => {
+    expect(
+      select_set_load_prefill({
+        existing_set: null,
+        programmed_load_kg: 70,
+        previous_completed_load_kg: 80,
+        previous_programmed_load_kg: 70,
+        previous,
+        progression: progression('add_reps'),
+        set_number: 3,
+      }),
+    ).toEqual({ load_kg: 80, source: 'previous_set_actual' })
+  })
+
+  it('carries the previous completed load into an open later set with no programmed load', () => {
     expect(
       select_set_load_prefill({
         existing_set: null,
         programmed_load_kg: null,
-        first_completed_load_kg: 52.5,
-        first_programmed_load_kg: 50,
+        previous_completed_load_kg: 52.5,
+        previous_programmed_load_kg: 50,
         previous,
         progression: progression('hold_load'),
         set_number: 3,
       }),
-    ).toEqual({ load_kg: 52.5, source: 'first_set_actual' })
+    ).toEqual({ load_kg: 52.5, source: 'previous_set_actual' })
   })
 
   it('preserves a deliberately different later programmed load', () => {
@@ -140,8 +154,8 @@ describe('select_set_load_prefill', () => {
       select_set_load_prefill({
         existing_set: null,
         programmed_load_kg: 45,
-        first_completed_load_kg: 52.5,
-        first_programmed_load_kg: 50,
+        previous_completed_load_kg: 52.5,
+        previous_programmed_load_kg: 50,
         previous,
         progression: progression('add_reps'),
         set_number: 2,

@@ -164,6 +164,25 @@ describe('programme import', () => {
     ).toBe(true)
   })
 
+  it('rejects an active exercise that is not confirmed available at the selected gym', async () => {
+    const preview = await preview_programme_import(
+      JSON.stringify(valid_document()),
+      exercise_repository(),
+      {
+        gym_profile_id: 'gym-trident-plymouth',
+        gym_name: 'Trident',
+        allowed_exercise_ids: new Set(),
+      },
+    )
+
+    expect(preview.can_commit).toBe(false)
+    expect(
+      preview.issues.some(
+        (entry) => entry.code === 'exercise_unavailable_for_selected_gym',
+      ),
+    ).toBe(true)
+  })
+
   it('rejects explicit target set counts that contradict supplied sets', async () => {
     const document = valid_document()
     document.programme.sessions[0].exercises[0].target_sets = 3
