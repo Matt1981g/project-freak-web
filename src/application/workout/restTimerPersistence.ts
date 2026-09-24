@@ -6,6 +6,9 @@ export type PersistedRestTimer = RestTimerState & {
   next_exercise_id?: string | null
   next_exercise_name?: string | null
   next_exercise_label?: string | null
+  next_set_number?: number | null
+  next_rep_target?: string | null
+  next_target_load_kg?: number | null
 }
 
 export function rest_timer_storage_key(completed_session_id: string): string {
@@ -43,6 +46,14 @@ export function parse_stored_rest_timer(
       next_exercise_label:
         typeof parsed.next_exercise_label === 'string'
           ? parsed.next_exercise_label
+          : null,
+      next_set_number:
+        typeof parsed.next_set_number === 'number' ? parsed.next_set_number : null,
+      next_rep_target:
+        typeof parsed.next_rep_target === 'string' ? parsed.next_rep_target : null,
+      next_target_load_kg:
+        typeof parsed.next_target_load_kg === 'number'
+          ? parsed.next_target_load_kg
           : null,
     }
   } catch {
