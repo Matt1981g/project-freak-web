@@ -1605,8 +1605,10 @@
 }
 
 .nextExercisePrompt {
-  width: min(92vw, 680px);
+  width: min(96vw, 760px);
+  min-height: min(88vh, 760px);
   display: grid;
+  align-content: center;
   gap: 12px;
   padding: clamp(24px, 6vw, 56px);
   border: 2px solid var(--pf-accent);
@@ -1640,6 +1642,28 @@
   font-size: clamp(20px, 4vw, 34px);
 }
 
+.nextSetNumber {
+  color: var(--pf-text-muted);
+  font-size: clamp(12px, 3vw, 18px);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.nextRepTarget {
+  color: var(--pf-text-strong);
+  font-size: clamp(46px, 14vw, 104px);
+  font-weight: 1000;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+
+.nextTargetLoad {
+  color: var(--pf-accent);
+  font-size: clamp(22px, 6vw, 42px);
+  font-weight: 1000;
+  line-height: 1;
+}
+
 .restOvertime {
   color: #ff3b30;
   font-size: clamp(30px, 9vw, 72px);
@@ -1651,13 +1675,13 @@
 }
 
 .nextExercisePrompt > button {
-  min-height: 68px;
+  min-height: clamp(82px, 12vh, 118px);
   border: 1px solid var(--pf-accent-border);
   border-radius: 14px;
   color: #071006;
   background: var(--pf-accent);
   font: inherit;
-  font-size: 15px;
+  font-size: clamp(24px, 7vw, 44px);
   font-weight: 1000;
   cursor: pointer;
 }
