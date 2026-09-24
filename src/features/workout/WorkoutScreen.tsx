@@ -1839,6 +1839,17 @@ function RestTimerPanel(props: {
           <strong>GO!</strong>
           <div className={styles.restOvertime}>+{late_seconds}s</div>
           <h2>{next_label}</h2>
+          {timer.next_set_number != null && (
+            <div className={styles.nextSetNumber}>SET {timer.next_set_number}</div>
+          )}
+          {timer.next_rep_target && (
+            <div className={styles.nextRepTarget}>{timer.next_rep_target}</div>
+          )}
+          {timer.next_target_load_kg != null && (
+            <div className={styles.nextTargetLoad}>
+              {timer.next_target_load_kg} KG
+            </div>
+          )}
           <button type="button" onClick={on_go}>
             GO!
           </button>
@@ -2087,6 +2098,32 @@ export function WorkoutScreen() {
     }
   }
 
+  function play_rest_countdown_beep() {
+    prime_rest_audio()
+    const context = audio_context_ref.current
+    if (!context || context.state === 'closed') return
+
+    try {
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      const start = context.currentTime
+      const end = start + 0.085
+
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(720, start)
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.12, start + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.0001, end)
+
+      oscillator.connect(gain)
+      gain.connect(context.destination)
+      oscillator.start(start)
+      oscillator.stop(end)
+    } catch {
+      // Audio is best-effort. The visual timer remains authoritative.
+    }
+  }
+
   function play_rest_complete_beep() {
     prime_rest_audio()
     const context = audio_context_ref.current
@@ -2111,10 +2148,11 @@ export function WorkoutScreen() {
     }
 
     try {
-      play_tone(0, 880)
-      play_tone(0.18, 1046)
+      play_tone(0, 660)
+      play_tone(0.16, 880)
+      play_tone(0.32, 1175)
       if ('vibrate' in navigator) {
-        navigator.vibrate?.([100, 70, 100])
+        navigator.vibrate?.([90, 55, 90, 55, 120])
       }
     } catch {
       // Some iOS audio states may still suppress sound; visual GO remains.
@@ -2273,6 +2311,16 @@ export function WorkoutScreen() {
 
     if (
       previous !== null &&
+      remaining < previous &&
+      remaining > 0 &&
+      remaining <= 5 &&
+      rest_timer.ends_at_ms !== null
+    ) {
+      play_rest_countdown_beep()
+    }
+
+    if (
+      previous !== null &&
       previous > 0 &&
       remaining === 0 &&
       rest_timer.ends_at_ms !== null
@@ -2296,9 +2344,24 @@ export function WorkoutScreen() {
 
   function begin_rest(
     exercise: LiveExercise['exercise'],
+    completed_set_number: number,
     next_exercise: LiveExercise['exercise'] | null = null,
   ) {
     if (exercise.rest_seconds === null || exercise.rest_seconds <= 0) return
+
+    const target_entry = next_exercise
+      ? workout?.exercises.find((entry) => entry.exercise.id === next_exercise.id) ?? null
+      : workout?.exercises.find((entry) => entry.exercise.id === exercise.id) ?? null
+    const target_set_number = next_exercise
+      ? Math.min(
+          (target_entry?.sets.filter(is_training_set_completed).length ?? 0) + 1,
+          target_entry?.planned_sets.length || target_entry?.exercise.target_sets || 1,
+        )
+      : completed_set_number + 1
+    const target_planned_set =
+      target_entry?.planned_sets.find(
+        (detail) => detail.set.set_number === target_set_number,
+      )?.set ?? null
 
     const now = Date.now()
     setRestNowMs(now)
@@ -2311,6 +2374,11 @@ export function WorkoutScreen() {
       next_exercise_label: next_exercise
         ? exercise_label(next_exercise)
         : null,
+      next_set_number: target_set_number,
+      next_rep_target: target_planned_set
+        ? rep_target(target_planned_set.target_reps_min, target_planned_set.target_reps_max)
+        : null,
+      next_target_load_kg: target_planned_set?.target_load_kg ?? null,
     })
   }
 
@@ -2998,7 +3066,7 @@ export function WorkoutScreen() {
                                 next_exercise !== null,
                               )
                             ) {
-                              begin_rest(exercise, next_exercise)
+                              begin_rest(exercise, set_number, next_exercise)
                             }
 
                             await refresh_workout()
