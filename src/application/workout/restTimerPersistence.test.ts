@@ -32,6 +32,9 @@ describe('rest timer persistence', () => {
       next_exercise_id: null,
       next_exercise_name: null,
       next_exercise_label: null,
+      next_set_number: null,
+      next_rep_target: null,
+      next_target_load_kg: null,
     })
   })
 
