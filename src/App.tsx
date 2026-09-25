@@ -93,6 +93,20 @@ function App() {
               <strong>FREAK</strong>
             </span>
             <small>DISCIPLINE DRIVES RESULTS</small>
+            {location.pathname === '/plan' && (
+              <span
+                aria-label="Project Freak version 16.1"
+                style={{
+                  color: 'var(--pf-text-muted)',
+                  fontSize: '9px',
+                  fontWeight: 900,
+                  letterSpacing: '0.14em',
+                  lineHeight: 1,
+                }}
+              >
+                V16.1
+              </span>
+            )}
           </div>
         </div>
         <nav className="app-nav app-nav-desktop" aria-label="Primary">
