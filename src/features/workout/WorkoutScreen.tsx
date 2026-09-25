@@ -2376,7 +2376,7 @@ export function WorkoutScreen() {
         : null,
       next_set_number: target_set_number,
       next_rep_target: target_planned_set
-        ? rep_target(target_planned_set.target_reps_min, target_planned_set.target_reps_max)
+        ? rep_target(target_planned_set.target_rep_min, target_planned_set.target_rep_max)
         : null,
       next_target_load_kg: target_planned_set?.target_load_kg ?? null,
     })
