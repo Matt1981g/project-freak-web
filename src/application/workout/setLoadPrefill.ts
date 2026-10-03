@@ -61,7 +61,13 @@ export function select_set_load_prefill(
     }
   }
 
-  if (input.progression.verdict !== 'insufficient_data') {
+  const progression_blocks_previous_baseline =
+    input.progression.verdict === 'reset' ||
+    input.progression.verdict === 'reduce_load' ||
+    input.progression.verdict === 'deload_hold' ||
+    input.progression.verdict === 'review'
+
+  if (!progression_blocks_previous_baseline) {
     const previous_set = input.previous?.sets.find(
       (set) => set.set_number === input.set_number,
     )

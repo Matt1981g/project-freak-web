@@ -683,7 +683,7 @@ export function build_coach_export(scope: TrainingExportScopeRequest) {
   return build_training_export(repositories, {
     now_iso: new Date().toISOString(),
     to_date_local: current_local_date(),
-    app_version: null,
+    app_version: '17.0',
     db_schema_version: Number(projectFreakDb.verno) || null,
   }, scope)
 }
@@ -692,7 +692,7 @@ export function build_last_7_days_coach_export() {
   return build_last_7_days_training_export(repositories, {
     now_iso: new Date().toISOString(),
     to_date_local: current_local_date(),
-    app_version: null,
+    app_version: '17.0',
     db_schema_version: Number(projectFreakDb.verno) || null,
   })
 }
@@ -1109,6 +1109,22 @@ export async function load_live_workout(completed_session_id: string) {
           progression_suggestion: build_progression_suggestion(
             previous_comparable,
             progression_targets,
+            {
+              history,
+              current_session_id: session.id,
+              current_session_date_local: session.session_date_local,
+              exercise_id: exercise.exercise_id,
+              exercise_name:
+                history?.exercise.canonical_name ??
+                exercise.exercise_name_snapshot,
+              exercise_category: history?.exercise.category ?? null,
+              exercise_equipment: history?.exercise.equipment ?? null,
+              gym_profile_id: session.gym_profile_id ?? null,
+              equipment_snapshot: exercise.equipment_snapshot ?? null,
+              rotation_group_key: exercise.rotation_group_key,
+              programmed_session_exercise_id:
+                exercise.programmed_session_exercise_id,
+            },
           ),
           planned_exercise_id: planned_detail?.exercise.exercise_id ?? null,
           planned_exercise_name:

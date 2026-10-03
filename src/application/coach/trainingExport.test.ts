@@ -604,7 +604,7 @@ describe('build_last_7_days_training_export', () => {
 
     expect(payload.format).toBe(TRAINING_EXPORT_FORMAT)
     expect(payload.coach_instructions).toMatchObject({
-      instruction_version: '1.2.0',
+      instruction_version: '2.0.0',
       user_command: 'Build next week.',
       next_block: {
         length_days: 7,
@@ -613,6 +613,32 @@ describe('build_last_7_days_training_export', () => {
       programme_output: {
         format: 'project-freak-programme',
         schema_version: '1.0.0',
+      },
+      progress_engine: {
+        version: '2.0.0',
+        decision_states: [
+          'CALIBRATE',
+          'RESET',
+          'HOLD',
+          'REPS_UP',
+          'LOAD_UP',
+          'LOAD_DOWN',
+          'DELOAD_HOLD',
+          'REVIEW',
+        ],
+        thresholds: {
+          good_form: 8,
+          good_pump: 7,
+          calibration_exposures: 2,
+          reset_required_poor_exposures: 2,
+          reset_window: 3,
+          set_dropoff_percent: 30,
+          load_down_percent: [2.5, 5],
+          reset_percent: [5, 10],
+          severe_reset_percent: [10, 15],
+          deload_load_percent: [10, 20],
+          deload_set_percent: [30, 50],
+        },
       },
     })
     expect(payload.scope).toMatchObject({

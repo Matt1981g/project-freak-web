@@ -13,10 +13,11 @@ import { load_training_priorities } from '../priorities/trainingPriorities'
 import { load_analysis_dashboard_data } from '../analysis/dashboard'
 import { load_coach_excluded_sessions } from './coachExclusions'
 import { ACTIVE_GYM_SETTING_KEY, TRIDENT_GYM_ID } from '../gyms/gymProfiles'
+import { PROGRESS_ENGINE_V2_RULES } from '../workout/progressEngineV2'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
 export const TRAINING_EXPORT_SCHEMA_VERSION = '1.0.0' as const
-export const COACH_INSTRUCTIONS_VERSION = '1.2.0' as const
+export const COACH_INSTRUCTIONS_VERSION = '2.0.0' as const
 
 export type TrainingExportScopeType =
   | 'today'
@@ -39,6 +40,44 @@ export interface TrainingExportCoachInstructions {
   programming_hierarchy: string[]
   review_requirements: string[]
   rules: string[]
+  progress_engine: {
+    version: typeof PROGRESS_ENGINE_V2_RULES.version
+    decision_states: readonly [
+      'CALIBRATE',
+      'RESET',
+      'HOLD',
+      'REPS_UP',
+      'LOAD_UP',
+      'LOAD_DOWN',
+      'DELOAD_HOLD',
+      'REVIEW',
+    ]
+    hierarchy: typeof PROGRESS_ENGINE_V2_RULES.hierarchy
+    thresholds: {
+      good_form: number
+      minimum_acceptable_form: number
+      good_pump: number
+      poor_pump: number
+      high_rpe_concern: number
+      calibration_exposures: number
+      poor_machine_min_exposures: number
+      plateau_exposures: number
+      reset_window: number
+      reset_required_poor_exposures: number
+      set_dropoff_percent: number
+      load_down_percent: readonly [number, number]
+      reset_percent: readonly [number, number]
+      severe_reset_percent: readonly [number, number]
+      deload_load_percent: readonly [number, number]
+      deload_set_percent: readonly [number, number]
+      response_weights: {
+        form: number
+        pump: number
+        reps: number
+        rpe: number
+      }
+    }
+  }
   next_block: {
     length_days: 7
     calendar_span: 'monday_to_sunday'
@@ -107,7 +146,59 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
       'Do not force a deload from a single weak signal; use the supplied adaptive recommendation, confidence and underlying evidence together',
       'If the adaptive recommendation is deload with moderate or high confidence, reduce fatigue rather than blindly progressing volume or load unless stronger contrary evidence exists',
       'Optimise for hypertrophy rather than strength for its own sake',
+      'Progression Engine V2 is authoritative: Form → target-muscle stimulus → reps → load. More load is not progression unless the first three remain acceptable.',
+      'LOAD_UP requires Form >= 8/10, Pump/target-muscle stimulus >= 7/10, the programmed upper rep threshold to be achieved, appropriate RPE, calibrated equipment and no active fatigue gate.',
+      'An exposure may qualify as historical evidence at Form >= 7/10 and Pump >= 6/10 with credible RPE, but only high-quality exposures may normally justify LOAD_UP.',
+      'A new gym, machine, materially different machine geometry or untrusted equipment setup requires two valid calibration exposures before normal progression. Never transfer load numbers between different machine profiles.',
+      'If two of the previous three qualified exposures show poor Form, poor stimulus, reps below range, very high RPE, grinding or compromised ROM, use RESET rather than chasing load. Normal reset is 5–10%; severe quality breakdown may justify 10–15%.',
+      'Use LOAD_DOWN as a 2.5–5% corrective reduction when reps, Form, ROM, RPE or stimulus deteriorate materially. Treat corrective reductions as quality restoration, not regression.',
+      'Use exercise-specific progression classes: Class A heavy/high-fatigue compounds generally 6–10 or 8–12; Class B controlled machine compounds 8–15; Class C isolations 10–20; Class D high-rep stimulus work 15–25. Isolation work should favour rep progression before load progression.',
+      'A greater than 30% rep fall from the first to final comparable working set blocks LOAD_UP and requires review of load, effort distribution, rest or fatigue.',
+      'Routine RPE 10 on Class A compounds blocks load progression. Isolation final sets may reach technical failure when Form is maintained.',
+      'Compare superset exposures preferentially with previous superset exposures. A substitute exercise owns its own progression history unless it is the exact same exercise + gym + machine profile.',
+      'A repeated HOLD is not automatically a plateau. Flag PLATEAU REVIEW only after three consecutive high-quality exposures show no meaningful improvement in load, reps or execution quality.',
+      'During deload reduce load approximately 10–20% and working sets approximately 30–50%, avoid intentional failure, preserve technique and do not promote deload data into the normal progression baseline.',
+      'If at least three fatigue indicators occur across two consecutive sessions, enter FATIGUE WATCH; if the pattern persists across three or more consecutive sessions, recommend DELOAD.',
+      'Machine response profiles require at least three exposures before a LOW RESPONSE judgement. Hypertrophy response scoring is Form 40%, Pump/stimulus 35%, rep performance 15% and RPE suitability 10%.',
+      'Every progression decision must state its state and the evidence/reason that produced it; never silently change load.',
     ],
+    progress_engine: {
+      version: PROGRESS_ENGINE_V2_RULES.version,
+      decision_states: [
+        'CALIBRATE',
+        'RESET',
+        'HOLD',
+        'REPS_UP',
+        'LOAD_UP',
+        'LOAD_DOWN',
+        'DELOAD_HOLD',
+        'REVIEW',
+      ],
+      hierarchy: PROGRESS_ENGINE_V2_RULES.hierarchy,
+      thresholds: {
+        good_form: PROGRESS_ENGINE_V2_RULES.good_form,
+        minimum_acceptable_form:
+          PROGRESS_ENGINE_V2_RULES.minimum_acceptable_form,
+        good_pump: PROGRESS_ENGINE_V2_RULES.good_pump,
+        poor_pump: PROGRESS_ENGINE_V2_RULES.poor_pump,
+        high_rpe_concern: PROGRESS_ENGINE_V2_RULES.high_rpe_concern,
+        calibration_exposures:
+          PROGRESS_ENGINE_V2_RULES.calibration_exposures,
+        poor_machine_min_exposures:
+          PROGRESS_ENGINE_V2_RULES.poor_machine_min_exposures,
+        plateau_exposures: PROGRESS_ENGINE_V2_RULES.plateau_exposures,
+        reset_window: PROGRESS_ENGINE_V2_RULES.reset_window,
+        reset_required_poor_exposures:
+          PROGRESS_ENGINE_V2_RULES.reset_required_poor_exposures,
+        set_dropoff_percent: PROGRESS_ENGINE_V2_RULES.set_dropoff_percent,
+        load_down_percent: PROGRESS_ENGINE_V2_RULES.load_down_percent,
+        reset_percent: PROGRESS_ENGINE_V2_RULES.reset_percent,
+        severe_reset_percent: PROGRESS_ENGINE_V2_RULES.severe_reset_percent,
+        deload_load_percent: PROGRESS_ENGINE_V2_RULES.deload_load_percent,
+        deload_set_percent: PROGRESS_ENGINE_V2_RULES.deload_set_percent,
+        response_weights: PROGRESS_ENGINE_V2_RULES.response_weights,
+      },
+    },
     next_block: {
       length_days: 7,
       calendar_span: 'monday_to_sunday',

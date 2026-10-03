@@ -4,7 +4,6 @@ import type { PreviousComparablePerformance } from './previousComparable'
 import { build_progression_suggestion } from './progressionSuggestion'
 
 function previous(
-  overrides: Partial<PreviousComparablePerformance> = {},
   metrics_overrides: Partial<ExerciseMetrics> = {},
 ): PreviousComparablePerformance {
   const metrics: ExerciseMetrics = {
@@ -36,21 +35,20 @@ function previous(
       {
         set_number: 1,
         load_kg: 45,
-        completed_reps: 10,
+        completed_reps: 12,
         failure_status: 'none',
-        volume_kg: 450,
+        volume_kg: 540,
       },
       {
         set_number: 2,
         load_kg: 45,
-        completed_reps: 10,
+        completed_reps: 12,
         failure_status: 'none',
-        volume_kg: 450,
+        volume_kg: 540,
       },
     ],
     metrics,
-    total_volume_kg: 900,
-    ...overrides,
+    total_volume_kg: 1080,
   }
 }
 
@@ -59,125 +57,20 @@ const targets = [
   { set_number: 2, target_rep_min: 8, target_rep_max: 12 },
 ]
 
-describe('build_progression_suggestion', () => {
-  it('returns insufficient data without previous comparable performance', () => {
-    expect(build_progression_suggestion(null, targets).label).toBe(
-      'INSUFFICIENT DATA',
-    )
+describe('build_progression_suggestion V2 adapter', () => {
+  it('returns CALIBRATE when there is no trusted machine history', () => {
+    const result = build_progression_suggestion(null, targets)
+    expect(result.state).toBe('CALIBRATE')
+    expect(result.label).toBe('CALIBRATE')
   })
 
-  it('holds load when previous form was degraded', () => {
-    expect(
-      build_progression_suggestion(previous({}, { form: 7 }), targets).label,
-    ).toBe('HOLD LOAD')
-  })
-
-  it('holds load when previous form was acceptable but imperfect', () => {
-    expect(
-      build_progression_suggestion(previous({}, { form: 8 }), targets).label,
-    ).toBe('HOLD LOAD')
-  })
-
-  it('holds load when target-muscle sensation was poor', () => {
-    expect(
-      build_progression_suggestion(previous({}, { form: 10, pump: 6 }), targets)
-        .label,
-    ).toBe('HOLD LOAD')
-  })
-
-  it('returns insufficient data when the programme has no usable rep target', () => {
-    const result = build_progression_suggestion(previous(), [
-      { set_number: 1, target_rep_min: null, target_rep_max: null },
-      { set_number: 2, target_rep_min: null, target_rep_max: null },
-    ])
-
-    expect(result.label).toBe('INSUFFICIENT DATA')
-  })
-
-  it('adds reps when a comparable set is below the programmed range', () => {
-    const result = build_progression_suggestion(
-      previous({
-        sets: [
-          {
-            set_number: 1,
-            load_kg: 45,
-            completed_reps: 7,
-            failure_status: 'attempted_next_rep_failed',
-            volume_kg: 315,
-          },
-          {
-            set_number: 2,
-            load_kg: 45,
-            completed_reps: 10,
-            failure_status: 'none',
-            volume_kg: 450,
-          },
-        ],
-      }),
-      targets,
-    )
-
-    expect(result.label).toBe('ADD REPS')
-  })
-
-  it('adds reps when execution is valid but the top of the range is not reached', () => {
-    expect(build_progression_suggestion(previous(), targets).label).toBe(
-      'ADD REPS',
-    )
-  })
-
-  it('considers load increase only after form, sensation and all upper rep targets are satisfied', () => {
-    const result = build_progression_suggestion(
-      previous({
-        sets: [
-          {
-            set_number: 1,
-            load_kg: 45,
-            completed_reps: 12,
-            failure_status: 'none',
-            volume_kg: 540,
-          },
-          {
-            set_number: 2,
-            load_kg: 45,
-            completed_reps: 12,
-            failure_status: 'attempted_next_rep_failed',
-            volume_kg: 540,
-          },
-        ],
-      }),
-      targets,
-    )
-
-    expect(result.label).toBe('CONSIDER LOAD INCREASE')
-  })
-
-  it('refuses a load-increase suggestion when target-muscle sensation was not recorded', () => {
-    const result = build_progression_suggestion(
-      previous(
-        {
-          sets: [
-            {
-              set_number: 1,
-              load_kg: 45,
-              completed_reps: 12,
-              failure_status: 'none',
-              volume_kg: 540,
-            },
-            {
-              set_number: 2,
-              load_kg: 45,
-              completed_reps: 12,
-              failure_status: 'none',
-              volume_kg: 540,
-            },
-          ],
-        },
-        { pump: null, legacy_mmc: null },
-      ),
-      targets,
-    )
-
-    expect(result.label).toBe('INSUFFICIENT DATA')
+  it('requires two valid same-machine exposures before normal progression', () => {
+    const result = build_progression_suggestion(previous(), targets, {
+      exercise_id: 'exercise-1',
+      exercise_name: 'Nautilus Bicep Curl',
+      gym_profile_id: 'trident',
+    })
+    expect(result.state).toBe('CALIBRATE')
+    expect(result.flags).toContain('machine_calibration')
   })
 })
