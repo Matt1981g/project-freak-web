@@ -8,6 +8,7 @@ import {
   infer_progression_class,
   is_high_quality,
   is_quality_qualified,
+  run_progress_engine_regression,
   run_progress_engine_v2,
   type CurrentProgressionContext,
   type ProgressEngineInput,
@@ -332,6 +333,20 @@ describe('adaptive fatigue and deload', () => {
       input([deload, exposure('2'), exposure('1')]),
     )
     expect(result.state).toBe('REPS_UP')
+  })
+})
+
+describe('historical regression harness', () => {
+  it('replays history without using future exposures', () => {
+    const rows = run_progress_engine_regression(
+      input([exposure('1'), exposure('2'), exposure('3')]),
+    )
+
+    expect(rows).toHaveLength(3)
+    expect(rows[0].decision.state).toBe('CALIBRATE')
+    expect(rows[1].decision.state).toBe('REPS_UP')
+    expect(rows[2].decision.state).toBe('REVIEW')
+    expect(rows[2].decision.flags).toContain('plateau_review')
   })
 })
 
