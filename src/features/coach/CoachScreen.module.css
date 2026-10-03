@@ -49,6 +49,134 @@
   letter-spacing: 0.15em;
 }
 
+.availabilityPanel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--pf-border);
+  border-radius: 18px;
+  background: var(--pf-panel);
+}
+
+.availabilityHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.availabilityHeading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.availabilityHeading span,
+.availabilityDay label > span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.availabilityHeading strong {
+  color: var(--pf-text-strong);
+  font-size: 15px;
+}
+
+.availabilityHeading em {
+  padding: 6px 9px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 999px;
+  color: var(--pf-accent);
+  background: var(--pf-accent-soft);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.availabilityPanel > p {
+  margin: 10px 0 0;
+  color: var(--pf-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.availabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.availabilityDay {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 78px;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--pf-border);
+  border-radius: 12px;
+  background: var(--pf-panel-raised);
+}
+
+.availabilityDay > div {
+  display: grid;
+  gap: 2px;
+}
+
+.availabilityDay > div strong {
+  color: var(--pf-text-strong);
+  font-size: 11px;
+}
+
+.availabilityDay > div span {
+  color: var(--pf-text-faint);
+  font-size: 9px;
+}
+
+.availabilityDay select,
+.availabilityDay input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--pf-border);
+  border-radius: 9px;
+  color: var(--pf-text-strong);
+  background: var(--pf-bg);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.availabilityDay label {
+  display: grid;
+  gap: 4px;
+}
+
+.availabilityDay input:disabled {
+  opacity: 0.45;
+}
+
+.saveAvailabilityButton {
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 0 14px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 11px;
+  color: #071006;
+  background: var(--pf-accent);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.saveAvailabilityButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .scopePanel {
   margin-top: 20px;
   padding: 16px;
@@ -367,6 +495,14 @@
 
   .heading {
     flex-direction: column;
+  }
+
+  .availabilityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .availabilityDay {
+    grid-template-columns: 58px minmax(0, 1fr) 72px;
   }
 
   .scopeButtons {
