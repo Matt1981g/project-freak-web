@@ -449,6 +449,13 @@ function poor_indicators(
   return indicators
 }
 
+export function progression_fatigue_indicators(
+  exposure: ProgressionExposure,
+  targets: readonly ProgressionTarget[],
+): string[] {
+  return poor_indicators(exposure, targets)
+}
+
 function total_reps(exposure: ProgressionExposure): number {
   return exposure.sets.reduce(
     (total, set) => total + (set.completed_reps ?? 0),
@@ -1006,6 +1013,32 @@ export function build_machine_response_profiles(
       useful_load_kg: median(useful_loads),
     }
   })
+}
+
+export interface ProgressEngineRegressionRow {
+  source_exposure_id: string
+  session_date_local: string
+  decision: ProgressEngineDecision
+}
+
+export function run_progress_engine_regression(
+  input: ProgressEngineInput,
+): ProgressEngineRegressionRow[] {
+  const chronological = [...input.exposures].sort((left, right) =>
+    left.session_date_local.localeCompare(right.session_date_local),
+  )
+
+  return chronological.map((exposure, index) => ({
+    source_exposure_id: exposure.id,
+    session_date_local: exposure.session_date_local,
+    decision: run_progress_engine_v2({
+      ...input,
+      exposures: chronological.slice(0, index + 1),
+      fatigue_sessions: (input.fatigue_sessions ?? []).filter(
+        (session) => session.session_date_local <= exposure.session_date_local,
+      ),
+    }),
+  }))
 }
 
 export function assess_poor_machine_response(
