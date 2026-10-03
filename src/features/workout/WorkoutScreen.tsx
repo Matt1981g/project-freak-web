@@ -340,7 +340,7 @@ function ProgressionSuggestionPanel(props: {
   return (
     <section
       className={
-        suggestion.verdict === 'consider_load_increase'
+        suggestion.verdict === 'increase_load'
           ? styles.progressionIncrease
           : suggestion.verdict === 'hold_load'
             ? styles.progressionHold
