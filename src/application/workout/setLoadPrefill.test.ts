@@ -6,18 +6,54 @@ import { select_set_load_prefill } from './setLoadPrefill'
 
 const progression = (
   verdict: ProgressionSuggestion['verdict'],
-): ProgressionSuggestion => ({
-  verdict,
-  label:
+): ProgressionSuggestion => {
+  const state =
     verdict === 'hold_load'
-      ? 'HOLD LOAD'
+      ? 'HOLD'
       : verdict === 'add_reps'
-        ? 'ADD REPS'
-        : verdict === 'consider_load_increase'
-          ? 'CONSIDER LOAD INCREASE'
-          : 'INSUFFICIENT DATA',
-  reason: 'fixture',
-})
+        ? 'REPS_UP'
+        : verdict === 'increase_load'
+          ? 'LOAD_UP'
+          : verdict === 'reset'
+            ? 'RESET'
+            : verdict === 'reduce_load'
+              ? 'LOAD_DOWN'
+              : verdict === 'deload_hold'
+                ? 'DELOAD_HOLD'
+                : verdict === 'review'
+                  ? 'REVIEW'
+                  : 'CALIBRATE'
+
+  const label =
+    state === 'REPS_UP'
+      ? 'REPS UP'
+      : state === 'LOAD_UP'
+        ? 'LOAD UP'
+        : state === 'LOAD_DOWN'
+          ? 'LOAD DOWN'
+          : state === 'DELOAD_HOLD'
+            ? 'DELOAD HOLD'
+            : state
+
+  return {
+    verdict,
+    state,
+    label,
+    reason: 'fixture',
+    response_score: null,
+    quality_qualified: true,
+    high_quality: true,
+    adjustment: {
+      kind: 'none',
+      percent_min: null,
+      percent_max: null,
+      set_reduction_percent_min: null,
+      set_reduction_percent_max: null,
+      note: 'fixture',
+    },
+    flags: [],
+  }
+}
 
 const previous: PreviousComparablePerformance = {
   session_id: 'session-old',
@@ -187,13 +223,13 @@ describe('select_set_load_prefill', () => {
     ).toEqual({ load_kg: 47.5, source: 'previous_comparable' })
   })
 
-  it('does not invent a load when progression is insufficient', () => {
+  it('does not reuse a previous load when progression requires review', () => {
     expect(
       select_set_load_prefill({
         existing_set: null,
         programmed_load_kg: null,
         previous,
-        progression: progression('insufficient_data'),
+        progression: progression('review'),
         set_number: 1,
       }),
     ).toEqual({ load_kg: null, source: 'blank' })
