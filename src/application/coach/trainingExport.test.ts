@@ -595,6 +595,63 @@ describe('build_last_7_days_training_export', () => {
     expect(payload.sessions.map((item) => item.id)).toEqual([included.id])
   })
 
+  it('exports saved dated availability instead of a hard-coded weekly schedule', async () => {
+    const repo = repositories()
+    const original_get = repo.settings.get
+    repo.settings.get = async (key) => {
+      if (key === 'coach-next-week-availability-v1') {
+        return {
+          key,
+          scope: 'global',
+          value_json: {
+            schema_version: '1.0.0',
+            week_start_date_local: '2026-09-07',
+            days: {
+              monday: { status: 'available', max_minutes: 90 },
+              tuesday: { status: 'unavailable', max_minutes: null },
+              wednesday: { status: 'available', max_minutes: 75 },
+              thursday: { status: 'available', max_minutes: 90 },
+              friday: { status: 'available', max_minutes: 90 },
+              saturday: { status: 'long_session', max_minutes: 120 },
+              sunday: { status: 'unavailable', max_minutes: null },
+            },
+          },
+          updated_at: NOW,
+          device_id: null,
+        }
+      }
+      return original_get(key)
+    }
+
+    const payload = await build_last_7_days_training_export(repo, {
+      now_iso: NOW,
+      to_date_local: '2026-09-04',
+      db_schema_version: 1,
+    })
+
+    expect(payload.coach_instructions.next_block.availability).toMatchObject({
+      week_start_date_local: '2026-09-07',
+      complete: true,
+      source: 'coach_screen',
+      days: {
+        monday: {
+          date_local: '2026-09-07',
+          status: 'available',
+          max_minutes: 90,
+        },
+        tuesday: {
+          date_local: '2026-09-08',
+          status: 'unavailable',
+        },
+        saturday: {
+          date_local: '2026-09-12',
+          status: 'long_session',
+          max_minutes: 120,
+        },
+      },
+    })
+  })
+
   it('exports the coaching evidence needed to prescribe the next week', async () => {
     const payload = await build_last_7_days_training_export(repositories(), {
       now_iso: NOW,
@@ -604,11 +661,17 @@ describe('build_last_7_days_training_export', () => {
 
     expect(payload.format).toBe(TRAINING_EXPORT_FORMAT)
     expect(payload.coach_instructions).toMatchObject({
-      instruction_version: '2.0.0',
+      instruction_version: '3.0.0',
       user_command: 'Build next week.',
       next_block: {
         length_days: 7,
         calendar_span: 'monday_to_sunday',
+        availability: {
+          week_start_date_local: '2026-09-07',
+          week_end_date_local: '2026-09-13',
+          complete: false,
+          source: 'unspecified',
+        },
       },
       programme_output: {
         format: 'project-freak-programme',
@@ -641,6 +704,20 @@ describe('build_last_7_days_training_export', () => {
         },
       },
     })
+    expect(payload.coach_instructions.authority.conflict_rule).toContain(
+      'must not override a Progress Engine RESET',
+    )
+    expect(payload.coach_instructions.weekly_programming_doctrine).toContain(
+      'An available day is an opportunity rather than a mandatory training day; recovery evidence may justify fewer sessions. An unavailable day is a hard no-training constraint.',
+    )
+    expect(payload.coach_instructions.output_validation).toContain(
+      'Never programme training on a day marked unavailable.',
+    )
+    expect(payload.coach_instructions.rules.join(' ')).toContain(
+      'High terminal RPE alone is not sufficient for RESET',
+    )
+    expect(payload.coach_instructions.next_block).not.toHaveProperty('schedule')
+
     expect(payload.scope).toMatchObject({
       type: 'last_7_days',
       from_date: '2026-08-29',

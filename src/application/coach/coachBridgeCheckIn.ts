@@ -1,12 +1,13 @@
 import type { TrainingExport } from './trainingExport'
+import { COACH_WEEK_DAYS } from './nextWeekAvailability'
 
-export const END_OF_WEEK_CHECK_IN_VERSION = '1.0.0' as const
+export const END_OF_WEEK_CHECK_IN_VERSION = '2.0.0' as const
 
 export const END_OF_WEEK_CHECK_IN_QUESTIONS = [
   {
     id: 'availability_next_week',
     question:
-      'What does your availability look like next week? Include work, travel, shortened sessions, missed days or any schedule changes.',
+      'Confirm the next-week availability supplied by PROJECT FREAK, or list any changes, work constraints, travel, shortened sessions or newly unavailable days.',
     answer_format: 'free_text',
   },
   {
@@ -34,6 +35,30 @@ export const END_OF_WEEK_CHECK_IN_QUESTIONS = [
   },
 ] as const
 
+function availability_summary(payload: TrainingExport): string {
+  const availability = payload.coach_instructions.next_block.availability
+  const days = COACH_WEEK_DAYS.map((day) => {
+    const item = availability.days[day]
+    const duration =
+      item.max_minutes === null ? '' : ` (max ${item.max_minutes} min)`
+    return `${day}: ${item.status.replaceAll('_', ' ')}${duration}`
+  })
+
+  return `${availability.week_start_date_local} to ${availability.week_end_date_local}: ${days.join('; ')}`
+}
+
+function check_in_questions(payload: TrainingExport) {
+  const availability = payload.coach_instructions.next_block.availability
+  const first = {
+    ...END_OF_WEEK_CHECK_IN_QUESTIONS[0],
+    question: availability.complete
+      ? `PROJECT FREAK has saved this availability for next week — ${availability_summary(payload)}. Confirm it is still correct, or list any changes, work/travel constraints or shortened sessions.`
+      : `PROJECT FREAK does not yet have complete availability for ${availability.week_start_date_local} to ${availability.week_end_date_local}. Current entries: ${availability_summary(payload)}. Fill in the unspecified days and list any work, travel or shortened-session constraints.`,
+  }
+
+  return [first, ...END_OF_WEEK_CHECK_IN_QUESTIONS.slice(1)]
+}
+
 export function with_end_of_week_check_in(payload: TrainingExport) {
   return {
     ...payload,
@@ -59,8 +84,8 @@ export function with_end_of_week_check_in(payload: TrainingExport) {
         interaction_rule:
           'When the user asks to build next week, ask all five end-of-week questions together in your first response and wait for the user to answer them. Do not create, draft or return next week\'s programme or programme-import JSON in that same response. Only skip this gate if the user explicitly tells you to skip the check-in.',
         programming_rule:
-          'Use the answers as current user intent alongside the supplied training evidence. Availability is a hard scheduling constraint. Recovery and performance evidence can override a request for more training stress when warranted. Exercise-variety requests should rotate suitable secondary movements while retaining proven anchor exercises unless the evidence or user preference supports changing them.',
-        questions: END_OF_WEEK_CHECK_IN_QUESTIONS,
+          'Use the answers as current user intent alongside the supplied training evidence. The dated next_block.availability is a hard scheduling constraint unless the user explicitly changes it in this check-in; a check-in change overrides the exported availability for this programme only. Recovery and performance evidence can justify using fewer available days or less training stress. Exercise-variety requests should rotate suitable secondary movements while retaining proven anchor exercises unless the evidence or user preference supports changing them.',
+        questions: check_in_questions(payload),
       },
     },
   }

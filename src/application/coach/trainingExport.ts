@@ -14,10 +14,15 @@ import { load_analysis_dashboard_data } from '../analysis/dashboard'
 import { load_coach_excluded_sessions } from './coachExclusions'
 import { ACTIVE_GYM_SETTING_KEY, TRIDENT_GYM_ID } from '../gyms/gymProfiles'
 import { PROGRESS_ENGINE_V2_RULES } from '../workout/progressEngineV2'
+import {
+  build_next_week_availability_instruction,
+  load_next_week_availability,
+  type NextWeekAvailabilityInstruction,
+} from './nextWeekAvailability'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
-export const TRAINING_EXPORT_SCHEMA_VERSION = '1.0.0' as const
-export const COACH_INSTRUCTIONS_VERSION = '2.0.0' as const
+export const TRAINING_EXPORT_SCHEMA_VERSION = '2.0.0' as const
+export const COACH_INSTRUCTIONS_VERSION = '3.0.0' as const
 
 export type TrainingExportScopeType =
   | 'today'
@@ -40,6 +45,14 @@ export interface TrainingExportCoachInstructions {
   programming_hierarchy: string[]
   review_requirements: string[]
   rules: string[]
+  authority: {
+    progress_engine_owns: string[]
+    coach_owns: string[]
+    conflict_rule: string
+  }
+  weekly_programming_doctrine: string[]
+  exercise_selection_rules: string[]
+  volume_failure_rules: string[]
   progress_engine: {
     version: typeof PROGRESS_ENGINE_V2_RULES.version
     decision_states: readonly [
@@ -81,17 +94,10 @@ export interface TrainingExportCoachInstructions {
   next_block: {
     length_days: 7
     calendar_span: 'monday_to_sunday'
-    schedule: {
-      monday: 'train'
-      tuesday: 'train'
-      wednesday: 'recovery'
-      thursday: 'train'
-      friday: 'train'
-      saturday: 'long_training_session'
-      sunday: 'recovery'
-    }
+    availability: NextWeekAvailabilityInstruction
   }
   required_output: string[]
+  output_validation: string[]
   programme_output: {
     format: 'project-freak-programme'
     schema_version: '1.0.0'
@@ -99,7 +105,9 @@ export interface TrainingExportCoachInstructions {
   }
 }
 
-function build_coach_instructions(): TrainingExportCoachInstructions {
+function build_coach_instructions(
+  availability: NextWeekAvailabilityInstruction,
+): TrainingExportCoachInstructions {
   return {
     instruction_version: COACH_INSTRUCTIONS_VERSION,
     purpose:
@@ -125,6 +133,8 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
       'Review muscle-specific next-session recovery feedback',
       'Review underperformance signals and their underlying evidence',
       'Review the adaptive deload recommendation and confidence',
+      'Review Progress Engine V2 states and exceptions before changing exercise loads',
+      'Review the dated next-week availability constraint before constructing the schedule',
       'Use historical performance supplied in this export',
       'Respect the current PROJECT FREAK training priority order',
     ],
@@ -150,7 +160,7 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
       'LOAD_UP requires Form >= 8/10, Pump/target-muscle stimulus >= 7/10, the programmed upper rep threshold to be achieved, appropriate RPE, calibrated equipment and no active fatigue gate.',
       'An exposure may qualify as historical evidence at Form >= 7/10 and Pump >= 6/10 with credible RPE, but only high-quality exposures may normally justify LOAD_UP.',
       'A new gym, machine, materially different machine geometry or untrusted equipment setup requires two valid calibration exposures before normal progression. Never transfer load numbers between different machine profiles.',
-      'If two of the previous three qualified exposures show poor Form, poor stimulus, reps below range, very high RPE, grinding or compromised ROM, use RESET rather than chasing load. Normal reset is 5–10%; severe quality breakdown may justify 10–15%.',
+      'If two of the previous three qualified exposures show repeated poor Form, poor stimulus, reps below range, unusually early very-high RPE, grinding or compromised ROM, use RESET rather than chasing load. High terminal RPE alone is not sufficient for RESET. Normal reset is 5–10%; severe quality breakdown may justify 10–15%.',
       'Use LOAD_DOWN as a 2.5–5% corrective reduction when reps, Form, ROM, RPE or stimulus deteriorate materially. Treat corrective reductions as quality restoration, not regression.',
       'Use exercise-specific progression classes: Class A heavy/high-fatigue compounds generally 6–10 or 8–12; Class B controlled machine compounds 8–15; Class C isolations 10–20; Class D high-rep stimulus work 15–25. Isolation work should favour rep progression before load progression.',
       'A greater than 30% rep fall from the first to final comparable working set blocks LOAD_UP and requires review of load, effort distribution, rest or fatigue.',
@@ -161,6 +171,49 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
       'If at least three fatigue indicators occur across two consecutive sessions, enter FATIGUE WATCH; if the pattern persists across three or more consecutive sessions, recommend DELOAD.',
       'Machine response profiles require at least three exposures before a LOW RESPONSE judgement. Hypertrophy response scoring is Form 40%, Pump/stimulus 35%, rep performance 15% and RPE suitability 10%.',
       'Every progression decision must state its state and the evidence/reason that produced it; never silently change load.',
+    ],
+    authority: {
+      progress_engine_owns: [
+        'Exercise-level CALIBRATE, RESET, HOLD, REPS_UP, LOAD_UP, LOAD_DOWN, DELOAD_HOLD and REVIEW decisions',
+        'Whether historical exposure quality is valid enough to justify progression',
+        'Machine-specific load baselines and progression eligibility',
+      ],
+      coach_owns: [
+        'Weekly exercise selection from the confirmed active-gym catalogue',
+        'Exercise order and session composition',
+        'Weekly direct-set allocation and muscle frequency',
+        'Grow versus Maintain resource allocation',
+        'Antagonist supersets and justified advanced set methods',
+        'Fatigue management and construction of a deload week',
+      ],
+      conflict_rule:
+        'Coach must not override a Progress Engine RESET, LOAD_DOWN, CALIBRATE, DELOAD_HOLD or REVIEW state merely to pursue progressive overload. Coach may reduce stress further when wider recovery evidence warrants it.',
+    },
+    weekly_programming_doctrine: [
+      'Optimise the week for hypertrophy stimulus-to-fatigue ratio, not for maximum load, maximum session tonnage or exercise novelty.',
+      'Distribute recoverable weekly volume across sessions so later work remains productive; do not concentrate sets simply to hit a weekly number.',
+      'Place the highest-priority Grow muscles early enough in the week and within sessions to receive high-quality work before lower-priority fatigue accumulates.',
+      'Do not let lower-priority or Maintain work materially compromise higher-priority Grow work.',
+      'Use antagonist supersets when they save time without materially reducing performance, especially biceps/triceps and compatible quad/hamstring pairings.',
+      'Use same-muscle supersets, drops, rest-pause or other intensification selectively; they are tools, not default programming.',
+      'Preserve adequate rest for high-output compounds and shorten rest only where doing so does not meaningfully reduce target-muscle performance.',
+      'Fit each session to the supplied availability and any max_minutes constraint. Never create a session longer than a supplied daily limit.',
+      'An available day is an opportunity rather than a mandatory training day; recovery evidence may justify fewer sessions. An unavailable day is a hard no-training constraint.',
+    ],
+    exercise_selection_rules: [
+      'Prefer proven high-response anchor exercises over novelty for novelty’s sake.',
+      'Do not replace an exercise because of one poor exposure.',
+      'Consider replacement after at least three relevant exposures establish LOW RESPONSE, when a sampled alternative gives materially better stimulus or Form, when pain/discomfort requires a change, when equipment availability changes, or when programme structure clearly requires a different movement pattern.',
+      'When rotating secondary movements, preserve the primary function and muscle target of the exercise being replaced.',
+      'Never fabricate a machine or exercise. Every programmed exercise must use an ID present in coach_context.exercise_catalogue.',
+    ],
+    volume_failure_rules: [
+      'Do not increase weekly set volume merely because recovery appears adequate; add volume only when evidence suggests a Grow muscle is underdosed and extra work is likely to remain productive.',
+      'Reduce junk volume when later sets repeatedly show poor target-muscle stimulus, excessive performance decay, compromised Form or fatigue that harms subsequent priority work.',
+      'Heavy/high-fatigue Class A compounds should generally finish around RPE 8–9, with approximately 1–2 good reps in reserve; RPE 9.5 may be used selectively when justified.',
+      'Stable machine compounds may approach 0–1 RIR selectively when execution remains strong.',
+      'Isolation work may use technical failure on the final working set when Form and target-muscle loading remain acceptable.',
+      'Do not turn every exercise into failure work. Failure exposure must earn its fatigue cost.',
     ],
     progress_engine: {
       version: PROGRESS_ENGINE_V2_RULES.version,
@@ -202,15 +255,7 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
     next_block: {
       length_days: 7,
       calendar_span: 'monday_to_sunday',
-      schedule: {
-        monday: 'train',
-        tuesday: 'train',
-        wednesday: 'recovery',
-        thursday: 'train',
-        friday: 'train',
-        saturday: 'long_training_session',
-        sunday: 'recovery',
-      },
+      availability,
     },
     required_output: [
       'Concise review of the completed week',
@@ -218,7 +263,20 @@ function build_coach_instructions(): TrainingExportCoachInstructions {
       'Muscle allocation decisions for Grow versus Maintain areas',
       'Recovery or performance concerns',
       'Explicit deload / continue / fatigue-reduction decision with reasons',
+      'Progression exceptions: list RESET, LOAD_DOWN, CALIBRATE, LOW RESPONSE, DELOAD_HOLD and REVIEW items that materially affect the next week',
+      'Volume comparison: planned direct sets by muscle versus the reviewed week, with reasons for meaningful increases or reductions',
+      'Equipment compliance confirmation: confirm every prescribed exercise ID exists in coach_context.exercise_catalogue',
       'A valid PROJECT FREAK programme-import JSON for the next Monday-Sunday block',
+    ],
+    output_validation: [
+      'The programme dates must fall within next_block.availability.week_start_date_local through week_end_date_local.',
+      'Never programme training on a day marked unavailable.',
+      'Respect any max_minutes limit when constructing that day’s session.',
+      'If availability.complete is false, do not finalise the programme until missing availability is confirmed in the end-of-week check-in.',
+      'Every exercise ID in the returned programme must exist in coach_context.exercise_catalogue.',
+      'Do not prescribe a load increase that conflicts with a Progress Engine RESET, LOAD_DOWN, CALIBRATE, DELOAD_HOLD or REVIEW state.',
+      'Meaningful weekly set-volume changes must be explained.',
+      'Advanced set methods and failure prescriptions must be justified by exercise type, evidence and fatigue cost.',
     ],
     programme_output: {
       format: 'project-freak-programme',
@@ -576,12 +634,17 @@ export async function build_training_export(
     aliases,
     exclusions,
     adaptive_analysis,
+    next_week_availability,
   ] = await Promise.all([
     load_training_priorities(repositories.settings),
     repositories.exercises.list_active(),
     repositories.exercises.list_aliases(),
     load_coach_excluded_sessions(repositories.settings),
     load_analysis_dashboard_data(repositories),
+    load_next_week_availability(
+      repositories.settings,
+      context.to_date_local,
+    ),
   ])
   const selected_gym_setting = await repositories.settings.get(
     ACTIVE_GYM_SETTING_KEY,
@@ -732,7 +795,9 @@ export async function build_training_export(
       context,
       resolved_exercise_ids,
     ),
-    coach_instructions: build_coach_instructions(),
+    coach_instructions: build_coach_instructions(
+      build_next_week_availability_instruction(next_week_availability),
+    ),
     coach_context: {
       training_priorities: priorities,
       adaptive_analysis,

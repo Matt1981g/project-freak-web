@@ -32,6 +32,11 @@ import {
   load_coach_excluded_sessions,
   set_session_coach_excluded,
 } from '../application/coach/coachExclusions'
+import {
+  load_next_week_availability,
+  save_next_week_availability,
+  type NextWeekAvailabilityState,
+} from '../application/coach/nextWeekAvailability'
 import { load_exercise_history } from '../application/history/exerciseHistory'
 import { correct_completed_set } from '../application/history/correctCompletedSet'
 import { build_programme_exercise_catalogue_json } from '../application/programme/exerciseCatalogue'
@@ -665,6 +670,28 @@ export function load_coach_exclusions() {
   return load_coach_excluded_sessions(repositories.settings)
 }
 
+export function load_coach_next_week_availability() {
+  return load_next_week_availability(
+    repositories.settings,
+    current_local_date(),
+  )
+}
+
+export async function save_coach_next_week_availability(
+  state: NextWeekAvailabilityState,
+) {
+  const result = await save_next_week_availability(
+    state,
+    repositories.settings,
+    {
+      current_local_date: current_local_date(),
+      now_iso: new Date().toISOString(),
+    },
+  )
+  request_auto_sync('setting_changed')
+  return result
+}
+
 export async function set_coach_session_excluded(
   session_id: string,
   excluded: boolean,
@@ -683,7 +710,7 @@ export function build_coach_export(scope: TrainingExportScopeRequest) {
   return build_training_export(repositories, {
     now_iso: new Date().toISOString(),
     to_date_local: current_local_date(),
-    app_version: '17.0',
+    app_version: '18.0',
     db_schema_version: Number(projectFreakDb.verno) || null,
   }, scope)
 }
@@ -692,7 +719,7 @@ export function build_last_7_days_coach_export() {
   return build_last_7_days_training_export(repositories, {
     now_iso: new Date().toISOString(),
     to_date_local: current_local_date(),
-    app_version: '17.0',
+    app_version: '18.0',
     db_schema_version: Number(projectFreakDb.verno) || null,
   })
 }

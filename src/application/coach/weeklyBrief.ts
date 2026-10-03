@@ -1,4 +1,5 @@
 import type { TrainingExport, TrainingExportSet } from './trainingExport'
+import { COACH_WEEK_DAYS } from './nextWeekAvailability'
 
 function format_number(value: number): string {
   return value.toLocaleString('en-GB', { maximumFractionDigits: 1 })
@@ -144,6 +145,8 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     .join(' | ')
 
   const analysis = payload.coach_context.adaptive_analysis
+  const next_week_availability =
+    payload.coach_instructions.next_block.availability
   const muscle_lines = analysis.muscles
     .filter(
       (muscle) =>
@@ -214,6 +217,15 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     `Recommendation: ${analysis.deload.recommendation.replaceAll('_', ' ').toUpperCase()} | score ${analysis.deload.score} | confidence ${analysis.deload.confidence.toUpperCase()}`,
     ...analysis.deload.reasons.map((reason) => `- ${reason}`),
     '',
+    'NEXT WEEK AVAILABILITY',
+    `Week: ${next_week_availability.week_start_date_local} to ${next_week_availability.week_end_date_local} | ${next_week_availability.complete ? 'COMPLETE' : 'CHECK REQUIRED'}`,
+    ...COACH_WEEK_DAYS.map((day) => {
+      const item = next_week_availability.days[day]
+      const duration =
+        item.max_minutes === null ? '' : ` | max ${item.max_minutes} min`
+      return `- ${day.toUpperCase()} ${item.date_local}: ${item.status.replaceAll('_', ' ').toUpperCase()}${duration}`
+    }),
+    '',
     'SESSION DETAIL',
   ]
 
@@ -280,6 +292,7 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     'COACH HANDOFF',
     'Use this brief for rapid review and the accompanying PROJECT FREAK JSON for exact set structures, IDs, aliases, provenance, muscle analysis and programme-import-safe exercise references.',
     'Use Grow/Maintain intent, muscle recovery, underperformance evidence and the adaptive deload recommendation as decision support; do not turn one weak signal into an automatic programme rewrite.',
+    'Coach Instructions V3 authority rule: Progress Engine owns exercise-level progression states; Coach owns weekly structure, exercise selection, order, frequency and recoverable volume. Coach must not override RESET, LOAD_DOWN, CALIBRATE, DELOAD_HOLD or REVIEW simply to chase progressive overload.',
     'The next programme JSON is the prescription. Historical performance is evidence, not an instruction to blindly repeat the previous load.',
     'Challenge rule: PF_ADAPTIVE_CHALLENGE and PF_COACH_CHALLENGE are deliberate stretch prescriptions. A one-off miss against the harder target is not regression by itself; judge the athlete against the pre-challenge baseline, execution, stimulus, recovery and repeated evidence.',
   )
