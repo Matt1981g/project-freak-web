@@ -150,6 +150,24 @@ describe('exercise completion', () => {
     expect(fixture.saved_metrics()).toEqual(metrics)
   })
 
+  it('uses a deterministic metrics ID for the same session exercise on every device', async () => {
+    const fixture = repository_fixture()
+
+    const metrics = await save_exercise_scores(
+      'session-exercise-deterministic',
+      { rpe: 8, pump: 8, form: 9 },
+      fixture.repository,
+      {
+        device_id: DEVICE_ID,
+        now_iso: NOW,
+      },
+    )
+
+    expect(metrics?.id).toBe(
+      'exercise-metrics:session-exercise-deterministic',
+    )
+  })
+
   it('stores target-muscle stimulus without deleting existing where-felt evidence', async () => {
     const fixture = repository_fixture({
       metrics: {
