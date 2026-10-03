@@ -154,6 +154,83 @@ function sync_table_for_entity_type(
   }
 }
 
+interface OneToOneNaturalKey {
+  index_name: 'session_exercise_id' | 'completed_session_id'
+  value: string
+}
+
+function one_to_one_natural_key(
+  entity_type: string,
+  entity: MutableEntity,
+): OneToOneNaturalKey | null {
+  if (entity_type === 'exercise_metrics') {
+    const value = (entity as ExerciseMetrics).session_exercise_id
+    return value
+      ? { index_name: 'session_exercise_id', value }
+      : null
+  }
+
+  if (entity_type === 'readiness_entry') {
+    const value = (entity as ReadinessEntry).completed_session_id
+    return value
+      ? { index_name: 'completed_session_id', value }
+      : null
+  }
+
+  return null
+}
+
+function freshest_entity(
+  left: MutableEntity,
+  right: MutableEntity,
+): MutableEntity {
+  const by_updated_at = left.updated_at.localeCompare(right.updated_at)
+  if (by_updated_at !== 0) {
+    return by_updated_at > 0 ? left : right
+  }
+
+  if (left.revision !== right.revision) {
+    return left.revision > right.revision ? left : right
+  }
+
+  return left.id.localeCompare(right.id) <= 0 ? left : right
+}
+
+function reconciled_one_to_one_entity(
+  left: MutableEntity,
+  right: MutableEntity,
+  applied_at: string,
+): {
+  canonical: MutableEntity
+  loser_tombstone: MutableEntity
+} {
+  const canonical_id =
+    left.id.localeCompare(right.id) <= 0 ? left.id : right.id
+  const freshest = freshest_entity(left, right)
+  const loser_source = left.id === canonical_id ? right : left
+  const created_at =
+    left.created_at.localeCompare(right.created_at) <= 0
+      ? left.created_at
+      : right.created_at
+  const revision = Math.max(left.revision, right.revision) + 1
+
+  return {
+    canonical: {
+      ...freshest,
+      id: canonical_id,
+      created_at,
+      updated_at: applied_at,
+      revision,
+    },
+    loser_tombstone: {
+      ...loser_source,
+      deleted_at: applied_at,
+      updated_at: applied_at,
+      revision: loser_source.revision + 1,
+    },
+  }
+}
+
 export class DexieSyncRepository implements SyncRepository {
   private readonly db: ProjectFreakDatabase
 
@@ -251,21 +328,74 @@ export class DexieSyncRepository implements SyncRepository {
     applied_at: string,
   ): Promise<void> {
     const table = sync_table_for_entity_type(this.db, entity_type)
+    const natural_key = one_to_one_natural_key(entity_type, entity)
 
-    await this.db.transaction('rw', table, this.db.audit_events, async () => {
-      const before = await table.get(entity.id)
-      await table.put(entity)
+    await this.db.transaction(
+      'rw',
+      table,
+      this.db.audit_events,
+      this.db.sync_outbox,
+      async () => {
+        const before = await table.get(entity.id)
 
-      const audit_event = create_audit_event(
-        entity_type,
-        entity,
-        before ?? null,
-        'sync_apply',
-      )
-      audit_event.reason = 'Remote sync applied'
-      audit_event.created_at = applied_at
-      await this.db.audit_events.add(audit_event)
-    })
+        if (natural_key) {
+          const existing_logical = await table
+            .where(natural_key.index_name)
+            .equals(natural_key.value)
+            .first()
+
+          if (existing_logical && existing_logical.id !== entity.id) {
+            const { canonical, loser_tombstone } =
+              reconciled_one_to_one_entity(
+                existing_logical,
+                entity,
+                applied_at,
+              )
+
+            await this.db.sync_outbox
+              .where('[entity_type+entity_id]')
+              .anyOf([
+                [entity_type, existing_logical.id],
+                [entity_type, entity.id],
+              ])
+              .filter((entry) => entry.synced_at === null)
+              .delete()
+
+            await table.delete(existing_logical.id)
+            await table.put(canonical)
+
+            const audit_event = create_audit_event(
+              entity_type,
+              canonical,
+              existing_logical,
+              'sync_apply',
+            )
+            audit_event.reason =
+              `Remote sync reconciled duplicate ${natural_key.index_name}=${natural_key.value}; canonical entity ${canonical.id}, retired entity ${loser_tombstone.id}`
+            audit_event.created_at = applied_at
+            await this.db.audit_events.add(audit_event)
+
+            await this.db.sync_outbox.bulkAdd([
+              create_sync_outbox_entry(entity_type, loser_tombstone),
+              create_sync_outbox_entry(entity_type, canonical),
+            ])
+            return
+          }
+        }
+
+        await table.put(entity)
+
+        const audit_event = create_audit_event(
+          entity_type,
+          entity,
+          before ?? null,
+          'sync_apply',
+        )
+        audit_event.reason = 'Remote sync applied'
+        audit_event.created_at = applied_at
+        await this.db.audit_events.add(audit_event)
+      },
+    )
   }
 }
 
