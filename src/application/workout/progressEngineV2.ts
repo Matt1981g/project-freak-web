@@ -625,7 +625,9 @@ function repeated_reset_required(
   exposures: readonly ProgressionExposure[],
   targets: readonly ProgressionTarget[],
 ): boolean {
-  const recent = exposures.slice(0, PROGRESS_ENGINE_V2_RULES.reset_window)
+  const recent = exposures
+    .filter(is_quality_qualified)
+    .slice(0, PROGRESS_ENGINE_V2_RULES.reset_window)
   if (recent.length < PROGRESS_ENGINE_V2_RULES.reset_required_poor_exposures) {
     return false
   }
@@ -649,11 +651,14 @@ function plateau_detected(
   exposures: readonly ProgressionExposure[],
   targets: readonly ProgressionTarget[],
 ): boolean {
-  const recent = exposures
-    .filter(is_high_quality)
-    .slice(0, PROGRESS_ENGINE_V2_RULES.plateau_exposures)
+  const recent = exposures.slice(0, PROGRESS_ENGINE_V2_RULES.plateau_exposures)
 
-  if (recent.length < PROGRESS_ENGINE_V2_RULES.plateau_exposures) return false
+  if (
+    recent.length < PROGRESS_ENGINE_V2_RULES.plateau_exposures ||
+    !recent.every(is_high_quality)
+  ) {
+    return false
+  }
 
   const loads = recent.map(best_load)
   if (loads.some((value) => value === null)) return false
