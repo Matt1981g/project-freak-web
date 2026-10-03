@@ -66,6 +66,36 @@ describe('save_session_readiness', () => {
     })
   })
 
+  it('uses a deterministic ID when two devices create readiness for the same session', async () => {
+    const fixture = repository_fixture()
+
+    const saved = await save_session_readiness(
+      {
+        completed_session_id: 'session-deterministic',
+        bodyweight_kg: null,
+        sleep_duration_minutes: null,
+        sleep_score: null,
+        energy_pre: 8,
+        motivation_pre: 8,
+        soreness_score: 2,
+        soreness_notes: null,
+        joint_issue_present: false,
+        joint_issue_notes: null,
+        pre_workout_nutrition: null,
+        intra_workout_nutrition: null,
+        intra_hydration_ml: null,
+        notes: null,
+      },
+      fixture.repository,
+      {
+        device_id: 'device-1',
+        now_iso: NOW,
+      },
+    )
+
+    expect(saved.id).toBe('readiness:session-deterministic')
+  })
+
   it('updates the same readiness record and preserves post-workout fields', async () => {
     const existing: ReadinessEntry = {
       id: 'readiness-1',
