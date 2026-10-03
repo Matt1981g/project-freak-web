@@ -1109,6 +1109,22 @@ export async function load_live_workout(completed_session_id: string) {
           progression_suggestion: build_progression_suggestion(
             previous_comparable,
             progression_targets,
+            {
+              history,
+              current_session_id: session.id,
+              current_session_date_local: session.session_date_local,
+              exercise_id: exercise.exercise_id,
+              exercise_name:
+                history?.exercise.canonical_name ??
+                exercise.exercise_name_snapshot,
+              exercise_category: history?.exercise.category ?? null,
+              exercise_equipment: history?.exercise.equipment ?? null,
+              gym_profile_id: session.gym_profile_id ?? null,
+              equipment_snapshot: exercise.equipment_snapshot ?? null,
+              rotation_group_key: exercise.rotation_group_key,
+              programmed_session_exercise_id:
+                exercise.programmed_session_exercise_id,
+            },
           ),
           planned_exercise_id: planned_detail?.exercise.exercise_id ?? null,
           planned_exercise_name:
