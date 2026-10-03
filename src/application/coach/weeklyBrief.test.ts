@@ -4,7 +4,7 @@ import { build_weekly_coaching_brief } from './weeklyBrief'
 
 const payload: TrainingExport = {
   format: 'project-freak-training-export',
-  schema_version: '1.0.0',
+  schema_version: '2.0.0',
   app_version: null,
   db_schema_version: 1,
   exported_at: '2026-09-04T19:00:00.000Z',
