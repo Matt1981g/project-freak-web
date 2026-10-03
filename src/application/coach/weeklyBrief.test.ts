@@ -16,12 +16,20 @@ const payload: TrainingExport = {
     programme_block_id: null,
   },
   coach_instructions: {
-    instruction_version: '2.0.0',
+    instruction_version: '3.0.0',
     purpose: 'Build the next week.',
     user_command: 'Build next week.',
     programming_hierarchy: ['Form', 'Target-muscle stimulus', 'Reps', 'Load'],
     review_requirements: [],
     rules: [],
+    authority: {
+      progress_engine_owns: [],
+      coach_owns: [],
+      conflict_rule: 'Progress Engine owns exercise progression.',
+    },
+    weekly_programming_doctrine: [],
+    exercise_selection_rules: [],
+    volume_failure_rules: [],
     progress_engine: {
       version: '2.0.0',
       decision_states: [
@@ -63,17 +71,54 @@ const payload: TrainingExport = {
     next_block: {
       length_days: 7,
       calendar_span: 'monday_to_sunday',
-      schedule: {
-        monday: 'train',
-        tuesday: 'train',
-        wednesday: 'recovery',
-        thursday: 'train',
-        friday: 'train',
-        saturday: 'long_training_session',
-        sunday: 'recovery',
+      availability: {
+        week_start_date_local: '2026-09-07',
+        week_end_date_local: '2026-09-13',
+        complete: true,
+        source: 'coach_screen',
+        scheduling_rule:
+          'Never train on unavailable days.',
+        days: {
+          monday: {
+            date_local: '2026-09-07',
+            status: 'available',
+            max_minutes: 90,
+          },
+          tuesday: {
+            date_local: '2026-09-08',
+            status: 'unavailable',
+            max_minutes: null,
+          },
+          wednesday: {
+            date_local: '2026-09-09',
+            status: 'available',
+            max_minutes: 90,
+          },
+          thursday: {
+            date_local: '2026-09-10',
+            status: 'available',
+            max_minutes: 90,
+          },
+          friday: {
+            date_local: '2026-09-11',
+            status: 'available',
+            max_minutes: 90,
+          },
+          saturday: {
+            date_local: '2026-09-12',
+            status: 'long_session',
+            max_minutes: 120,
+          },
+          sunday: {
+            date_local: '2026-09-13',
+            status: 'unavailable',
+            max_minutes: null,
+          },
+        },
       },
     },
     required_output: [],
+    output_validation: [],
     programme_output: {
       format: 'project-freak-programme',
       schema_version: '1.0.0',
@@ -265,6 +310,9 @@ describe('build_weekly_coaching_brief', () => {
     expect(brief).toContain('MUSCLE ANALYSIS')
     expect(brief).toContain('#1 Biceps [GROW] | Direct 2')
     expect(brief).toContain('ADAPTIVE DELOAD')
+    expect(brief).toContain('NEXT WEEK AVAILABILITY')
+    expect(brief).toContain('MONDAY 2026-09-07: AVAILABLE | max 90 min')
+    expect(brief).toContain('TUESDAY 2026-09-08: UNAVAILABLE')
     expect(brief).toContain('Recommendation: CONTINUE')
     expect(brief).toContain('Nautilus Bicep Curl [exercise-1]')
     expect(brief).toContain('2 sets | 8–12 reps | 90s rest')
