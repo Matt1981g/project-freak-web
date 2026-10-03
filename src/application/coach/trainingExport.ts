@@ -21,7 +21,7 @@ import {
 } from './nextWeekAvailability'
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
-export const TRAINING_EXPORT_SCHEMA_VERSION = '1.0.0' as const
+export const TRAINING_EXPORT_SCHEMA_VERSION = '2.0.0' as const
 export const COACH_INSTRUCTIONS_VERSION = '3.0.0' as const
 
 export type TrainingExportScopeType =
