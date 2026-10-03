@@ -710,7 +710,7 @@ export function build_coach_export(scope: TrainingExportScopeRequest) {
   return build_training_export(repositories, {
     now_iso: new Date().toISOString(),
     to_date_local: current_local_date(),
-    app_version: '18.0',
+    app_version: '18.1',
     db_schema_version: Number(projectFreakDb.verno) || null,
   }, scope)
 }
@@ -719,7 +719,7 @@ export function build_last_7_days_coach_export() {
   return build_last_7_days_training_export(repositories, {
     now_iso: new Date().toISOString(),
     to_date_local: current_local_date(),
-    app_version: '18.0',
+    app_version: '18.1',
     db_schema_version: Number(projectFreakDb.verno) || null,
   })
 }

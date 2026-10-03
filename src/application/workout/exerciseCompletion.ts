@@ -1,4 +1,3 @@
-import { create_uuid } from '../../domain/ids/uuid'
 import type {
   ExerciseMetrics,
   SessionExercise,
@@ -52,7 +51,10 @@ export async function save_exercise_scores(
   }
 
   const metrics: ExerciseMetrics = {
-    id: existing?.id ?? (context.id_factory ?? (() => create_uuid()))(),
+    id:
+      existing?.id ??
+      context.id_factory?.() ??
+      `exercise-metrics:${session_exercise_id}`,
     created_at: existing?.created_at ?? context.now_iso,
     updated_at: context.now_iso,
     deleted_at: null,

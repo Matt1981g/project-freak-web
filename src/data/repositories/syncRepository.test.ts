@@ -1,6 +1,11 @@
 import Dexie from 'dexie'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { Exercise, SyncOutbox } from '../../domain/models'
+import type {
+  Exercise,
+  ExerciseMetrics,
+  ReadinessEntry,
+  SyncOutbox,
+} from '../../domain/models'
 import { ProjectFreakDatabase } from '../db/projectFreakDb'
 import { DexieSyncRepository } from './dexieRepositories'
 
@@ -119,6 +124,129 @@ describe('DexieSyncRepository', () => {
       reason: 'Remote sync applied',
       created_at: NOW,
     })
+  })
+
+  it('reconciles duplicate exercise metrics that share one session exercise', async () => {
+    const local: ExerciseMetrics = {
+      id: 'metrics-b',
+      created_at: '2026-09-30T05:59:54.142Z',
+      updated_at: '2026-09-30T05:59:57.573Z',
+      deleted_at: null,
+      revision: 3,
+      device_id: 'device-morning',
+      source_kind: 'user',
+      source_id: null,
+      session_exercise_id: 'session-exercise-1',
+      rpe: 1,
+      pump: 1,
+      form: 1,
+      where_felt_text: null,
+      where_felt_tags: [],
+      legacy_tension: null,
+      legacy_mmc: null,
+      notes: null,
+    }
+    const remote: ExerciseMetrics = {
+      ...local,
+      id: 'metrics-a',
+      created_at: '2026-09-30T18:13:08.232Z',
+      updated_at: '2026-09-30T18:13:10.696Z',
+      device_id: 'device-evening',
+    }
+
+    await db.exercise_metrics.add(local)
+    await repository.apply_remote_entity('exercise_metrics', remote, NOW)
+
+    const rows = await db.exercise_metrics.toArray()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      id: 'metrics-a',
+      session_exercise_id: 'session-exercise-1',
+      updated_at: NOW,
+      revision: 4,
+      device_id: 'device-evening',
+      deleted_at: null,
+    })
+
+    const pending = await db.sync_outbox
+      .filter((entry) => entry.synced_at === null)
+      .toArray()
+    expect(pending).toHaveLength(2)
+    expect(pending.map((entry) => [entry.entity_id, entry.operation]).sort()).toEqual([
+      ['metrics-a', 'upsert'],
+      ['metrics-b', 'delete'],
+    ])
+  })
+
+  it('reconciles duplicate readiness records and preserves the newest logical content', async () => {
+    const local: ReadinessEntry = {
+      id: 'readiness-a',
+      created_at: '2026-09-30T06:00:07.416Z',
+      updated_at: '2026-09-30T06:01:15.797Z',
+      deleted_at: null,
+      revision: 37,
+      device_id: 'device-morning',
+      source_kind: 'user',
+      source_id: null,
+      completed_session_id: 'session-1',
+      bodyweight_kg: null,
+      sleep_duration_minutes: null,
+      sleep_score: null,
+      energy_pre: null,
+      motivation_pre: null,
+      soreness_score: null,
+      soreness_notes: null,
+      muscle_recovery: [],
+      joint_issue_present: null,
+      joint_issue_notes: null,
+      pre_workout_nutrition: null,
+      intra_workout_nutrition: null,
+      intra_hydration_ml: null,
+      post_workout_intake: 'older note',
+      session_quality: 8,
+      session_fatigue: 5,
+      breathlessness: 5,
+      energy_stability: 8,
+      coach_note: 'older coach note',
+      notes: null,
+    }
+    const remote: ReadinessEntry = {
+      ...local,
+      id: 'readiness-b',
+      created_at: '2026-09-30T18:13:20.303Z',
+      updated_at: '2026-09-30T18:14:17.950Z',
+      revision: 21,
+      device_id: 'device-evening',
+      post_workout_intake: null,
+      session_quality: 7,
+      session_fatigue: 8,
+      coach_note: 'newer coach note',
+    }
+
+    await db.readiness_entries.add(local)
+    await repository.apply_remote_entity('readiness_entry', remote, NOW)
+
+    const rows = await db.readiness_entries.toArray()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      id: 'readiness-a',
+      completed_session_id: 'session-1',
+      updated_at: NOW,
+      revision: 38,
+      device_id: 'device-evening',
+      session_quality: 7,
+      session_fatigue: 8,
+      coach_note: 'newer coach note',
+    })
+
+    const pending = await db.sync_outbox
+      .filter((entry) => entry.synced_at === null)
+      .toArray()
+    expect(pending).toHaveLength(2)
+    expect(pending.map((entry) => [entry.entity_id, entry.operation]).sort()).toEqual([
+      ['readiness-a', 'upsert'],
+      ['readiness-b', 'delete'],
+    ])
   })
 
   it('detects pending local mutations for the same entity', async () => {
