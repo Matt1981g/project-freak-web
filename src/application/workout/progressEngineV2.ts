@@ -435,12 +435,12 @@ function poor_indicators(
   }
   if (reps_below_range(exposure, targets)) indicators.push('reps')
   if (
+    exposure.high_rpe_early &&
     exposure.metrics.rpe !== null &&
     exposure.metrics.rpe >= PROGRESS_ENGINE_V2_RULES.high_rpe_concern
   ) {
-    indicators.push('rpe')
+    indicators.push('high_rpe_early')
   }
-  if (exposure.high_rpe_early) indicators.push('high_rpe_early')
   if (exposure.grinding) indicators.push('grinding')
   if (exposure.rom_compromised) indicators.push('rom')
   if (exposure.technique_breakdown) indicators.push('technique')
@@ -793,6 +793,22 @@ export function run_progress_engine_v2(
           : 'A deliberate load reset is progression-corrective, not regression.',
       ),
       ['repeated_poor_quality'],
+    )
+  }
+
+  if (severe_reset(latest)) {
+    return decision(
+      'RESET',
+      'Execution or target-muscle stimulus has broken down severely. Use a larger deliberate reset and rebuild from Form → stimulus → reps → load.',
+      latest,
+      input.targets,
+      adjustment(
+        'reset',
+        PROGRESS_ENGINE_V2_RULES.severe_reset_percent[0],
+        PROGRESS_ENGINE_V2_RULES.severe_reset_percent[1],
+        'Severe quality deterioration permits a 10–15% reset.',
+      ),
+      ['severe_quality_breakdown'],
     )
   }
 
