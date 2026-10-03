@@ -634,12 +634,17 @@ export async function build_training_export(
     aliases,
     exclusions,
     adaptive_analysis,
+    next_week_availability,
   ] = await Promise.all([
     load_training_priorities(repositories.settings),
     repositories.exercises.list_active(),
     repositories.exercises.list_aliases(),
     load_coach_excluded_sessions(repositories.settings),
     load_analysis_dashboard_data(repositories),
+    load_next_week_availability(
+      repositories.settings,
+      context.to_date_local,
+    ),
   ])
   const selected_gym_setting = await repositories.settings.get(
     ACTIVE_GYM_SETTING_KEY,
@@ -790,7 +795,9 @@ export async function build_training_export(
       context,
       resolved_exercise_ids,
     ),
-    coach_instructions: build_coach_instructions(),
+    coach_instructions: build_coach_instructions(
+      build_next_week_availability_instruction(next_week_availability),
+    ),
     coach_context: {
       training_priorities: priorities,
       adaptive_analysis,
