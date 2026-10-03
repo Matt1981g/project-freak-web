@@ -160,6 +160,7 @@ export function CoachScreen() {
   const [availability, setAvailability] =
     useState<NextWeekAvailabilityState | null>(null)
   const [availabilitySaving, setAvailabilitySaving] = useState(false)
+  const [availabilityDirty, setAvailabilityDirty] = useState(false)
 
   const generate = useCallback(async (request: TrainingExportScopeRequest) => {
     setLoading(true)
@@ -194,6 +195,7 @@ export function CoachScreen() {
 
   const refresh_availability = useCallback(async () => {
     setAvailability(await load_coach_next_week_availability())
+    setAvailabilityDirty(false)
   }, [])
 
 
@@ -232,6 +234,7 @@ export function CoachScreen() {
     try {
       const saved = await save_coach_next_week_availability(availability)
       setAvailability(saved)
+      setAvailabilityDirty(false)
       setStatus('Next-week availability saved and Coach export refreshed.')
       if (selected_request) await generate(selected_request)
     } catch (cause) {
@@ -249,6 +252,7 @@ export function CoachScreen() {
     day: CoachWeekDay,
     statusValue: CoachAvailabilityStatus,
   ) {
+    setAvailabilityDirty(true)
     setAvailability((current) => {
       if (!current) return current
       return {
@@ -272,6 +276,7 @@ export function CoachScreen() {
     day: CoachWeekDay,
     value: string,
   ) {
+    setAvailabilityDirty(true)
     const parsed = value.trim() === '' ? null : Number(value)
     setAvailability((current) => {
       if (!current) return current
@@ -413,6 +418,13 @@ export function CoachScreen() {
             and Coach may use fewer if recovery evidence warrants it.
           </p>
 
+          {availabilityDirty && (
+            <div className={styles.availabilityUnsaved}>
+              UNSAVED CHANGES — save availability before copying or downloading
+              Coach data.
+            </div>
+          )}
+
           <div className={styles.availabilityGrid}>
             {COACH_WEEK_DAYS.map((day, index) => {
               const item = availability.days[day]
@@ -539,9 +551,11 @@ export function CoachScreen() {
         <button
           type="button"
           className={styles.buildScopeButton}
-          disabled={!selected_request || loading}
+          disabled={!selected_request || loading || availabilityDirty}
           onClick={() => {
-            if (selected_request) void generate(selected_request)
+            if (selected_request && !availabilityDirty) {
+              void generate(selected_request)
+            }
           }}
         >
           {loading ? 'BUILDING…' : 'BUILD THIS SCOPE'}
@@ -583,20 +597,33 @@ export function CoachScreen() {
           </section>
 
           <section className={styles.actions}>
-            <button type="button" onClick={() => void copy_brief()}>
+            <button
+              type="button"
+              disabled={availabilityDirty}
+              onClick={() => void copy_brief()}
+            >
               COPY BRIEF
             </button>
             <button
               type="button"
               className={styles.primary}
+              disabled={availabilityDirty}
               onClick={download_brief}
             >
               DOWNLOAD BRIEF
             </button>
-            <button type="button" onClick={() => void copy_json()}>
+            <button
+              type="button"
+              disabled={availabilityDirty}
+              onClick={() => void copy_json()}
+            >
               COPY JSON
             </button>
-            <button type="button" onClick={download_json}>
+            <button
+              type="button"
+              disabled={availabilityDirty}
+              onClick={download_json}
+            >
               DOWNLOAD JSON
             </button>
             <button
@@ -604,9 +631,13 @@ export function CoachScreen() {
               onClick={() => {
                 if (selected_request) void generate(selected_request)
               }}
-              disabled={!selected_request || loading}
+              disabled={!selected_request || loading || availabilityDirty}
             >
-              {loading ? 'REFRESHING…' : 'REFRESH SCOPE'}
+              {loading
+                ? 'REFRESHING…'
+                : availabilityDirty
+                  ? 'SAVE AVAILABILITY FIRST'
+                  : 'REFRESH SCOPE'}
             </button>
           </section>
 
