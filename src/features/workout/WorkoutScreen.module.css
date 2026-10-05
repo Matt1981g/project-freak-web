@@ -1694,6 +1694,159 @@
   font-size: 10px;
 }
 
+.finalSetOverlay {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 106, 0, 0.18), transparent 42%),
+    rgba(13, 9, 7, 0.97);
+}
+
+.finalSetPrompt {
+  width: min(96vw, 760px);
+  min-height: min(88vh, 760px);
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  padding: clamp(24px, 6vw, 56px);
+  border: 2px solid var(--pf-warning);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(255, 106, 0, 0.16), transparent 60%),
+    var(--pf-panel);
+  box-shadow:
+    0 0 0 1px rgba(255, 106, 0, 0.28),
+    0 0 80px rgba(255, 106, 0, 0.12),
+    0 24px 90px rgba(0, 0, 0, 0.72);
+  text-align: center;
+}
+
+.finalSetPrompt > span {
+  color: var(--pf-warning);
+  font-size: clamp(12px, 3vw, 18px);
+  font-weight: 1000;
+  letter-spacing: 0.22em;
+}
+
+.finalSetPrompt > strong {
+  color: var(--pf-accent);
+  font-size: clamp(42px, 12vw, 92px);
+  line-height: 0.88;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.finalSetPrompt h2 {
+  margin: 4px 0 0;
+  color: var(--pf-text-strong);
+  font-size: clamp(18px, 4vw, 30px);
+}
+
+.finalSetCommand {
+  margin-top: 8px;
+  color: var(--pf-text-strong);
+  font-size: clamp(24px, 6vw, 46px);
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.finalSetPrompt > p {
+  margin: 0;
+  color: var(--pf-text-muted);
+  font-size: clamp(13px, 3vw, 18px);
+  font-weight: 800;
+}
+
+.finalSetMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.finalSetMeta span,
+.finalSetMeta b {
+  padding: 8px 12px;
+  border: 1px solid var(--pf-border);
+  border-radius: 999px;
+  background: var(--pf-panel-raised);
+  color: var(--pf-text-strong);
+  font-size: 11px;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+}
+
+.finalSetMeta b {
+  color: var(--pf-accent);
+  border-color: var(--pf-accent-border);
+}
+
+.finalSetCue {
+  display: grid;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 14px;
+  background: var(--pf-accent-soft);
+}
+
+.finalSetCue span {
+  color: var(--pf-accent);
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 0.16em;
+}
+
+.finalSetCue strong {
+  color: var(--pf-text-strong);
+  font-size: clamp(14px, 3.5vw, 20px);
+}
+
+.finalSetPrompt > button {
+  min-height: clamp(82px, 12vh, 118px);
+  margin-top: 8px;
+  border: 1px solid var(--pf-accent-border);
+  border-radius: 14px;
+  color: #071006;
+  background: var(--pf-accent);
+  font: inherit;
+  font-size: clamp(24px, 7vw, 44px);
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .finalSetPrompt {
+    animation: finalSetEnter 180ms ease-out;
+  }
+
+  .finalSetPrompt > strong {
+    animation: finalSetPulse 900ms ease-in-out 1;
+  }
+}
+
+@keyframes finalSetEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes finalSetPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.035);
+  }
+}
+
 .finishPanel,
 .workoutSummary {
   margin-top: 16px;
