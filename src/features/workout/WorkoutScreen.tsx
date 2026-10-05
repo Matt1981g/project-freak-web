@@ -31,6 +31,7 @@ import {
   should_start_rest_after_set,
   start_rest_timer,
 } from '../../application/workout/restTimer'
+import { is_final_working_set } from '../../application/workout/finalSetDetection'
 import {
   load_stored_rest_timer,
   rest_timer_storage_key,
@@ -203,6 +204,17 @@ function build_component_drafts(
 
 
 type ActiveRestTimer = PersistedRestTimer
+
+type FinalSetPromptContext = {
+  exercise_id: string
+  exercise_name: string
+  exercise_label: string
+  set_number: number
+  rep_target: string | null
+  target_load_kg: number | null
+  technique_cue: string | null
+  failure_target: 'none' | 'allowed' | 'target' | null
+}
 
 type PairingPrompt = {
   source_exercise_id: string
@@ -1805,6 +1817,7 @@ function ExerciseScoringPanel(props: {
 function RestTimerPanel(props: {
   timer: ActiveRestTimer
   now_ms: number
+  final_set: FinalSetPromptContext | null
   on_change: (timer: ActiveRestTimer) => void
   on_end: () => void
   on_go: () => void
@@ -1812,6 +1825,7 @@ function RestTimerPanel(props: {
   const {
     timer,
     now_ms,
+    final_set,
     on_change,
     on_end,
     on_go,
@@ -1831,6 +1845,52 @@ function RestTimerPanel(props: {
           ? `${timer.next_exercise_label} · ${timer.next_exercise_name}`
           : timer.next_exercise_name
         : timer.exercise_name
+
+    if (final_set) {
+      const failure_instruction =
+        final_set.failure_target === 'target'
+          ? 'Take the target muscle to technical failure.'
+          : final_set.failure_target === 'allowed'
+            ? 'Push hard. Stop when the next clean rep is gone.'
+            : 'Every rep clean. Finish the exercise properly.'
+
+      return (
+        <div
+          className={`${styles.nextExerciseOverlay} ${styles.finalSetOverlay}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Final set"
+        >
+          <section className={styles.finalSetPrompt}>
+            <span>FINAL SET</span>
+            <strong>FREAK SET</strong>
+            <h2>
+              {final_set.exercise_label} · {final_set.exercise_name}
+            </h2>
+            <div className={styles.finalSetCommand}>
+              NO FUCKING SHORTCUTS.
+            </div>
+            <p>{failure_instruction}</p>
+            <div className={styles.finalSetMeta}>
+              <span>SET {final_set.set_number}</span>
+              {final_set.rep_target && <b>{final_set.rep_target}</b>}
+              {final_set.target_load_kg !== null && (
+                <b>{final_set.target_load_kg} KG</b>
+              )}
+            </div>
+            {final_set.technique_cue && (
+              <div className={styles.finalSetCue}>
+                <span>FOCUS</span>
+                <strong>{final_set.technique_cue}</strong>
+              </div>
+            )}
+            <button type="button" onClick={on_go}>
+              LET&apos;S GO
+            </button>
+          </section>
+        </div>
+      )
+    }
 
     return (
       <div className={styles.nextExerciseOverlay} role="dialog" aria-modal="true">
@@ -2542,6 +2602,57 @@ export function WorkoutScreen() {
       ? workout.summary.duration_seconds
       : live_session_duration_seconds
 
+  const rest_target_exercise_id = rest_timer
+    ? pairing_prompt?.target_exercise_id ??
+      rest_timer.next_exercise_id ??
+      rest_timer.exercise_id
+    : null
+  const rest_target_set_number = rest_timer
+    ? pairing_prompt?.target_next_set ?? rest_timer.next_set_number ?? null
+    : null
+  const rest_target_entry =
+    rest_target_exercise_id === null
+      ? null
+      : workout.exercises.find(
+          (entry) => entry.exercise.id === rest_target_exercise_id,
+        ) ?? null
+  const rest_target_planned_set =
+    rest_target_entry && rest_target_set_number !== null
+      ? rest_target_entry.planned_sets.find(
+          (detail) => detail.set.set_number === rest_target_set_number,
+        )?.set ?? null
+      : null
+  const rest_final_set =
+    rest_timer &&
+    rest_target_entry &&
+    is_final_working_set({
+      next_set_number: rest_target_set_number,
+      planned_sets: rest_target_entry.planned_sets,
+      fallback_target_sets: rest_target_entry.exercise.target_sets,
+    })
+      ? {
+          exercise_id: rest_target_entry.exercise.id,
+          exercise_name: rest_target_entry.exercise.exercise_name_snapshot,
+          exercise_label: exercise_label(rest_target_entry.exercise),
+          set_number: rest_target_set_number!,
+          rep_target: rest_target_planned_set
+            ? rep_target(
+                rest_target_planned_set.target_rep_min,
+                rest_target_planned_set.target_rep_max,
+              )
+            : rest_target_entry.exercise.target_rep_min !== null ||
+                rest_target_entry.exercise.target_rep_max !== null
+              ? rep_target(
+                  rest_target_entry.exercise.target_rep_min,
+                  rest_target_entry.exercise.target_rep_max,
+                )
+              : null,
+          target_load_kg: rest_target_planned_set?.target_load_kg ?? null,
+          technique_cue: rest_target_entry.exercise.technique_cue,
+          failure_target: rest_target_planned_set?.failure_target ?? null,
+        }
+      : null
+
   return (
     <div
       className={`${styles.screen} ${
@@ -3114,13 +3225,29 @@ export function WorkoutScreen() {
           <RestTimerPanel
             timer={rest_timer}
             now_ms={rest_now_ms}
+            final_set={rest_final_set}
             on_change={(timer) => {
               setRestNowMs(Date.now())
               setRestTimer(timer)
             }}
-            on_end={() => setRestTimer(null)}
+            on_end={() => {
+              if (rest_final_set) {
+                const now = Date.now()
+                setRestNowMs(now)
+                setRestTimer({
+                  ...rest_timer,
+                  ends_at_ms: now,
+                  paused_remaining_seconds: null,
+                })
+                return
+              }
+              setRestTimer(null)
+            }}
             on_go={() => {
-              const next_id = rest_timer.next_exercise_id
+              const next_id =
+                rest_final_set?.exercise_id ??
+                pairing_prompt?.target_exercise_id ??
+                rest_timer.next_exercise_id
               setRestTimer(null)
               setPairingPrompt(null)
               if (!next_id) return
