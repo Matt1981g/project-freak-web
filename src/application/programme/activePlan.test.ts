@@ -264,4 +264,31 @@ describe('active plan selection', () => {
       replacement.id,
     ])
   })
+  it('hides an older identical week when the replacement has null lineage and completed actuals', () => {
+    const older = { ...block('old', '2026-10-05', '2026-10-11', '2026-10-03T19:32:58.176Z'), name: 'Same week', supersedes_programme_block_id: null }
+    const replacement = { ...block('new', '2026-10-05', '2026-10-11', '2026-10-05T04:20:49.403Z'), name: 'Same week', supersedes_programme_block_id: null }
+    const oldMonday = planned('old-mon', older.id, '2026-10-05')
+    const newMonday = planned('new-mon', replacement.id, '2026-10-05')
+    const result = select_active_plan_programmes(
+      [older, replacement],
+      new Map([[older.id, [oldMonday]], [replacement.id, [newMonday]]]),
+      [actual('completed-new', newMonday.id, replacement.id, '2026-10-05', '2026-10-05T05:43:55.034Z')],
+      { today_local: '2026-10-10', latest_programming_input_at: null },
+    )
+    expect(result.programmes).toHaveLength(0)
+    expect(result.hidden_blocks).toBe(2)
+  })
+
+  it('does not hide a distinct microcycle with the same dates', () => {
+    const first = { ...block('first', '2026-10-05', '2026-10-11', '2026-10-03T19:32:58.176Z'), name: 'Strength week', supersedes_programme_block_id: null }
+    const second = { ...block('second', '2026-10-05', '2026-10-11', '2026-10-05T04:20:49.403Z'), name: 'Different hypertrophy week', supersedes_programme_block_id: null }
+    const result = select_active_plan_programmes(
+      [first, second],
+      new Map([[first.id, [planned('first-mon', first.id, '2026-10-05')]], [second.id, [planned('second-mon', second.id, '2026-10-05')]]]),
+      [],
+      { today_local: '2026-10-05', latest_programming_input_at: null },
+    )
+    expect(result.programmes).toHaveLength(2)
+  })
+
 })
