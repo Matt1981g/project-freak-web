@@ -92,8 +92,10 @@ export function SyncScreen() {
           <h1>Cloud Sync</h1>
           <p>
             IndexedDB remains the local source of truth. Cloud sync moves
-            revisioned mutations between signed-in devices and refuses silent
-            overwrites when revisions conflict.
+            revisioned mutations between signed-in devices. Equal-revision
+            device races are resolved deterministically and retained in the
+            backend conflict audit so sync can converge without silently
+            discarding the competing snapshots.
           </p>
         </div>
         <span>{state_label}</span>
