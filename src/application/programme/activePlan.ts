@@ -65,6 +65,23 @@ function is_superseded(
 
     if (explicitly_supersedes(candidate, block.id)) return true
 
+    // Reimports can create an identical week with new session UUIDs without
+    // recording lineage. Suppress the older identical prescription by creation
+    // time; retaining both in the DB keeps actuals/history untouched.
+    if (
+      candidate.block_type === block.block_type &&
+      candidate.block_type !== 'custom' &&
+      candidate.name === block.name &&
+      candidate.start_date_local !== null &&
+      candidate.end_date_local !== null &&
+      candidate.start_date_local === block.start_date_local &&
+      candidate.end_date_local === block.end_date_local &&
+      (candidate.created_at > block.created_at ||
+        (candidate.created_at === block.created_at && candidate.id > block.id))
+    ) {
+      return true
+    }
+
     // Existing databases pre-date explicit lineage. Only legacy rows that do
     // not have the field at all use the old overlap/creation-time heuristic.
     if (candidate.supersedes_programme_block_id !== undefined) return false
