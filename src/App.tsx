@@ -95,7 +95,7 @@ function App() {
             <small>DISCIPLINE DRIVES RESULTS</small>
             {location.pathname === '/plan' && (
               <span
-                aria-label="Project Freak version 18.2"
+                aria-label="Project Freak version 18.3"
                 style={{
                   color: 'var(--pf-text-muted)',
                   fontSize: '9px',
@@ -104,7 +104,7 @@ function App() {
                   lineHeight: 1,
                 }}
               >
-                V18.2
+                V18.3
               </span>
             )}
           </div>
