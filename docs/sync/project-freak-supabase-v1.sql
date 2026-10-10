@@ -28,11 +28,33 @@ create table if not exists public.project_freak_sync_changes (
 create index if not exists project_freak_sync_changes_user_id_id_idx
   on public.project_freak_sync_changes (user_id, id);
 
+create table if not exists public.project_freak_sync_conflicts (
+  id bigint generated always as identity primary key,
+  user_id uuid not null,
+  entity_type text not null,
+  entity_id text not null,
+  incoming_revision integer not null check (incoming_revision >= 1),
+  existing_operation text not null check (existing_operation in ('upsert', 'delete')),
+  incoming_operation text not null check (incoming_operation in ('upsert', 'delete')),
+  existing_payload_json jsonb not null,
+  incoming_payload_json jsonb not null,
+  resolved_operation text not null check (resolved_operation in ('upsert', 'delete')),
+  resolved_revision integer not null check (resolved_revision >= 1),
+  resolved_payload_json jsonb not null,
+  resolution_rule text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists project_freak_sync_conflicts_user_entity_idx
+  on public.project_freak_sync_conflicts (user_id, entity_type, entity_id, id desc);
+
 alter table public.project_freak_sync_entities enable row level security;
 alter table public.project_freak_sync_changes enable row level security;
+alter table public.project_freak_sync_conflicts enable row level security;
 
 revoke all on public.project_freak_sync_entities from anon, authenticated;
 revoke all on public.project_freak_sync_changes from anon, authenticated;
+revoke all on public.project_freak_sync_conflicts from public, anon, authenticated;
 
 create or replace function public.project_freak_valid_entity_type(p_entity_type text)
 returns boolean
@@ -124,6 +146,15 @@ declare
   v_payload jsonb;
   v_outbox_id text;
   v_payload_revision_text text;
+  v_incoming_updated text;
+  v_existing_updated text;
+  v_incoming_device text;
+  v_existing_device text;
+  v_use_incoming boolean;
+  v_resolved_operation text;
+  v_resolved_revision integer;
+  v_resolved_payload jsonb;
+  v_resolution_rule text;
 begin
   if v_user is null then
     raise exception 'Authentication required';
@@ -175,8 +206,6 @@ begin
 
     v_revision := (v_item->>'revision')::integer;
 
-    -- Every sync payload is a PROJECT FREAK mutable entity. Validate the
-    -- common identity/revision envelope before it can reach authoritative state.
     v_payload_revision_text := coalesce(v_payload->>'revision', '');
     if v_payload->>'id' is distinct from v_entity_id
        or v_payload_revision_text !~ '^[1-9][0-9]{0,8}$'
@@ -204,12 +233,108 @@ begin
         if v_operation = v_existing.operation
            and v_payload = v_existing.payload_json then
           v_ack := array_append(v_ack, v_outbox_id);
-        else
-          v_error := coalesce(
-            v_error,
-            format('Revision conflict for %s:%s.', v_entity_type, v_entity_id)
-          );
+          continue;
         end if;
+
+        -- Two devices can derive the same next revision while offline. Resolve
+        -- the race deterministically, retain both snapshots for audit/recovery,
+        -- and advance the canonical entity so every device can converge.
+        v_incoming_updated := coalesce(v_payload->>'updated_at', '');
+        v_existing_updated := coalesce(v_existing.payload_json->>'updated_at', '');
+        v_incoming_device := coalesce(v_payload->>'device_id', '');
+        v_existing_device := coalesce(v_existing.payload_json->>'device_id', '');
+
+        v_use_incoming :=
+          v_incoming_updated > v_existing_updated
+          or (
+            v_incoming_updated = v_existing_updated
+            and v_incoming_device > v_existing_device
+          )
+          or (
+            v_incoming_updated = v_existing_updated
+            and v_incoming_device = v_existing_device
+            and v_payload::text > v_existing.payload_json::text
+          );
+
+        v_resolved_revision := v_existing.revision + 1;
+
+        if v_use_incoming then
+          v_resolved_operation := v_operation;
+          v_resolved_payload := v_payload;
+          v_resolution_rule := 'equal_revision_latest_updated_at_incoming';
+        else
+          v_resolved_operation := v_existing.operation;
+          v_resolved_payload := v_existing.payload_json;
+          v_resolution_rule := 'equal_revision_latest_updated_at_existing';
+        end if;
+
+        v_resolved_payload := jsonb_set(
+          v_resolved_payload,
+          '{revision}',
+          to_jsonb(v_resolved_revision),
+          true
+        );
+
+        insert into public.project_freak_sync_conflicts (
+          user_id,
+          entity_type,
+          entity_id,
+          incoming_revision,
+          existing_operation,
+          incoming_operation,
+          existing_payload_json,
+          incoming_payload_json,
+          resolved_operation,
+          resolved_revision,
+          resolved_payload_json,
+          resolution_rule,
+          created_at
+        )
+        values (
+          v_user,
+          v_entity_type,
+          v_entity_id,
+          v_revision,
+          v_existing.operation,
+          v_operation,
+          v_existing.payload_json,
+          v_payload,
+          v_resolved_operation,
+          v_resolved_revision,
+          v_resolved_payload,
+          v_resolution_rule,
+          now()
+        );
+
+        update public.project_freak_sync_entities
+           set operation = v_resolved_operation,
+               revision = v_resolved_revision,
+               payload_json = v_resolved_payload,
+               updated_at = now()
+         where user_id = v_user
+           and entity_type = v_entity_type
+           and entity_id = v_entity_id;
+
+        insert into public.project_freak_sync_changes (
+          user_id,
+          entity_type,
+          entity_id,
+          operation,
+          revision,
+          payload_json,
+          updated_at
+        )
+        values (
+          v_user,
+          v_entity_type,
+          v_entity_id,
+          v_resolved_operation,
+          v_resolved_revision,
+          v_resolved_payload,
+          now()
+        );
+
+        v_ack := array_append(v_ack, v_outbox_id);
         continue;
       end if;
     end if;
