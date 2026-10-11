@@ -336,9 +336,10 @@ export async function restore_validated_backup(
     try {
       await replace_database_tables(db, safety_backup)
       await verify_database_against_backup(db, safety_backup)
-    } catch {
+    } catch (rollback_cause) {
       throw new Error(
         'Restore failed and the automatic safety rollback could not be verified. Keep the downloaded safety backup and do not make further changes.',
+        { cause: new AggregateError([cause, rollback_cause], 'Restore and rollback both failed') },
       )
     }
 
@@ -346,6 +347,7 @@ export async function restore_validated_backup(
       cause instanceof Error
         ? `Restore failed. Original database was restored safely: ${cause.message}`
         : 'Restore failed. Original database was restored safely.',
+      { cause },
     )
   }
 }
