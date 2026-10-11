@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import training_export_schema from '../../../docs/schemas/project-freak-training-export-v1.schema.json'
 import type {
   CompletedSession,
   Exercise,
@@ -398,6 +399,45 @@ function repositories(): RepositoryBundle {
     },
   }
 }
+
+describe('current score export contract', () => {
+  it('publishes the latest set RPE and enjoyment without manufacturing legacy scores', async () => {
+    const repo = repositories()
+    repo.sessions.list_sets_for_session_exercise = async () => [
+      { ...training_set, rpe: 9 },
+    ]
+    repo.sessions.get_exercise_metrics = async () => ({
+      ...metrics,
+      enjoyment: 8,
+    })
+    const payload = await build_training_export(
+      repo,
+      { now_iso: NOW, to_date_local: '2026-09-04' },
+      { type: 'last_7_days' },
+    )
+    const exercise = payload.sessions[0].exercises[0]
+    expect(exercise.sets[0].rpe).toBe(9)
+    expect(exercise.metrics?.enjoyment).toBe(8)
+    expect(training_export_schema.$defs.set.properties.rpe).toMatchObject({
+      type: ['number', 'null'], minimum: 1, maximum: 10,
+    })
+    expect(training_export_schema.$defs.metrics.properties.enjoyment).toMatchObject({
+      type: ['number', 'null'], minimum: 1, maximum: 10,
+    })
+
+    repo.sessions.list_sets_for_session_exercise = async () => [
+      { ...training_set, rpe: null },
+    ]
+    repo.sessions.get_exercise_metrics = async () => metrics
+    const historical = await build_training_export(
+      repo,
+      { now_iso: NOW, to_date_local: '2026-09-04' },
+      { type: 'last_7_days' },
+    )
+    expect(historical.sessions[0].exercises[0].sets[0].rpe).toBeNull()
+    expect(historical.sessions[0].exercises[0].metrics?.enjoyment).toBeNull()
+  })
+})
 
 describe('build_training_export scopes', () => {
   it('includes in-progress work in Today scope but not older sessions', async () => {
