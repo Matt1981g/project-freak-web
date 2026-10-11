@@ -5,6 +5,7 @@ import { load_training_priorities } from '../priorities/trainingPriorities'
 import { load_current_week_muscle_analysis } from './muscleAnalysis'
 import { load_adaptive_training_analysis } from './adaptiveAnalysis'
 import { build_long_term_trends } from './longTermTrends'
+import { load_exercise_enjoyment_insights } from './exerciseEnjoyment'
 
 export async function load_analysis_dashboard_data(
   repositories: RepositoryBundle,
@@ -14,6 +15,7 @@ export async function load_analysis_dashboard_data(
   if (weeks.length === 0) {
     return {
       weeks: [],
+      enjoyment_insights: [],
       trend_windows: [],
       muscles: [],
       mapping_coverage: {
@@ -45,17 +47,19 @@ export async function load_analysis_dashboard_data(
     current.week_end_local,
     priorities,
   )
-  const [adaptive, trend_windows] = await Promise.all([
+  const [adaptive, trend_windows, enjoyment_insights] = await Promise.all([
     load_adaptive_training_analysis(
       repositories,
       current,
       muscle.muscles,
     ),
     build_long_term_trends(repositories, weeks, priorities),
+    load_exercise_enjoyment_insights(repositories),
   ])
 
   return {
     weeks,
+    enjoyment_insights,
     trend_windows,
     muscles: adaptive.muscles,
     mapping_coverage: muscle.mapping_coverage,
