@@ -11,6 +11,7 @@ export interface PreviousComparableSet {
   set_number: number
   load_kg: number | null
   completed_reps: number | null
+  rpe?: number | null
   failure_status: TrainingSet['failure_status']
   volume_kg: number | null
 }
@@ -63,6 +64,7 @@ export function select_previous_comparable(
           set_number: set.set_number,
           load_kg: set.load_kg,
           completed_reps: set.completed_reps,
+          rpe: set.rpe ?? null,
           failure_status: set.failure_status,
           volume_kg: set.set_load_kg_reps,
         })),
