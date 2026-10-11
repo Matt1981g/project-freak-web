@@ -166,32 +166,6 @@ function parse_remote_entity(change: SyncRemoteMutation): MutableEntity {
   return payload as unknown as MutableEntity
 }
 
-function canonicalise_json(value: unknown): string {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value)
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalise_json).join(',')}]`
-  }
-
-  const entries = Object.entries(value as Record<string, unknown>)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(
-      ([key, nested]) =>
-        `${JSON.stringify(key)}:${canonicalise_json(nested)}`,
-    )
-
-  return `{${entries.join(',')}}`
-}
-
-function entities_match(
-  local: MutableEntity,
-  remote: MutableEntity,
-): boolean {
-  return canonicalise_json(local) === canonicalise_json(remote)
-}
-
 export async function run_push_sync(
   repository: SyncRepository,
   provider: SyncProvider,
@@ -327,52 +301,24 @@ export async function run_pull_sync(
 
     for (const change of response.changes) {
       const remote = parse_remote_entity(change)
-      const local = await repository.get_local_entity(
-        change.entity_type,
-        change.entity_id,
-      )
-
-      if (!local) {
-        await repository.apply_remote_entity(
-          change.entity_type,
-          remote,
-          options.now_iso,
-        )
-        applied += 1
-        continue
-      }
-
-      if (change.revision < local.revision) {
-        skipped += 1
-        continue
-      }
-
-      if (change.revision === local.revision) {
-        if (entities_match(local, remote)) {
-          skipped += 1
-          continue
-        }
-
-        conflicts += 1
-        break
-      }
-
-      if (
-        await repository.has_pending_entity_mutation(
-          change.entity_type,
-          change.entity_id,
-        )
-      ) {
-        conflicts += 1
-        break
-      }
-
-      await repository.apply_remote_entity(
+      // Do not split this into get_local_entity, check pending and write:
+      // a workout edit in another tab can commit between those awaits.
+      const outcome = await repository.apply_remote_entity_checked(
         change.entity_type,
         remote,
         options.now_iso,
       )
-      applied += 1
+
+      if (outcome === 'applied') {
+        applied += 1
+      } else if (outcome === 'verified_duplicate') {
+        skipped += 1
+      } else {
+        // A stale or divergent snapshot is not proof of redundancy. Do not
+        // advance the pull cursor until a recoverable outcome is persisted.
+        conflicts += 1
+        break
+      }
     }
 
     if (conflicts > 0) {
