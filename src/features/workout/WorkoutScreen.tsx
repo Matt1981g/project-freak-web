@@ -722,6 +722,7 @@ function CompletedSetCorrection(props: {
   )
   const previous_load_unit_ref = useRef(load_unit)
   const [reps, setReps] = useState<number>(set.completed_reps ?? 0)
+  const [rpe, setRpe] = useState<number | null>(set.rpe ?? null)
   const [failed, setFailed] = useState(
     set.failure_status === 'attempted_next_rep_failed',
   )
@@ -742,6 +743,7 @@ function CompletedSetCorrection(props: {
     setLoad(set.load_kg)
     setLoadEntry(load_input_value(load_for_display(set.load_kg, load_unit)))
     setReps(set.completed_reps ?? 0)
+    setRpe(set.rpe ?? null)
     setFailed(set.failure_status === 'attempted_next_rep_failed')
     setError(null)
     setOpen(false)
@@ -758,6 +760,7 @@ function CompletedSetCorrection(props: {
         set,
         load_kg: load,
         completed_reps: reps,
+        rpe,
         failed_next_rep: failed,
       })
       await on_saved(corrected)
@@ -824,6 +827,13 @@ function CompletedSetCorrection(props: {
                   setReps(Math.max(0, Math.trunc(Number(event.target.value) || 0)))
                 }
               />
+            </label>
+            <label>
+              <span>SET RPE</span>
+              <select value={rpe ?? ''} onChange={(event) => setRpe(event.target.value ? Number(event.target.value) : null)}>
+                <option value="">Not recorded</option>
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n} / 10</option>)}
+              </select>
             </label>
             <button
               type="button"
