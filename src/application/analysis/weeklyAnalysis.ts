@@ -16,6 +16,7 @@ interface MutableWeek {
   rpe: number[]
   pump: number[]
   form: number[]
+  enjoyment: number[]
 }
 
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -98,9 +99,10 @@ function collect_metrics(
 ): void {
   if (!metrics || metrics.deleted_at !== null) return
 
-  if (metrics.rpe !== null) week.rpe.push(metrics.rpe)
+  // Historical exercise-level RPE is a fallback only when set-level ratings are absent.
   if (metrics.pump !== null) week.pump.push(metrics.pump)
   if (metrics.form !== null) week.form.push(metrics.form)
+  if (metrics.enjoyment != null) week.enjoyment.push(metrics.enjoyment)
 }
 
 export async function load_weekly_training_analysis(
@@ -126,6 +128,7 @@ export async function load_weekly_training_analysis(
         rpe: [],
         pump: [],
         form: [],
+        enjoyment: [],
       }
       weeks.set(week_start_local, week)
     }
@@ -137,7 +140,9 @@ export async function load_weekly_training_analysis(
       session_repository.list_session_exercises(session.id),
     ])
 
-    for (const set of sets.filter(is_completed_working_set)) {
+    const completed_work_sets = sets.filter(is_completed_working_set)
+    for (const set of completed_work_sets) {
+      if (set.rpe != null) week.rpe.push(set.rpe)
       week.working_sets += 1
       if (set.set_load_kg_reps !== null) {
         week.comparable_tonnage_kg += set.set_load_kg_reps
@@ -155,7 +160,12 @@ export async function load_weekly_training_analysis(
         ),
     )
 
-    for (const metrics of metric_records) {
+    for (let index = 0; index < metric_records.length; index += 1) {
+      const metrics = metric_records[index]
+      const appearance = session_exercises.filter((exercise) => exercise.deleted_at === null)[index]
+      if (metrics?.rpe != null && !completed_work_sets.some((set) => set.session_exercise_id === appearance.id && set.rpe != null)) {
+        week.rpe.push(metrics.rpe)
+      }
       collect_metrics(week, metrics)
     }
   }
@@ -174,5 +184,6 @@ export async function load_weekly_training_analysis(
       rpe: average(week.rpe),
       pump: average(week.pump),
       form: average(week.form),
+      enjoyment: average(week.enjoyment),
     }))
 }

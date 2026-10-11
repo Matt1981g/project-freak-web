@@ -1201,6 +1201,7 @@ export async function save_live_training_set(input: {
   set_number: number
   load_kg: number | null
   completed_reps: number | null
+  rpe?: number | null
   failed_next_rep: boolean
   complete: boolean
   components?: Parameters<typeof save_training_set>[0]['components']

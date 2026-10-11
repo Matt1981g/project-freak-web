@@ -305,4 +305,37 @@ describe('save_training_set', () => {
       ),
     ).rejects.toThrow('Enter completed reps')
   })
+
+  it('records RPE on the set without creating an exercise-level score', async () => {
+    const fixture = repository_fixture()
+    const saved = await save_training_set({
+      session_exercise: session_exercise(),
+      programmed_set: null,
+      existing_set: null,
+      set_number: 1,
+      load_kg: 45,
+      completed_reps: 12,
+      rpe: 9,
+      failed_next_rep: false,
+      complete: true,
+    }, fixture.repository, { device_id: 'device-1', now_iso: NOW })
+    expect(saved.rpe).toBe(9)
+    expect(saved.completed_reps).toBe(12)
+  })
+
+  it('rejects out-of-range RPE without saving an invalid set', async () => {
+    const fixture = repository_fixture()
+    await expect(save_training_set({
+      session_exercise: session_exercise(),
+      programmed_set: null,
+      existing_set: null,
+      set_number: 1,
+      load_kg: 45,
+      completed_reps: 12,
+      rpe: 11,
+      failed_next_rep: false,
+      complete: true,
+    }, fixture.repository, { device_id: 'device-1', now_iso: NOW })).rejects.toThrow('RPE must be')
+  })
+
 })

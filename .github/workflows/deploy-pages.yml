@@ -48,6 +48,8 @@ jobs:
 
   deploy:
     needs: build
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -62,7 +64,6 @@ jobs:
   verify:
     needs: deploy
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,6 +76,9 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      - name: Verify deployed app version and assets
+        run: node scripts/verify-deployment.mjs "${{ needs.deploy.outputs.page_url }}" V19.0
 
       - name: Install Playwright test runner
         continue-on-error: true

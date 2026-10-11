@@ -170,7 +170,7 @@ export function AnalysisScreen() {
               <article>
                 <span>AVG RPE</span>
                 <strong>{format_average(current.rpe.value)}</strong>
-                <small>{current.rpe.samples} scored exercises</small>
+                <small>{current.rpe.samples} RPE samples</small>
               </article>
               <article>
                 <span>AVG PUMP</span>
@@ -181,6 +181,11 @@ export function AnalysisScreen() {
                 <span>AVG FORM</span>
                 <strong>{format_average(current.form.value)}</strong>
                 <small>{current.form.samples} scored exercises</small>
+              </article>
+              <article>
+                <span>AVG ENJOYMENT</span>
+                <strong>{format_average(current.enjoyment?.value ?? null)}</strong>
+                <small>{current.enjoyment?.samples ?? 0} scored exercises</small>
               </article>
             </div>
           </section>
@@ -248,6 +253,27 @@ export function AnalysisScreen() {
             </section>
           )}
 
+          {(dashboard.enjoyment_insights?.length ?? 0) > 0 && (
+            <section className={styles.evidencePanel}>
+              <div className={styles.panelHeading}>
+                <div>
+                  <span>ENJOYMENT INTELLIGENCE · PF19</span>
+                  <h2>Exercises you actually enjoy</h2>
+                </div>
+                <small>Advisory only · at least 3 exposures required for exercise preference signals.</small>
+              </div>
+              <div className={styles.signalList}>
+                {dashboard.enjoyment_insights?.slice(0, 12).map((exercise) => (
+                  <article key={`${exercise.gym_profile_id ?? 'generic'}-${exercise.exercise_id}`}>
+                    <span>{exercise.status.replaceAll('_', ' ').toUpperCase()}</span>
+                    <strong>{exercise.exercise_name} · {exercise.recent_average.toFixed(1)}/10</strong>
+                    <small>{exercise.samples} scores · average {exercise.average_enjoyment.toFixed(1)}/10 · trend {exercise.trend === null ? 'needs more data' : `${exercise.trend >= 0 ? '+' : ''}${exercise.trend.toFixed(1)}`} · pump {exercise.average_pump?.toFixed(1) ?? '—'} · form {exercise.average_form?.toFixed(1) ?? '—'}</small>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className={styles.musclePanel}>
             <div className={styles.panelHeading}>
               <div>
@@ -299,6 +325,7 @@ export function AnalysisScreen() {
                   <strong>{format_average(muscle.rpe.value)}</strong>
                   <strong>{format_average(muscle.pump.value)}</strong>
                   <strong>{format_average(muscle.form.value)}</strong>
+                  <strong>{format_average(muscle.enjoyment?.value ?? null)}</strong>
                   <span>{recovery_label(muscle.recovery_status)}</span>
                   <strong>{muscle.underperformance_exercises || '—'}</strong>
                 </div>
@@ -350,6 +377,7 @@ export function AnalysisScreen() {
                       <div><span>RPE</span><strong>{format_average(window.rpe.value)}</strong></div>
                       <div><span>PUMP</span><strong>{format_average(window.pump.value)}</strong></div>
                       <div><span>FORM</span><strong>{format_average(window.form.value)}</strong></div>
+                       <div><span>ENJOYMENT</span><strong>{format_average(window.enjoyment?.value ?? null)}</strong></div>
                     </div>
 
                     <div className={styles.trendMuscles}>
@@ -394,6 +422,7 @@ export function AnalysisScreen() {
                   <div><span>FAIL</span><strong>{week.failure_sets}</strong></div>
                   <div><span>RPE</span><strong>{format_average(week.rpe.value)}</strong></div>
                   <div><span>FORM</span><strong>{format_average(week.form.value)}</strong></div>
+                   <div><span>ENJOYMENT</span><strong>{format_average(week.enjoyment?.value ?? null)}</strong></div>
                 </article>
               ))}
             </div>

@@ -527,12 +527,45 @@ function canvas_png(canvas: HTMLCanvasElement): Promise<Blob> {
   })
 }
 
+const REVIEW_CACHE_NAME = 'pf-workout-review-v1'
+
+function review_cache_key(session_id: string): string {
+  return new URL(`/pf-workout-review/${encodeURIComponent(session_id)}.png`, window.location.origin).href
+}
+
+/** Persist the generated review image on this device. History can always regenerate it. */
+export async function cache_workout_share_image(session_id: string): Promise<Blob> {
+  if (typeof window === 'undefined') throw new Error('Workout images need a browser.')
+  let cache: Cache | null = null
+  if (typeof caches !== 'undefined') {
+    try {
+      cache = await caches.open(REVIEW_CACHE_NAME)
+    } catch {
+      // Browser cache may be unavailable in private mode; image generation still works.
+    }
+  }
+  const key = review_cache_key(session_id)
+  const hit = cache ? await cache.match(key) : undefined
+  if (hit) return hit.blob()
+
+  const data = await build_workout_share_card_data(session_id)
+  const canvas = await render_workout_share_card(data)
+  const blob = await canvas_png(canvas)
+  if (cache) {
+    try {
+      await cache.put(key, new Response(blob, { headers: { 'Content-Type': 'image/png' } }))
+    } catch {
+      // Private-mode or storage quota restrictions do not prevent an on-demand download.
+    }
+  }
+  return blob
+}
+
 export async function download_workout_share_image(
   completed_session_id: string,
 ): Promise<string> {
   const data = await build_workout_share_card_data(completed_session_id)
-  const canvas = await render_workout_share_card(data)
-  const blob = await canvas_png(canvas)
+  const blob = await cache_workout_share_image(completed_session_id)
   const description = sanitise_filename_part(data.session_name) || 'WORKOUT'
   const filename = `${data.filename_date}_PROFREAK_${description}_SHARE.png`
   const href = URL.createObjectURL(blob)

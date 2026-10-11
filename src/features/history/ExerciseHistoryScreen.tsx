@@ -261,7 +261,7 @@ export function ExerciseHistoryScreen() {
                       {appearance.metrics && (
                         <div className={styles.scores}>
                           <span>
-                            RPE {appearance.metrics.rpe ?? '—'}
+                            {appearance.sets.some((set) => set.rpe != null) ? 'SET RPE BELOW' : `LEGACY RPE ${appearance.metrics.rpe ?? '—'}`}
                           </span>
                           <span>
                             Pump {appearance.metrics.pump ?? '—'}
@@ -269,6 +269,7 @@ export function ExerciseHistoryScreen() {
                           <span>
                             Form {appearance.metrics.form ?? '—'}
                           </span>
+                          <span>Enjoyment {appearance.metrics.enjoyment ?? '—'}</span>
                         </div>
                       )}
                     </div>
@@ -292,7 +293,7 @@ export function ExerciseHistoryScreen() {
                               set.completed_reps,
                               set.failure_status ===
                                 'attempted_next_rep_failed',
-                            )}
+                            )} {set.rpe != null && <small>· RPE {set.rpe}</small>}
                           </span>
                           <span>
                             {set.set_load_kg_reps === null

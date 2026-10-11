@@ -184,6 +184,11 @@ function normalised_targets(
   }))
 }
 
+function scored_set_rpe(sets: readonly { rpe?: number | null }[], fallback: number | null): number | null {
+  const scored = sets.map((set) => set.rpe).filter((value): value is number => value != null)
+  return scored.length ? scored.reduce((sum, value) => sum + value, 0) / scored.length : fallback
+}
+
 function legacy_exposure(
   previous: PreviousComparablePerformance,
   current: CurrentProgressionContext,
@@ -209,7 +214,7 @@ function legacy_exposure(
       failure_status: set.failure_status,
     })),
     metrics: {
-      rpe: previous.metrics?.rpe ?? null,
+      rpe: scored_set_rpe(previous.sets, previous.metrics?.rpe ?? null),
       pump: previous.metrics?.pump ?? previous.metrics?.legacy_mmc ?? null,
       form: previous.metrics?.form ?? null,
     },
@@ -254,6 +259,7 @@ function history_exposures(
           load_kg: set.load_kg,
           completed_reps: set.completed_reps,
           failure_status: set.failure_status,
+          rpe: set.rpe ?? null,
         }))
 
       if (sets.length === 0) continue
@@ -285,7 +291,7 @@ function history_exposures(
           appearance.session_exercise.programmed_session_exercise_id === null,
         sets,
         metrics: {
-          rpe: appearance.metrics?.rpe ?? null,
+          rpe: scored_set_rpe(sets, appearance.metrics?.rpe ?? null),
           pump:
             appearance.metrics?.pump ??
             appearance.metrics?.legacy_mmc ??

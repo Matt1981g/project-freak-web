@@ -24,6 +24,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Validate release verifier
+        run: node --check scripts/verify-deployment.mjs
+
       - name: Test
         run: npm test
 

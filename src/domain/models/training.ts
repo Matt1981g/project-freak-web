@@ -111,6 +111,8 @@ export interface TrainingSet extends MutableEntity {
   actual_rest_seconds: number | null
   set_load_kg_reps: number | null
   set_load_method: string | null
+  /** PF19: per-working-set exertion. Missing on imported historical sets. */
+  rpe?: number | null
   notes: string | null
   completed_at: string | null
   source_record_key: string | null
@@ -132,9 +134,11 @@ export interface SetComponent extends MutableEntity {
 
 export interface ExerciseMetrics extends MutableEntity {
   session_exercise_id: string
+  /** Historical exercise-level RPE only; do not write for new workouts. */
   rpe: number | null
   pump: number | null
   form: number | null
+  enjoyment?: number | null
   where_felt_text: string | null
   where_felt_tags: string[]
   legacy_tension: number | null

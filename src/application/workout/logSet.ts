@@ -28,6 +28,7 @@ export interface SaveTrainingSetInput {
   set_number: number
   load_kg: number | null
   completed_reps: number | null
+  rpe?: number | null
   failed_next_rep: boolean
   complete: boolean
   components?: SaveTrainingSetComponentInput[]
@@ -113,6 +114,9 @@ export async function save_training_set(
 ): Promise<TrainingSet> {
   validate_number(input.load_kg, 'Load')
   validate_number(input.completed_reps, 'Reps', true)
+  if (input.rpe != null && (!Number.isInteger(input.rpe) || input.rpe < 1 || input.rpe > 10)) {
+    throw new Error('RPE must be a whole number from 1 to 10.')
+  }
 
   if (input.failed_next_rep && input.completed_reps === null) {
     throw new Error('Failure can only be recorded after completed reps are entered.')
@@ -187,6 +191,7 @@ export async function save_training_set(
     actual_rest_seconds: existing?.actual_rest_seconds ?? null,
     set_load_kg_reps: tonnage.value,
     set_load_method: tonnage.method,
+    rpe: input.rpe === undefined ? existing?.rpe ?? null : input.rpe,
     notes: existing?.notes ?? null,
     completed_at: input.complete
       ? existing?.completed_at ?? context.now_iso

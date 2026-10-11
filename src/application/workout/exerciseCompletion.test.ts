@@ -264,4 +264,28 @@ describe('exercise completion', () => {
     expect(completed.revision).toBe(2)
     expect(fixture.saved_exercise()).toEqual(completed)
   })
+
+  it('records enjoyment at exercise level without manufacturing new exercise RPE', async () => {
+    const fixture = repository_fixture()
+    const result = await save_exercise_scores('session-exercise-1', {
+      rpe: null,
+      pump: 8,
+      form: 9,
+      enjoyment: 10,
+    }, fixture.repository, { device_id: DEVICE_ID, now_iso: NOW })
+    expect(result?.enjoyment).toBe(10)
+    expect(result?.rpe).toBeNull()
+    expect(result?.pump).toBe(8)
+  })
+
+  it('validates enjoyment independently from pump and form', async () => {
+    const fixture = repository_fixture()
+    await expect(save_exercise_scores('session-exercise-1', {
+      rpe: null,
+      pump: 8,
+      form: 9,
+      enjoyment: 12,
+    }, fixture.repository, { device_id: DEVICE_ID, now_iso: NOW })).rejects.toThrow('Enjoyment')
+  })
+
 })

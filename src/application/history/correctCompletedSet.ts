@@ -7,6 +7,7 @@ export interface CorrectCompletedSetInput {
   set: TrainingSet
   load_kg: number | null
   completed_reps: number
+  rpe?: number | null
   failed_next_rep: boolean
 }
 
@@ -58,6 +59,9 @@ export async function correct_completed_set(
 
   validate_non_negative(input.load_kg, 'Load')
   validate_non_negative(input.completed_reps, 'Reps', true)
+  if (input.rpe != null && (!Number.isInteger(input.rpe) || input.rpe < 1 || input.rpe > 10)) {
+    throw new Error('RPE must be between 1 and 10.')
+  }
 
   const failure_status = input.failed_next_rep
     ? 'attempted_next_rep_failed'
@@ -79,6 +83,7 @@ export async function correct_completed_set(
     reps_as_recorded: `${input.completed_reps}${input.failed_next_rep ? 'F' : ''}`,
     primary_reps_completed: input.completed_reps,
     completed_reps: input.completed_reps,
+    rpe: input.rpe === undefined ? input.set.rpe ?? null : input.rpe,
     failure_status,
     set_load_kg_reps: tonnage.value,
     set_load_method: tonnage.method,

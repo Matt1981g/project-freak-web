@@ -1,3 +1,4 @@
+import type { ExerciseEnjoymentInsight } from './exerciseEnjoyment'
 import type {
   MuscleTrainingIntent,
   TrainingPriorityArea,
@@ -19,6 +20,8 @@ export interface WeeklyTrainingAnalysis {
   rpe: MetricAverage
   pump: MetricAverage
   form: MetricAverage
+  /** Available on PF19+ exercise reviews. */
+  enjoyment?: MetricAverage
 }
 
 export interface MuscleAnalysisRow {
@@ -33,6 +36,7 @@ export interface MuscleAnalysisRow {
   rpe: MetricAverage
   pump: MetricAverage
   form: MetricAverage
+  enjoyment?: MetricAverage
   recovery_status: MuscleRecoveryStatus | null
   recovery_samples: number
   underperformance_exercises: number
@@ -102,10 +106,12 @@ export interface AnalysisTrendWindow {
   rpe: MetricAverage
   pump: MetricAverage
   form: MetricAverage
+  enjoyment?: MetricAverage
   muscles: AnalysisTrendMuscle[]
 }
 
 export interface AnalysisDashboard {
+  enjoyment_insights?: ExerciseEnjoymentInsight[]
   weeks: WeeklyTrainingAnalysis[]
   trend_windows: AnalysisTrendWindow[]
   muscles: MuscleAnalysisRow[]
