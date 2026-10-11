@@ -8,7 +8,6 @@ async function expectApprovedBackground(page: import('@playwright/test').Page) {
 
   const theme = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement)
-    const shellStyle = getComputedStyle(document.querySelector('.app-shell')!)
     return {
       background: root.getPropertyValue('--pf-bg').trim(),
       panel: root.getPropertyValue('--pf-panel').trim(),
