@@ -26,6 +26,14 @@
 - The first link is serialized across tabs; an existing binding cannot be reassigned to another user or project. A conflicting legacy `sync_state.remote_user_id` also blocks automatic linking. Sign-in precommit validation rejects a different owner **before** replacing the stored login; refresh rejects a changed user ID. Sync RPC requests pin the expected user and validate provider response identities.
 - **Unfinished:** this is a cloud I/O guard for a **single-owner local database**, not full account-scoped storage or UI privacy. Signing out currently does not hide this owner's offline workout screens from an unauthenticated person using the same browser profile. Full account-scoped storage and visibility, cross-tab maintenance lock, and explicit migration/recovery UX remain hard release gates. Never describe the one-way link button alone as complete multi-account isolation.
 
+## Cross-tab operation lock — Package 3 incremental implementation
+
+- `src/application/sync/datasetOperationLock.ts` uses an origin-wide browser **Web Lock** named after the local database. The operation is exclusive and non-queuing: when another tab is syncing, login/logout, project configuration, linking and restore reject with a retryable error instead of interleaving network responses or changing the dataset under an active operation.
+- Lock acquisition covers all asynchronous cloud push/pull batches and the complete restore/rollback promise. Auth configuration changes, sign-in/up/out and the initial account link use the same lock. A denied lock does not mutate the dataset.
+- **Unsupported Web Locks fail closed** for these operations. Browser E2E tests on Chromium/WebKit verify origin-wide exclusion. On unsupported browsers, do not deploy until an explicitly designed alternative is available; no silent unsafe fallback.
+- **Still outstanding:** workout logging and all arbitrary local record writes do not yet participate in the maintenance lock. Other tabs might therefore edit the local database during restoration. A whole-app read-only maintenance mode and/or cross-tab active-editor detection is required before describing destructive restoration as safe under concurrent workout logging.
+- Database snapshots remain read-transaction-consistent independently of this lock. No changes to the production Supabase project are made by these tests.
+
 ## Graph, drafts and coaching — intended invariants
 
 - Set completion, workout finalisation and programme replacement commit related entities, revisions, audit and outbox as one graph operation. Idempotent retries never create duplicates.
