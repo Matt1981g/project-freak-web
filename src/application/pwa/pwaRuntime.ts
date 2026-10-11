@@ -1,3 +1,4 @@
+import { workout_update_is_unsafe } from '../workout/workoutDraftJournal'
 export interface PwaStartupResult {
   service_worker_supported: boolean
   service_worker_registered: boolean
@@ -66,6 +67,10 @@ async function check_for_deployed_app_update(): Promise<boolean> {
       base_url,
     )
     if (!deployed_script) return false
+
+    // A fresh deployed JS chunk can safely wait; the last uncommitted
+    // workout keystrokes cannot. Recheck the update on the next foreground.
+    if (workout_update_is_unsafe(location.hash)) return false
 
     if (deployed_script === current_script) {
       sessionStorage.removeItem(APP_UPDATE_RELOAD_KEY)
