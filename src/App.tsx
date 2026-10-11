@@ -1,3 +1,4 @@
+import { PF_RELEASE_VERSION, PF_BUILD_SHA } from './release'
 import { useEffect, useState, type CSSProperties } from 'react'
 import {
   Navigate,
@@ -92,7 +93,7 @@ function App() {
             <small>DISCIPLINE DRIVES RESULTS</small>
             {location.pathname === '/plan' && (
               <span
-                aria-label="Project Freak version 19.1"
+                aria-label={`Project Freak version ${PF_RELEASE_VERSION}; build ${PF_BUILD_SHA}`}
                 style={{
                   color: 'var(--pf-text-muted)',
                   fontSize: '9px',
@@ -101,7 +102,7 @@ function App() {
                   lineHeight: 1,
                 }}
               >
-                V19.1
+                {PF_RELEASE_VERSION}
               </span>
             )}
           </div>
