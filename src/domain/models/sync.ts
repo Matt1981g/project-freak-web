@@ -11,6 +11,9 @@ export interface SyncOutbox {
   attempt_count: number
   last_attempt_at: string | null
   synced_at: string | null
+  /** Retained forensic evidence: not an acknowledged cloud mutation. */
+  quarantined_at?: string | null
+  quarantine_reason?: string | null
 }
 
 export interface SyncState {
