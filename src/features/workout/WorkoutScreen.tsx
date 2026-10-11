@@ -798,6 +798,26 @@ function CompletedSetCorrection(props: {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Preserve the previous-set load autofill when a locked set becomes
+  // available. Stable row keys must not freeze a never-edited prescription.
+  useEffect(() => {
+    if (user_edited_ref.current || saved_set_ref.current || locked) return
+    load_ref.current = initial_load_kg
+    setLoad(initial_load_kg)
+    setLoadEntry(load_input_value(exact_load_for_entry(initial_load_kg, load_unit)))
+    const fresh_components = build_component_drafts(
+      planned_set, actual_components, initial_load_kg,
+    )
+    components_ref.current = fresh_components
+    setComponents(fresh_components)
+    setComponentLoadEntries(Object.fromEntries(
+      fresh_components.map((component) => [
+        component_load_key(component),
+        load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
+      ]),
+    ))
+  }, [initial_load_kg, locked, load_unit, planned_set, actual_components])
+
   useEffect(() => {
     if (previous_load_unit_ref.current === load_unit) return
     previous_load_unit_ref.current = load_unit
@@ -1026,8 +1046,10 @@ function SetLoggerRow(props: {
   const pending_saves_ref = useRef(0)
   const edit_sequence_ref = useRef(recovery?.edit_sequence ?? 0)
   const recovered_on_mount = useRef(false)
+  const user_edited_ref = useRef(Boolean(initial_journal || actual_set))
 
   function journal_current_edit(): void {
+    user_edited_ref.current = true
     const sequence = ++edit_sequence_ref.current
     const ok = write_workout_draft(draft_key, {
       version: 1,
