@@ -31,12 +31,12 @@ test('published release manifest matches the version rendered by the actual brow
     build_sha: string
   }
   expect(manifest.format).toBe('project-freak-release')
-  expect(manifest.display_version).toMatch(/^V\\d+\\.\\d+$/)
+  expect(manifest.display_version).toMatch(/^V[0-9]+[.][0-9]+$/)
   await page.goto('./#/plan')
   await expect(page.getByText('Current programme', { exact: true })).toBeVisible()
   await expect(page.locator('[aria-label^="Project Freak version "]')).toHaveAttribute(
     'aria-label',
-    new RegExp(`^Project Freak version ${manifest.display_version.replace('.', '\\\\.')}; build `),
+    new RegExp(`^Project Freak version ${manifest.display_version.replace('.', '[.]')}; build `),
   )
 })
 
