@@ -96,7 +96,7 @@ describe('Supabase sync provider', () => {
     )
   })
 
-  it('clears a stored session when Supabase rejects the live access token', async () => {
+  it('preserves a reusable refresh credential after a nonterminal 401 response', async () => {
     const removeItem = vi.fn()
     vi.stubGlobal('localStorage', {
       getItem: vi.fn().mockReturnValue(
@@ -127,8 +127,70 @@ describe('Supabase sync provider', () => {
       }),
     ).rejects.toThrow('invalid access token')
 
-    expect(removeItem).toHaveBeenCalledWith(
+    // A generic access-token 401 alone does not prove refresh revocation.
+    // The client has retried the RPC only after attempting forced refresh.
+    expect(removeItem).not.toHaveBeenCalled()
+  })
+
+  it('retains offline credentials after refresh times out or is unreachable', async () => {
+    const removeItem = vi.fn()
+    const getItem = vi.fn().mockReturnValue(JSON.stringify({
+      access_token: 'expired-access',
+      refresh_token: 'valid-offline-refresh',
+      expires_at: Date.now() - 60_000,
+      user_id: 'user-1',
+      email: 'user@example.com',
+    }))
+    vi.stubGlobal('localStorage', { getItem, setItem: vi.fn(), removeItem })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
+
+    await expect(require_supabase_session({
+      project_url: 'https://example.supabase.co',
+      anon_key: 'abcdefghijklmnopqrstuvwxyz',
+    })).rejects.toThrow('temporarily unreachable')
+    expect(removeItem).not.toHaveBeenCalled()
+    expect(getItem).toHaveBeenCalled()
+  })
+
+  it('refreshes a rejected access JWT and retries the same cloud request once', async () => {
+    const setItem = vi.fn()
+    const access = {
+      access_token: 'old-token',
+      refresh_token: 'old-refresh',
+      expires_at: Date.now() + 60_000,
+      user_id: 'user-1',
+      email: 'user@example.com',
+    }
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn().mockImplementation(() => JSON.stringify(access)),
+      setItem,
+      removeItem: vi.fn(),
+    })
+    const responses = [
+      { ok: false, status: 401, text: async () => JSON.stringify({ error: 'JWT expired' }) },
+      { ok: true, status: 200, text: async () => JSON.stringify({
+        access_token: 'new-token',
+        refresh_token: 'new-refresh',
+        expires_in: 3600,
+        user: { id: 'user-1', email: 'user@example.com' },
+      }) },
+      { ok: true, status: 200, text: async () => JSON.stringify({
+        contract_version: '1.0.0',
+        authenticated_user_id: 'user-1',
+        entity_count: 0,
+        change_count: 0,
+      }) },
+    ]
+    const fetch_mock = vi.fn().mockImplementation(async () => responses.shift())
+    vi.stubGlobal('fetch', fetch_mock)
+    await expect(check_supabase_backend({
+      project_url: 'https://example.supabase.co',
+      anon_key: 'abcdefghijklmnopqrstuvwxyz',
+    })).resolves.toMatchObject({ contract_version: '1.0.0' })
+    expect(fetch_mock).toHaveBeenCalledTimes(3)
+    expect(setItem).toHaveBeenCalledWith(
       'project-freak:sync:supabase:session:v1',
+      expect.stringContaining('new-refresh'),
     )
   })
 
