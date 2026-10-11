@@ -4,13 +4,14 @@
  * retried; auth password/refresh endpoints must NOT be retried automatically.
  */
 export class SupabaseRequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: number | null,
-    readonly transient: boolean,
-  ) {
+  readonly status: number | null
+  readonly transient: boolean
+
+  constructor(message: string, status: number | null, transient: boolean) {
     super(message)
     this.name = 'SupabaseRequestError'
+    this.status = status
+    this.transient = transient
   }
 }
 
