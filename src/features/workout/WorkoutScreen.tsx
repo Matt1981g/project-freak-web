@@ -62,6 +62,7 @@ import {
 } from '../../domain/rules/completion'
 import { format_local_date_display } from '../../utils/dateFormat'
 import { progression_challenge_fields } from '../../application/programme/progressionChallenge'
+import { cache_workout_share_image } from '../../app/workoutShareService'
 import styles from './WorkoutScreen.module.css'
 
 type LiveWorkout = NonNullable<
@@ -2192,6 +2193,8 @@ export function WorkoutScreen() {
       setAdaptiveReview(completed.adaptive_current_week)
       setOpenExerciseId(null)
       await refresh_workout()
+      // Best effort: the review image is also generated on demand from History.
+      void cache_workout_share_image(completed_session_id).catch(() => undefined)
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Unable to finish workout.',
