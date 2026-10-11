@@ -58,7 +58,7 @@ export function write_workout_form_draft<T>(
   key: string, draft: WorkoutFormDraft<T>,
 ): boolean {
   try {
-    localStorage.setItem(key, JSON.stringify(draft))
+    localStorage.setItem(key, JSON.stringify({ ...draft, changed_at: Date.now() }))
     return true
   } catch {
     return false
