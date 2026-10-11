@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   SupabaseSyncProvider,
+  supabase_sign_in,
+  require_supabase_session,
   check_supabase_backend,
   validate_supabase_config,
 } from './supabaseProvider'
@@ -128,6 +130,71 @@ describe('Supabase sync provider', () => {
     expect(removeItem).toHaveBeenCalledWith(
       'project-freak:sync:supabase:session:v1',
     )
+  })
+
+  it('rejects changing the bound account before overwriting the saved login', async () => {
+    const setItem = vi.fn()
+    const existing = JSON.stringify({
+      access_token: 'original-access',
+      refresh_token: 'original-refresh',
+      expires_at: Date.now() + 60_000,
+      user_id: 'original-user',
+      email: 'original@example.com',
+    })
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn().mockReturnValue(existing),
+      setItem,
+      removeItem: vi.fn(),
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        access_token: 'new-access',
+        refresh_token: 'new-refresh',
+        expires_in: 3600,
+        user: { id: 'other-user', email: 'other@example.com' },
+      }),
+    }))
+
+    await expect(supabase_sign_in(
+      { project_url: 'https://example.supabase.co', anon_key: 'abcdefghijklmnopqrstuvwxyz' },
+      'other@example.com',
+      'test-password',
+      async (candidate) => {
+        expect(candidate.user_id).toBe('other-user')
+        throw new Error('Account mismatch: the existing dataset is not linked to this user.')
+      },
+    )).rejects.toThrow('Account mismatch')
+    expect(setItem).not.toHaveBeenCalled()
+    await expect(require_supabase_session({
+      project_url: 'https://example.supabase.co',
+      anon_key: 'abcdefghijklmnopqrstuvwxyz',
+    })).resolves.toMatchObject({ user_id: 'original-user' })
+  })
+
+  it('pins an active provider to its original user across external account changes', async () => {
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn().mockReturnValue(JSON.stringify({
+        access_token: 'other-account-access',
+        refresh_token: 'refresh',
+        expires_at: Date.now() + 60_000,
+        user_id: 'other-user',
+        email: null,
+      })),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+    const fetch_mock = vi.fn()
+    vi.stubGlobal('fetch', fetch_mock)
+    const provider = new SupabaseSyncProvider({
+      project_url: 'https://example.supabase.co',
+      anon_key: 'abcdefghijklmnopqrstuvwxyz',
+    }, 'original-user')
+    await expect(provider.pull_changes(null, 100)).rejects.toThrow(
+      'account changed during sync',
+    )
+    expect(fetch_mock).not.toHaveBeenCalled()
   })
 
   it('verifies the authenticated backend contract without mutating data', async () => {
