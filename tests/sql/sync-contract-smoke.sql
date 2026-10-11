@@ -80,7 +80,31 @@ begin
     raise exception 'Unexpected compacted sync health: %', v_result;
   end if;
 
-  -- Reject an unapproved entity type without acknowledging its outbox entry.
+  -- Stale nonidentical uploads must be durably retained for recovery,
+  -- and repeated delivery after a timeout must not create duplicate evidence.
+  v_result := public.project_freak_push_mutations(
+    '[{"outbox_id":"old-offline","entity_type":"set","entity_id":"set-1",
+       "operation":"upsert","revision":1,
+       "payload_json":{"id":"set-1","revision":1,"device_id":"tablet",
+         "updated_at":"2026-10-11T09:00:00Z","reps":12}}]'::jsonb
+  );
+  if v_result->'acknowledged_outbox_ids' <> '["old-offline"]'::jsonb
+     or v_result->'retained_conflict_outbox_ids' <> '["old-offline"]'::jsonb
+     or v_result->>'error' is null then
+    raise exception 'Stale edit was not durably acknowledged as retained: %', v_result;
+  end if;
+
+  v_result := public.project_freak_push_mutations(
+    '[{"outbox_id":"old-offline","entity_type":"set","entity_id":"set-1",
+       "operation":"upsert","revision":1,
+       "payload_json":{"id":"set-1","revision":1,"device_id":"tablet",
+         "updated_at":"2026-10-11T09:00:00Z","reps":12}}]'::jsonb
+  );
+  if v_result->'retained_conflict_outbox_ids' <> '["old-offline"]'::jsonb then
+    raise exception 'Retried stale upload did not preserve recovery classification: %', v_result;
+  end if;
+
+    -- Reject an unapproved entity type without acknowledging its outbox entry.
   v_result := public.project_freak_push_mutations(
     '[{"outbox_id":"bad","entity_type":"unapproved","entity_id":"x",
        "operation":"upsert","revision":1,
@@ -145,7 +169,17 @@ begin
     and resolved_revision = 2;
 
   if v_conflicts <> 1 then
-    raise exception 'Expected exactly one preserved conflict audit, found %', v_conflicts;
+    raise exception 'Expected exactly one equal-revision conflict audit, found %', v_conflicts;
+  end if;
+
+  select count(*) into v_conflicts
+  from public.project_freak_sync_conflicts
+  where user_id = '11111111-1111-4111-8111-111111111111'
+    and entity_id = 'set-1'
+    and resolution_rule = 'stale_revision_retained';
+
+  if v_conflicts <> 1 then
+    raise exception 'Retried stale upload was not idempotently retained, count %', v_conflicts;
   end if;
 end;
 $test$;
