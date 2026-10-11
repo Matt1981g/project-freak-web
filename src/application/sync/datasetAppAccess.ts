@@ -68,7 +68,7 @@ export class DatasetAppAccess {
         await hold
       },
     ).catch(() => {
-      this.emit(false)
+      if (this.lease?.finished === finished) this.emit(false)
     }).finally(() => {
       notify_acquired()
       if (this.lease?.finished === finished) {
