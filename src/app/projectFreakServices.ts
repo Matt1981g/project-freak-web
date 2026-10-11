@@ -4,6 +4,7 @@ import { PROJECT_FREAK_DB_NAME } from '../data/db/schema'
 import { with_dataset_operation_lock } from '../application/sync/datasetOperationLock'
 import { projectFreakAppAccess } from '../application/sync/datasetAppAccess'
 import { request_auto_sync } from '../application/sync/autoSyncEvents'
+import { is_dangerous_feedback_deletion } from '../application/sync/syncSafetyGate'
 import { load_local_conflict_diagnostics } from '../application/sync/conflictDiagnostics'
 import {
   SupabaseSyncProvider,
@@ -430,6 +431,25 @@ async function run_full_cloud_sync_once(): Promise<FullCloudSyncResult> {
   const session = load_supabase_session()
   if (!session) throw new Error('Sign in before syncing.')
   await require_dataset_cloud_owner(projectFreakDb, config.project_url, session.user_id)
+
+  // Historical duplicate-ID reconciliation produced delete outbox entries
+  // for readiness and exercise scores belonging to completed workouts.
+  // Stop BEFORE any network request; do not silently upload those tombstones
+  // or discard them from the local outbox/backup.
+  const dangerous_deletions = await projectFreakDb.sync_outbox
+    .filter(is_dangerous_feedback_deletion)
+    .count()
+  if (dangerous_deletions > 0) {
+    return {
+      pushed: 0,
+      acknowledged: 0,
+      pulled: 0,
+      applied: 0,
+      skipped: 0,
+      pending_after: await repositories.sync.count_pending(),
+      error: `Cloud sync paused for data safety: ${dangerous_deletions} pending readiness/feedback deletion(s) need review. Local data and outbox are preserved. Export a backup; do not clear or restore the database.`,
+    }
+  }
 
   const provider = new SupabaseSyncProvider(config, session.user_id)
   let pushed = 0
