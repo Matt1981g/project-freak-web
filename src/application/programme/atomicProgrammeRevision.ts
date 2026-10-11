@@ -1,4 +1,5 @@
 import type { ProgrammeBlock, ProgrammedSession } from '../../domain/models'
+import { ACTIVE_GYM_SETTING_KEY, TRIDENT_GYM_ID } from '../gyms/gymProfiles'
 import type { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
 import type { ProgrammeRepository } from '../../data/repositories/contracts'
 import {
@@ -20,6 +21,62 @@ export interface ProgrammeRevisionResult {
   replaced_sessions: number
   reactivated_sessions: number
   replacement_dates: string[]
+}
+
+/** Re-evaluate catalogue and gym eligibility INSIDE the publication transaction. */
+async function assert_commit_time_exercise_eligibility(
+  db: ProjectFreakDatabase,
+  preview: ProgrammeImportPreview,
+): Promise<void> {
+  if (!preview.document) throw new Error('Programme requires a valid preview.')
+  const ids = [...new Set(preview.document.programme.sessions.flatMap(
+    (session) => session.exercises.map((exercise) => exercise.exercise_id),
+  ))]
+  // Legacy synthetic fixtures with zero exercises are supported by tests only;
+  // real JSON previews require one or more exercises per session.
+  if (ids.length === 0) return
+
+  const setting = await db.settings.get(ACTIVE_GYM_SETTING_KEY)
+  const selected = typeof setting?.value_json === 'string'
+    ? setting.value_json
+    : TRIDENT_GYM_ID
+  if (!preview.reviewed_gym_profile_id ||
+      preview.reviewed_gym_profile_id !== selected) {
+    throw new Error('Selected gym changed since programme preview. Validate and preview the file again.')
+  }
+
+  const gym = await db.gym_profiles.get(selected)
+  if (!gym || gym.deleted_at !== null) {
+    throw new Error('Selected gym is missing or archived. Revalidate programme before importing.')
+  }
+
+  const [exercises, availabilities] = await Promise.all([
+    db.exercises.bulkGet(ids),
+    db.gym_exercise_availability.where('gym_profile_id').equals(selected).toArray(),
+  ])
+  const allowed = new Set(
+    availabilities.filter((row) =>
+      row.deleted_at === null && row.available &&
+      !row.notes?.trimStart().startsWith('[UNCONFIRMED]'),
+    ).map((row) => row.exercise_id),
+  )
+  const reviewed = new Map(preview.exercise_resolutions.map((r) => [r.exercise_id, r]))
+  for (const [index, id] of ids.entries()) {
+    const exercise = exercises[index]
+    const expected = reviewed.get(id)
+    if (
+      !exercise || exercise.deleted_at !== null ||
+      exercise.archived_at !== null ||
+      !allowed.has(id) || !expected ||
+      exercise.revision !== expected.revision ||
+      exercise.canonical_name !== expected.canonical_name
+    ) {
+      throw new Error(
+        'Exercise availability or definition changed since preview (' + id +
+        '). Validate and preview the programme again.',
+      )
+    }
+  }
 }
 
 function action_date(session: ProgrammedSession, dates: ReadonlySet<string>): boolean {
@@ -89,15 +146,6 @@ export async function commit_programme_revision_atomically(
   // Publication uses session cancellation plus selective archiving instead.
   if (replace) entities.block.supersedes_programme_block_id = null
 
-  if (!replace) {
-    return {
-      import_result: await programme_repository.commit_import(entities),
-      replaced_sessions: 0,
-      reactivated_sessions: 0,
-      replacement_dates,
-    }
-  }
-
   return db.transaction(
     'rw',
     [
@@ -111,10 +159,23 @@ export async function commit_programme_revision_atomically(
       db.programmed_session_sets,
       db.programmed_set_components,
       db.completed_sessions,
+      db.settings,
+      db.gym_profiles,
+      db.gym_exercise_availability,
+      db.exercises,
       db.audit_events,
       db.sync_outbox,
     ],
     async (): Promise<ProgrammeRevisionResult> => {
+      await assert_commit_time_exercise_eligibility(db, preview)
+      if (!replace) {
+        return {
+          import_result: await programme_repository.commit_import(entities),
+          replaced_sessions: 0,
+          reactivated_sessions: 0,
+          replacement_dates,
+        }
+      }
       const all_blocks = (await db.programme_blocks.toArray()).filter(
         (block) => block.deleted_at === null,
       )
