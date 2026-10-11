@@ -196,7 +196,7 @@ describe('active plan selection', () => {
     expect(result.programmes[0].block.id).toBe('replacement')
   })
 
-  it('hides the older overlapping block even if one of its sessions was already completed', () => {
+  it('preserves the old unmatched training day when a partial overlapping replacement arrives', () => {
     const oldBlock = block(
       'old-week',
       '2026-09-07',
@@ -229,8 +229,8 @@ describe('active plan selection', () => {
       { today_local: '2026-09-05', latest_programming_input_at: null },
     )
 
-    expect(result.programmes).toHaveLength(1)
-    expect(result.programmes[0].block.id).toBe('replacement')
+    expect(result.programmes).toHaveLength(2)
+    expect(result.programmes.flatMap((entry) => entry.sessions.map((s) => s.id)).sort()).toEqual(['new-mon', 'old-tue'])
   })
 
   it('uses explicit lineage even when creation-time overlap heuristics would not', () => {
@@ -289,6 +289,60 @@ describe('active plan selection', () => {
       { today_local: '2026-10-05', latest_programming_input_at: null },
     )
     expect(result.programmes).toHaveLength(2)
+  })
+
+
+  it('does not hide the whole old week when a successor programme block arrives without its sessions', () => {
+    const old = { ...block('old','2026-10-12','2026-10-17','2026-10-10T10:00:00Z'), name: 'FREAK Week', supersedes_programme_block_id: null }
+    const newer = { ...block('new','2026-10-12','2026-10-17','2026-10-11T10:00:00Z'), name: 'FREAK Week', supersedes_programme_block_id: null }
+    const previous = ['12','13','15','16','17'].map((day) =>
+      planned('old-' + day, old.id, '2026-10-' + day),
+    )
+    const result = select_active_plan_programmes(
+      [old, newer],
+      new Map([[old.id, previous], [newer.id, []]]),
+      [],
+      { today_local: '2026-10-11', latest_programming_input_at: null },
+    )
+    expect(result.programmes).toHaveLength(1)
+    expect(result.programmes[0].sessions).toHaveLength(5)
+    expect(result.programmes[0].block.id).toBe(old.id)
+  })
+
+  it('shows new replacement days but keeps old missing days while the phone sync is incomplete', () => {
+    const old = { ...block('old','2026-10-12','2026-10-17','2026-10-10T10:00:00Z'), name: 'FREAK Week', supersedes_programme_block_id: null }
+    const newer = { ...block('new','2026-10-12','2026-10-17','2026-10-11T10:00:00Z'), name: 'FREAK Week', supersedes_programme_block_id: null }
+    const previous = ['12','13','15','16','17'].map((day) =>
+      planned('old-' + day, old.id, '2026-10-' + day),
+    )
+    const incoming = ['12','13'].map((day) =>
+      planned('new-' + day, newer.id, '2026-10-' + day),
+    )
+    const result = select_active_plan_programmes(
+      [old, newer],
+      new Map([[old.id, previous], [newer.id, incoming]]),
+      [],
+      { today_local: '2026-10-11', latest_programming_input_at: null },
+    )
+    expect(result.programmes.flatMap((entry) => entry.sessions).map((s) => s.id).sort())
+      .toEqual(['new-12', 'new-13', 'old-15', 'old-16', 'old-17'])
+  })
+
+  it('selects exactly five newer sessions when duplicate named weeks with five dates exist', () => {
+    const old = { ...block('old','2026-10-12','2026-10-17','2026-10-10T10:00:00Z'), name: 'FREAK Week', supersedes_programme_block_id: null }
+    const newer = { ...block('new','2026-10-12','2026-10-17','2026-10-11T10:00:00Z'), name: 'FREAK Week', supersedes_programme_block_id: null }
+    const days = ['12','13','15','16','17']
+    const previous = days.map((day) => planned('old-' + day, old.id, '2026-10-' + day))
+    const incoming = days.map((day) => planned('new-' + day, newer.id, '2026-10-' + day))
+    const result = select_active_plan_programmes(
+      [old, newer],
+      new Map([[old.id, previous], [newer.id, incoming]]),
+      [],
+      { today_local: '2026-10-11', latest_programming_input_at: null },
+    )
+    expect(result.programmes).toHaveLength(1)
+    expect(result.programmes[0].block.id).toBe(newer.id)
+    expect(result.programmes[0].sessions).toHaveLength(5)
   })
 
 })
