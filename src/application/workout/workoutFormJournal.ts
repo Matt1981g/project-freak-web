@@ -65,6 +65,24 @@ export function write_workout_form_draft<T>(
   }
 }
 
+/** Keep edits made during an earlier asynchronous form save recoverable. */
+export function rebase_newer_workout_form_draft(
+  key: string,
+  saved_sequence: number,
+  previous_revision: number,
+  committed_revision: number,
+): boolean {
+  const current = read_workout_form_draft<unknown>(key)
+  if (!current || current.edit_sequence <= saved_sequence ||
+      current.base_revision !== previous_revision ||
+      key !== workout_form_key(current.kind, current.session_id) ||
+      !Number.isSafeInteger(committed_revision) ||
+      committed_revision < previous_revision) return false
+  return write_workout_form_draft(key, {
+    ...current, base_revision: committed_revision,
+  })
+}
+
 export function clear_workout_form_draft(key: string, sequence?: number): void {
   try {
     const current = read_workout_form_draft<unknown>(key)

@@ -3,6 +3,7 @@ import {
   clear_workout_form_draft,
   form_draft_is_current,
   read_workout_form_draft,
+  rebase_newer_workout_form_draft,
   workout_form_key,
   write_workout_form_draft,
   type WorkoutFormDraft,
@@ -50,6 +51,23 @@ describe('readiness and post-workout emergency journals', () => {
     expect(read_workout_form_draft<Feedback>(key)?.form.session_quality).toBe(9)
     clear_workout_form_draft(key, 3)
     expect(read_workout_form_draft(key)).toBeNull()
+  })
+
+  it('rebases later readiness edits after an older write finishes without erasing them', () => {
+    const readiness_key = workout_form_key('readiness', 'session-1')
+    write_workout_form_draft(readiness_key, {
+      ...data, kind: 'readiness', edit_sequence: 5,
+    })
+    write_workout_form_draft(readiness_key, {
+      ...data, kind: 'readiness', edit_sequence: 6,
+      form: { session_quality: 10, coach_note: 'Last edit survives' },
+    })
+    expect(rebase_newer_workout_form_draft(readiness_key, 5, 7, 8)).toBe(true)
+    clear_workout_form_draft(readiness_key, 5)
+    const recovered = read_workout_form_draft<Feedback>(readiness_key)
+    expect(recovered?.form.coach_note).toBe('Last edit survives')
+    expect(form_draft_is_current(recovered, 'readiness', 'session-1', 8)).toBe(true)
+    expect(rebase_newer_workout_form_draft(readiness_key, 6, 8, 9)).toBe(false)
   })
 
   it('rejects damaged or mismatched locally stored records', () => {
