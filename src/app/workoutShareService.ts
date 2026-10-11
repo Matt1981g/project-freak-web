@@ -536,7 +536,14 @@ function review_cache_key(session_id: string): string {
 /** Persist the generated review image on this device. History can always regenerate it. */
 export async function cache_workout_share_image(session_id: string): Promise<Blob> {
   if (typeof window === 'undefined') throw new Error('Workout images need a browser.')
-  const cache = typeof caches === 'undefined' ? null : await caches.open(REVIEW_CACHE_NAME)
+  let cache: Cache | null = null
+  if (typeof caches !== 'undefined') {
+    try {
+      cache = await caches.open(REVIEW_CACHE_NAME)
+    } catch {
+      // Browser cache may be unavailable in private mode; image generation still works.
+    }
+  }
   const key = review_cache_key(session_id)
   const hit = cache ? await cache.match(key) : undefined
   if (hit) return hit.blob()
