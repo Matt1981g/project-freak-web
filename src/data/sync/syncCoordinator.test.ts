@@ -5,6 +5,7 @@ import type {
   SyncState,
 } from '../../domain/models'
 import type { SyncProvider, SyncRepository } from './contracts'
+import { canonicalise_sync_json } from './canonicalSyncJson'
 import {
   run_pull_sync,
   run_push_sync,
@@ -118,6 +119,26 @@ class MemorySyncRepository implements SyncRepository {
     this.entities.set(this.key(entity_type, entity.id), entity)
     this.applied.push(this.key(entity_type, entity.id))
   }
+
+  async apply_remote_entity_checked(
+    entity_type: string,
+    entity: MutableEntity,
+    applied_at: string,
+  ) {
+    const local = await this.get_local_entity(entity_type, entity.id)
+    if (local && local.revision > entity.revision) return 'stale' as const
+    if (local && local.revision === entity.revision) {
+      return canonicalise_sync_json(local) === canonicalise_sync_json(entity)
+        ? 'verified_duplicate' as const
+        : 'retained_conflict' as const
+    }
+    if (await this.has_pending_entity_mutation(entity_type, entity.id)) {
+      return 'retained_conflict' as const
+    }
+    await this.apply_remote_entity(entity_type, entity, applied_at)
+    return 'applied' as const
+  }
+
 }
 
 function provider_fixture(
