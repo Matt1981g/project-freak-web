@@ -253,6 +253,27 @@ export function AnalysisScreen() {
             </section>
           )}
 
+          {(dashboard.enjoyment_insights?.length ?? 0) > 0 && (
+            <section className={styles.evidencePanel}>
+              <div className={styles.panelHeading}>
+                <div>
+                  <span>ENJOYMENT INTELLIGENCE · PF19</span>
+                  <h2>Exercises you actually enjoy</h2>
+                </div>
+                <small>Advisory only · at least 3 exposures required for exercise preference signals.</small>
+              </div>
+              <div className={styles.signalList}>
+                {dashboard.enjoyment_insights?.slice(0, 12).map((exercise) => (
+                  <article key={`${exercise.gym_profile_id ?? 'generic'}-${exercise.exercise_id}`}>
+                    <span>{exercise.status.replaceAll('_', ' ').toUpperCase()}</span>
+                    <strong>{exercise.exercise_name} · {exercise.recent_average.toFixed(1)}/10</strong>
+                    <small>{exercise.samples} scores · average {exercise.average_enjoyment.toFixed(1)}/10 · trend {exercise.trend === null ? 'needs more data' : `${exercise.trend >= 0 ? '+' : ''}${exercise.trend.toFixed(1)}`} · pump {exercise.average_pump?.toFixed(1) ?? '—'} · form {exercise.average_form?.toFixed(1) ?? '—'}</small>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className={styles.musclePanel}>
             <div className={styles.panelHeading}>
               <div>
