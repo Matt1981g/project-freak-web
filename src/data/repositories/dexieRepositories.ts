@@ -476,34 +476,38 @@ export class DexieSettingsRepository implements SettingsRepository {
       return setting.key
     }
 
-    const existing = await this.db.synced_settings.get(setting.key)
-    const local_device = await this.db.devices.toCollection().first()
-    const device_id =
-      setting.device_id ??
-      existing?.device_id ??
-      local_device?.id ??
-      'project-freak-settings'
-
-    const entity: SyncedSetting = {
-      id: setting.key,
-      key: setting.key,
-      scope: 'global',
-      value_json: setting.value_json,
-      created_at: existing?.created_at ?? setting.updated_at,
-      updated_at: setting.updated_at,
-      deleted_at: null,
-      revision: (existing?.revision ?? 0) + 1,
-      device_id,
-      source_kind: 'user',
-      source_id: null,
-    }
-
+    // Revision allocation, data, audit evidence and the outbound mutation
+    // must be one serialised transaction. Reading the previous revision
+    // outside it lets two tabs issue the same revision for different values.
     await this.db.transaction(
       'rw',
       this.db.synced_settings,
+      this.db.devices,
       this.db.audit_events,
       this.db.sync_outbox,
       async () => {
+        const existing = await this.db.synced_settings.get(setting.key)
+        const local_device = await this.db.devices.toCollection().first()
+        const device_id =
+          setting.device_id ??
+          existing?.device_id ??
+          local_device?.id ??
+          'project-freak-settings'
+
+        const entity: SyncedSetting = {
+          id: setting.key,
+          key: setting.key,
+          scope: 'global',
+          value_json: setting.value_json,
+          created_at: existing?.created_at ?? setting.updated_at,
+          updated_at: setting.updated_at,
+          deleted_at: null,
+          revision: (existing?.revision ?? 0) + 1,
+          device_id,
+          source_kind: 'user',
+          source_id: null,
+        }
+
         await this.db.synced_settings.put(entity)
 
         const audit_event = create_audit_event(
