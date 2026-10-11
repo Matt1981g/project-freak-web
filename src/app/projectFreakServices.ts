@@ -4,6 +4,7 @@ import { PROJECT_FREAK_DB_NAME } from '../data/db/schema'
 import { with_dataset_operation_lock } from '../application/sync/datasetOperationLock'
 import { projectFreakAppAccess } from '../application/sync/datasetAppAccess'
 import { request_auto_sync } from '../application/sync/autoSyncEvents'
+import { load_local_conflict_diagnostics } from '../application/sync/conflictDiagnostics'
 import {
   SupabaseSyncProvider,
   check_supabase_backend,
@@ -305,6 +306,10 @@ export interface FullCloudSyncResult {
   skipped: number
   pending_after: number
   error: string | null
+}
+
+export function load_cloud_sync_conflict_diagnostics() {
+  return load_local_conflict_diagnostics(projectFreakDb)
 }
 
 export async function load_cloud_sync_status(): Promise<CloudSyncStatus> {
