@@ -26,11 +26,9 @@ export async function commit_programme_json_revision(
     options,
   )
 
-  if (result.import_result === 'committed' ||
-      result.replaced_sessions > 0 ||
-      result.reactivated_sessions > 0) {
-    request_auto_sync('programme_imported')
-  }
+  // The atomic publication may also activate an existing imported block.
+  // Let the coalescing sync queue decide whether there is new work.
+  request_auto_sync('programme_imported')
 
   return result
 }
