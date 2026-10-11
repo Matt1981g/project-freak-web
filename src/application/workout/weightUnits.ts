@@ -34,6 +34,15 @@ export function load_for_display(
   return round_load_to_step(converted, unit)
 }
 
+/** Text-input round-tripping must never quantise a manually typed load. */
+export function exact_load_for_entry(
+  load_kg: number | null,
+  unit: WeightEntryUnit,
+): number | null {
+  if (load_kg === null) return null
+  return unit === 'kg' ? load_kg : kilograms_to_pounds(load_kg)
+}
+
 export function display_load_to_kilograms(
   value: number | null,
   unit: WeightEntryUnit,
