@@ -396,6 +396,7 @@ function repositories(): RepositoryBundle {
       get_local_entity: async () => undefined,
       has_pending_entity_mutation: async () => false,
       apply_remote_entity: async () => undefined,
+      apply_remote_entity_checked: async () => 'applied',
     },
   }
 }
