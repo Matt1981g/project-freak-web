@@ -138,6 +138,8 @@ export async function add_new_gym_equipment(gym_id: string, input: NewGymExercis
 }
 
 export async function load_gym_profile_state() {
+  // Gym migrations run on initial entry only; a read must not manufacture sync traffic.
+  const pending_before = await repositories.sync.count_pending()
   const device_id = await current_device_id()
   await ensure_default_gym_profiles(
     repositories.gyms,
@@ -153,7 +155,16 @@ export async function load_gym_profile_state() {
   ], () => install_trident_catalogue_baseline(
     repositories.gyms, repositories.exercises, repositories.settings, device_id,
   ))
-  request_auto_sync('setting_changed')
+  // Seeded inventory creates genuine new outbox work; opening the page must not
+  // request another push/pull if no records were created.
+  if ((await repositories.sync.count_pending()) > pending_before) {
+    request_auto_sync('setting_changed')
+  }
+  return load_gym_profiles(repositories.gyms, repositories.settings)
+}
+
+/** Read-only state refresh on incoming sync; preserves an open editor. */
+export async function read_gym_profile_state() {
   return load_gym_profiles(repositories.gyms, repositories.settings)
 }
 

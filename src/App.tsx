@@ -23,6 +23,7 @@ import { SyncScreen } from './features/sync/SyncScreen'
 import { PostWorkoutFeedbackPanel } from './features/workout/PostWorkoutFeedbackPanel'
 import { WorkoutScreen } from './features/workout/WorkoutScreen'
 import { AUTO_SYNC_COMPLETE_EVENT } from './application/sync/autoSyncEvents'
+import { should_remount_route_after_sync } from './application/navigation/syncRoutePolicy'
 import approvedBackgroundUrl from './pfApprovedBackground'
 import './App.css'
 import './features/plan/PlanHealthHeader.css'
@@ -48,11 +49,7 @@ function App() {
   useEffect(() => {
     function handle_auto_sync_complete(event: Event) {
       const detail = (event as CustomEvent<AutoSyncCompleteDetail>).detail
-      if ((detail?.result?.applied ?? 0) <= 0) return
-
-      // Never remount an active workout when another device syncs changes in.
-      // Live workout screens already manage their own durable state.
-      if (location.pathname.startsWith('/workout/')) return
+      if (!should_remount_route_after_sync(location.pathname, detail?.result?.applied ?? 0)) return
 
       setRemoteDataRevision((current) => current + 1)
     }
@@ -95,7 +92,7 @@ function App() {
             <small>DISCIPLINE DRIVES RESULTS</small>
             {location.pathname === '/plan' && (
               <span
-                aria-label="Project Freak version 19.0"
+                aria-label="Project Freak version 19.1"
                 style={{
                   color: 'var(--pf-text-muted)',
                   fontSize: '9px',
@@ -104,7 +101,7 @@ function App() {
                   lineHeight: 1,
                 }}
               >
-                V19.0
+                V19.1
               </span>
             )}
           </div>
@@ -220,7 +217,7 @@ function App() {
       </header>
 
       <AutoSyncRuntime />
-      <DailySessionPrompt key={`daily-${remote_data_revision}`} />
+      <DailySessionPrompt />
 
       <main>
         <Routes key={`routes-${remote_data_revision}`}>

@@ -5,7 +5,7 @@
  * This verifies publicly reachable assets only; authenticated sync requires a user session.
  */
 const base = process.argv[2]
-const expected = process.argv[3] ?? 'V19.0'
+const expected = process.argv[3] ?? 'V19.1'
 
 if (!base || !/^https:\/\//i.test(base)) {
   console.error('Usage: node scripts/verify-deployment.mjs https://example.github.io/project-freak-web/ V19.0')
