@@ -42,6 +42,13 @@ import {
 } from '../../application/workout/pairedRotation'
 import { can_safely_correct_set } from '../../application/history/correctCompletedSet'
 import {
+  clear_workout_form_draft,
+  form_draft_is_current,
+  read_workout_form_draft,
+  workout_form_key,
+  write_workout_form_draft,
+} from '../../application/workout/workoutFormJournal'
+import {
   clear_workout_draft,
   read_workout_draft,
   should_recover_workout_draft,
@@ -367,7 +374,8 @@ function ReadinessPanel(props: {
   recovery_prompt: LiveWorkout['recovery_prompt']
 }) {
   const { completed_session_id, readiness, recovery_prompt } = props
-  const [form, setForm] = useState(() => ({
+  const draft_key = workout_form_key('readiness', completed_session_id)
+  const default_form = {
     bodyweight_kg: readiness?.bodyweight_kg ?? null,
     sleep_duration_minutes: readiness?.sleep_duration_minutes ?? null,
     sleep_score: readiness?.sleep_score ?? null,
@@ -382,19 +390,44 @@ function ReadinessPanel(props: {
     intra_workout_nutrition: readiness?.intra_workout_nutrition ?? '',
     intra_hydration_ml: readiness?.intra_hydration_ml ?? null,
     notes: readiness?.notes ?? '',
-  }))
-  const [dirty, setDirty] = useState(false)
+  }
+  const initial_draft = useRef(read_workout_form_draft<typeof default_form>(draft_key)).current
+  const auto_restore = form_draft_is_current(
+    initial_draft, 'readiness', completed_session_id, readiness?.revision ?? 0,
+  )
+  const [form, setForm] = useState(() =>
+    auto_restore && initial_draft ? initial_draft.form : default_form,
+  )
+  const form_ref = useRef(form)
+  const edit_sequence_ref = useRef(initial_draft?.edit_sequence ?? 0)
+  const saved_revision_ref = useRef(readiness?.revision ?? 0)
+  const save_chain_ref = useRef<Promise<void>>(Promise.resolve())
+  const [recoverable_draft, setRecoverableDraft] = useState(
+    initial_draft && !auto_restore ? initial_draft : null,
+  )
+  const [draft_failed, setDraftFailed] = useState(false)
+  const [dirty, setDirty] = useState(Boolean(auto_restore))
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(Boolean(readiness))
+  const [saved, setSaved] = useState(Boolean(readiness && !auto_restore))
   const [error, setError] = useState<string | null>(null)
 
-  function update<K extends keyof typeof form>(
-    key: K,
-    value: (typeof form)[K],
-  ) {
-    setForm((current) => ({ ...current, [key]: value }))
+  function write_form(next: typeof form) {
+    form_ref.current = next
+    setForm(next)
+    const sequence = ++edit_sequence_ref.current
+    setDraftFailed(!write_workout_form_draft(draft_key, {
+      version: 1, kind: 'readiness', session_id: completed_session_id,
+      base_revision: saved_revision_ref.current,
+      edit_sequence: sequence, changed_at: Date.now(), form: next,
+    }))
     setDirty(true)
     setSaved(false)
+  }
+
+  function update<K extends keyof typeof form>(
+    key: K, value: (typeof form)[K],
+  ) {
+    write_form({ ...form_ref.current, [key]: value })
   }
 
   function update_muscle_recovery(
@@ -403,7 +436,7 @@ function ReadinessPanel(props: {
   ) {
     if (!recovery_prompt) return
 
-    const next = form.muscle_recovery.filter(
+    const next = form_ref.current.muscle_recovery.filter(
       (rating) =>
         !(
           rating.muscle === muscle &&
@@ -422,47 +455,70 @@ function ReadinessPanel(props: {
 
   useEffect(() => {
     if (!dirty) return
-
+    const sequence = edit_sequence_ref.current
+    const snapshot = form
     const timer = window.setTimeout(() => {
       setSaving(true)
       setError(null)
-
-      void save_live_readiness({
-        completed_session_id,
-        bodyweight_kg: form.bodyweight_kg,
-        sleep_duration_minutes: form.sleep_duration_minutes,
-        sleep_score: form.sleep_score,
-        energy_pre: form.energy_pre,
-        motivation_pre: form.motivation_pre,
-        soreness_score: form.soreness_score,
-        soreness_notes: form.soreness_notes || null,
-        muscle_recovery: form.muscle_recovery,
-        joint_issue_present: form.joint_issue_present,
-        joint_issue_notes: form.joint_issue_notes || null,
-        pre_workout_nutrition: form.pre_workout_nutrition || null,
-        intra_workout_nutrition: form.intra_workout_nutrition || null,
-        intra_hydration_ml: form.intra_hydration_ml,
-        notes: form.notes || null,
-      })
-        .then(() => {
-          setDirty(false)
-          setSaved(true)
+      save_chain_ref.current = save_chain_ref.current
+        .then(() => track_workout_write(save_live_readiness({
+          completed_session_id,
+          bodyweight_kg: snapshot.bodyweight_kg,
+          sleep_duration_minutes: snapshot.sleep_duration_minutes,
+          sleep_score: snapshot.sleep_score,
+          energy_pre: snapshot.energy_pre,
+          motivation_pre: snapshot.motivation_pre,
+          soreness_score: snapshot.soreness_score,
+          soreness_notes: snapshot.soreness_notes || null,
+          muscle_recovery: snapshot.muscle_recovery,
+          joint_issue_present: snapshot.joint_issue_present,
+          joint_issue_notes: snapshot.joint_issue_notes || null,
+          pre_workout_nutrition: snapshot.pre_workout_nutrition || null,
+          intra_workout_nutrition: snapshot.intra_workout_nutrition || null,
+          intra_hydration_ml: snapshot.intra_hydration_ml,
+          notes: snapshot.notes || null,
+        })))
+        .then((saved) => {
+          saved_revision_ref.current = saved.revision
+          clear_workout_form_draft(draft_key, sequence)
+          if (sequence === edit_sequence_ref.current) {
+            setDirty(false)
+            setSaved(true)
+          }
         })
         .catch((cause) => {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : 'Unable to save readiness.',
-          )
+          setError(cause instanceof Error ? cause.message : 'Unable to save readiness.')
         })
-        .finally(() => setSaving(false))
+        .finally(() => {
+          if (sequence === edit_sequence_ref.current) setSaving(false)
+        })
     }, 400)
-
     return () => window.clearTimeout(timer)
   }, [completed_session_id, dirty, form])
 
   return (
     <details className={styles.readinessPanel}>
+      {recoverable_draft && (
+        <div className={styles.setError} role="status">
+          A previous readiness draft survived the interruption, but the saved
+          record has changed. Choose which to keep.
+          <div className={styles.draftRecoveryActions}>
+            <button type="button" onClick={() => {
+              write_form(recoverable_draft.form)
+              setRecoverableDraft(null)
+            }}>RESTORE DRAFT</button>
+            <button type="button" onClick={() => {
+              clear_workout_form_draft(draft_key)
+              setRecoverableDraft(null)
+            }}>KEEP SAVED</button>
+          </div>
+        </div>
+      )}
+      {draft_failed && (
+        <div className={styles.setError} role="alert">
+          Emergency draft storage is unavailable. Confirm readiness saves before closing.
+        </div>
+      )}
       <summary>
         <div>
           <span>SESSION CONTEXT</span>
