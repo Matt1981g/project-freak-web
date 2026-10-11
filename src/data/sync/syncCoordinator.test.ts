@@ -200,6 +200,28 @@ describe('run_push_sync', () => {
     expect(repository.entries.every((entry) => entry.attempt_count === 1)).toBe(true)
   })
 
+  it('surfaces stale offline edits retained in server conflict evidence even after acknowledgement', async () => {
+    const repository = new MemorySyncRepository([
+      outbox_fixture('stale-1', '2026-09-04T20:00:00.000Z'),
+    ])
+    const provider = provider_fixture(async () => ({
+      acknowledged_outbox_ids: ['stale-1'],
+      retained_conflict_outbox_ids: ['stale-1'],
+      remote_user_id: 'remote-user-1',
+      error: '1 stale offline edit(s) preserved for recovery in the cloud conflict audit.',
+    }))
+
+    const result = await run_push_sync(repository, provider, { now_iso: NOW })
+
+    expect(result.status).toBe('error')
+    expect(result.acknowledged).toBe(1)
+    expect(result.pending_after).toBe(0)
+    expect(result.error).toContain('preserved for recovery')
+    expect(repository.state.get('test-cloud')?.error).toContain('preserved for recovery')
+    // ACK is recorded only after the server has confirmed durable retention.
+    expect(repository.entries[0].synced_at).toBe(NOW)
+  })
+
   it('keeps unacknowledged records pending after a partial response', async () => {
     const repository = new MemorySyncRepository([
       outbox_fixture('outbox-1', '2026-09-04T20:00:00.000Z'),

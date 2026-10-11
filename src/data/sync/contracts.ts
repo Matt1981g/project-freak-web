@@ -17,6 +17,8 @@ export interface SyncPushMutation {
 
 export interface SyncPushResult {
   acknowledged_outbox_ids: string[]
+  /** Stale snapshots were durably archived by the server, not applied as live state. */
+  retained_conflict_outbox_ids?: string[]
   remote_user_id: string | null
   error: string | null
 }

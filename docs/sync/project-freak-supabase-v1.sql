@@ -2,6 +2,7 @@
 -- Contract version: 1.0.0
 -- Hardened RPC boundary: authenticated-only, entity allowlist, bounded
 -- batches/payloads, payload-shape checks and safe numeric parsing.
+-- Per-user transaction locks serialize push/compaction and commit-ordered cursors.
 
 create table if not exists public.project_freak_sync_entities (
   user_id uuid not null,
@@ -105,6 +106,10 @@ begin
     raise exception 'Authentication required';
   end if;
 
+  -- Only transaction-scoped locks: automatically released on commit/rollback.
+  -- The same per-user key is used by EVERY writer/compactor for this feed.
+  perform pg_advisory_xact_lock(hashtextextended('project-freak:sync:' || v_user::text, 0));
+
   with ranked as (
     select
       id,
@@ -155,6 +160,7 @@ declare
   v_resolved_revision integer;
   v_resolved_payload jsonb;
   v_resolution_rule text;
+  v_retained text[] := array[]::text[];
 begin
   if v_user is null then
     raise exception 'Authentication required';
@@ -171,6 +177,10 @@ begin
   if octet_length(p_mutations::text) > 2097152 then
     raise exception 'p_mutations exceeds the maximum payload size of 2 MiB';
   end if;
+
+  -- Only transaction-scoped locks: automatically released on commit/rollback.
+  -- The same per-user key is used by EVERY writer/compactor for this feed.
+  perform pg_advisory_xact_lock(hashtextextended('project-freak:sync:' || v_user::text, 0));
 
   for v_item in select value from jsonb_array_elements(p_mutations)
   loop
@@ -225,6 +235,32 @@ begin
 
     if found then
       if v_revision < v_existing.revision then
+        -- A stale offline edit is NOT a verified duplicate. Store the
+        -- originally transmitted snapshot before acknowledging the outbox.
+        -- Idempotent retry of the same payload does not multiply evidence.
+        insert into public.project_freak_sync_conflicts (
+          user_id, entity_type, entity_id, incoming_revision,
+          existing_operation, incoming_operation,
+          existing_payload_json, incoming_payload_json,
+          resolved_operation, resolved_revision, resolved_payload_json,
+          resolution_rule, created_at
+        )
+        select v_user, v_entity_type, v_entity_id, v_revision,
+               v_existing.operation, v_operation,
+               v_existing.payload_json, v_payload,
+               v_existing.operation, v_existing.revision,
+               v_existing.payload_json, 'stale_revision_retained', now()
+        where not exists (
+          select 1 from public.project_freak_sync_conflicts c
+          where c.user_id = v_user
+            and c.entity_type = v_entity_type
+            and c.entity_id = v_entity_id
+            and c.incoming_revision = v_revision
+            and c.incoming_operation = v_operation
+            and c.incoming_payload_json = v_payload
+            and c.resolution_rule = 'stale_revision_retained'
+        );
+        v_retained := array_append(v_retained, v_outbox_id);
         v_ack := array_append(v_ack, v_outbox_id);
         continue;
       end if;
@@ -391,7 +427,11 @@ begin
   return jsonb_build_object(
     'acknowledged_outbox_ids', to_jsonb(v_ack),
     'remote_user_id', v_user::text,
-    'error', v_error
+    'retained_conflict_outbox_ids', to_jsonb(v_retained),
+    'error', coalesce(v_error,
+      case when cardinality(v_retained) > 0 then
+        cardinality(v_retained)::text || ' stale offline edit(s) preserved for recovery in the cloud conflict audit.'
+      end)
   );
 end;
 $$;
