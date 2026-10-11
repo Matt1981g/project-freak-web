@@ -782,8 +782,7 @@ export async function build_training_export(
       }),
     )
   ).filter(
-    (session): session is TrainingExport['sessions'][number] =>
-      session !== null,
+    (session) => session !== null,
   )
 
   const resolved_exercise_ids = exercise_filter ? [...exercise_filter] : []
