@@ -498,6 +498,15 @@ function ReadinessPanel(props: {
 
   return (
     <details className={styles.readinessPanel}>
+      <summary>
+        <div>
+          <span>SESSION CONTEXT</span>
+          <strong>Readiness</strong>
+        </div>
+        <small>
+          {recoverable_draft ? 'DRAFT RECOVERY' : saving ? 'AUTOSAVING…' : error ? 'SAVE ERROR' : saved ? 'SAVED ✓' : 'OPTIONAL'}
+        </small>
+      </summary>
       {recoverable_draft && (
         <div className={styles.setError} role="status">
           A previous readiness draft survived the interruption, but the saved
@@ -519,15 +528,7 @@ function ReadinessPanel(props: {
           Emergency draft storage is unavailable. Confirm readiness saves before closing.
         </div>
       )}
-      <summary>
-        <div>
-          <span>SESSION CONTEXT</span>
-          <strong>Readiness</strong>
-        </div>
-        <small>
-          {saving ? 'AUTOSAVING…' : error ? 'SAVE ERROR' : saved ? 'SAVED ✓' : 'OPTIONAL'}
-        </small>
-      </summary>
+
 
       <div className={styles.readinessGrid}>
         <label>
