@@ -57,8 +57,6 @@ export async function quarantine_feedback_reconciliation_outbox(
       if (key === null || !suspicious_parents.has(key)) continue
 
       const kind = entry.entity_type as FeedbackType
-      const table = kind === 'exercise_metrics'
-        ? db.exercise_metrics : db.readiness_entries
       // The entity may already have been removed locally by the old merge.
       // The serialized outbox payload remains valid audit evidence.
       const raw = entry.payload_json
@@ -71,8 +69,7 @@ export async function quarantine_feedback_reconciliation_outbox(
 
       // create_audit_event expects a standard entity envelope. Preserve the
       // *entire* outbox entry in the before-image, including payload/revision.
-      const snapshot = (await table.get(entry.entity_id)) ??
-        raw as never
+      const snapshot = raw as never
       const audit = create_audit_event(
         kind,
         snapshot,
