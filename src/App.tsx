@@ -52,7 +52,7 @@ function App() {
 
       // Never remount an active workout when another device syncs changes in.
       // Live workout screens already manage their own durable state.
-      if (location.pathname.startsWith('/workout/')) return
+      if (location.pathname.startsWith('/workout/') || location.pathname === '/gyms') return
 
       setRemoteDataRevision((current) => current + 1)
     }
@@ -220,7 +220,7 @@ function App() {
       </header>
 
       <AutoSyncRuntime />
-      <DailySessionPrompt key={`daily-${remote_data_revision}`} />
+      <DailySessionPrompt />
 
       <main>
         <Routes key={`routes-${remote_data_revision}`}>
