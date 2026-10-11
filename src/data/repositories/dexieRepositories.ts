@@ -30,7 +30,8 @@ import type {
   WorkoutTemplate,
 } from '../../domain/models'
 import type { ProjectFreakDatabase } from '../db/projectFreakDb'
-import type { SyncRepository } from '../sync/contracts'
+import type { RemoteApplyOutcome, SyncRepository } from '../sync/contracts'
+import { canonicalise_sync_json } from '../sync/canonicalSyncJson'
 import type {
   DeviceRepository,
   ExerciseRepository,
@@ -320,6 +321,57 @@ export class DexieSyncRepository implements SyncRepository {
       .first()
 
     return pending !== undefined
+  }
+
+  async apply_remote_entity_checked(
+    entity_type: string,
+    entity: MutableEntity,
+    applied_at: string,
+  ): Promise<RemoteApplyOutcome> {
+    const table = sync_table_for_entity_type(this.db, entity_type)
+
+    // The coordinator must not read a local version and write later: another
+    // tab may edit a workout in that interval. Lock the entity table and
+    // outbox in the same transaction used for the final remote write.
+    return this.db.transaction(
+      'rw',
+      table,
+      this.db.sync_outbox,
+      this.db.audit_events,
+      async () => {
+        const local = await table.get(entity.id)
+        const unsynced = await this.db.sync_outbox
+          .where('[entity_type+entity_id]')
+          .equals([entity_type, entity.id])
+          .filter((entry) => entry.synced_at === null)
+          .first()
+
+        if (local && local.revision > entity.revision) {
+          // This remote change has not been proved identical to local data.
+          // Do not overwrite or silently treat it as a verified duplicate.
+          return 'stale'
+        }
+
+        if (local && local.revision === entity.revision) {
+          if (canonicalise_sync_json(local) === canonicalise_sync_json(entity)) {
+            return 'verified_duplicate'
+          }
+          return 'retained_conflict'
+        }
+
+        if (unsynced) {
+          // Includes a missing local record with a pending deletion. That
+          // tombstone must not be silently undone by a delayed cloud pull.
+          return 'retained_conflict'
+        }
+
+        // apply_remote_entity's nested Dexie transaction participates in
+        // this enclosing lock, including its duplicate natural-key handling,
+        // audit record and any resulting outbox mutations.
+        await this.apply_remote_entity(entity_type, entity, applied_at)
+        return 'applied'
+      },
+    )
   }
 
   async apply_remote_entity(
