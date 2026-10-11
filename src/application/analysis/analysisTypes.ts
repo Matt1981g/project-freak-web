@@ -1,3 +1,4 @@
+import type { ExerciseEnjoymentInsight } from './exerciseEnjoyment'
 import type {
   MuscleTrainingIntent,
   TrainingPriorityArea,
@@ -108,6 +109,7 @@ export interface AnalysisTrendWindow {
 }
 
 export interface AnalysisDashboard {
+  enjoyment_insights?: ExerciseEnjoymentInsight[]
   weeks: WeeklyTrainingAnalysis[]
   trend_windows: AnalysisTrendWindow[]
   muscles: MuscleAnalysisRow[]
