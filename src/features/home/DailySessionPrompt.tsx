@@ -7,6 +7,7 @@ import {
   type TodayProgrammedSession,
 } from '../../app/projectFreakServices'
 import { format_local_date_display } from '../../utils/dateFormat'
+import { should_show_daily_session_prompt } from '../../application/navigation/syncRoutePolicy'
 import styles from './DailySessionPrompt.module.css'
 
 export function DailySessionPrompt() {
@@ -18,7 +19,7 @@ export function DailySessionPrompt() {
   const [error, setError] = useState<string | null>(null)
   // A start/resume dialog belongs to the home Plan screen, never over gym
   // editing, History, Coach Bridge, Sync, or equipment setup.
-  const on_plan = location.pathname === '/plan'
+  const on_plan = should_show_daily_session_prompt(location.pathname)
 
   useEffect(() => {
     if (dismissed || !on_plan) return
