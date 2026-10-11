@@ -46,6 +46,65 @@ describe('cross-device global settings', () => {
     expect(outbox[0].entity_id).toBe('training-priorities-v1')
   })
 
+  it('allocates unique revisions and preserves both pending snapshots across tabs', async () => {
+    const other_tab = new ProjectFreakDatabase(DB)
+    await other_tab.open()
+
+    try {
+      const first = create_repositories(db).settings
+      const second = create_repositories(other_tab).settings
+      const key = 'concurrent-priority-state'
+
+      // Different IndexedDB connections attempt to update the same setting
+      // simultaneously; the transactions must serialize the read/modify/write.
+      await Promise.all([
+        first.put({
+          key,
+          scope: 'global',
+          value_json: { writer: 'desktop' },
+          updated_at: '2026-10-11T10:00:00.000Z',
+          device_id: null,
+        }),
+        second.put({
+          key,
+          scope: 'global',
+          value_json: { writer: 'phone' },
+          updated_at: '2026-10-11T10:00:01.000Z',
+          device_id: null,
+        }),
+      ])
+
+      const current = await db.synced_settings.get(key)
+      const pending = (await db.sync_outbox.toArray())
+        .filter((item) => item.entity_type === 'user_setting' && item.entity_id === key)
+        .sort((a, b) => a.revision - b.revision)
+      const audits = (await db.audit_events.toArray())
+        .filter((item) => item.entity_type === 'user_setting' && item.entity_id === key)
+
+      expect(current?.revision).toBe(2)
+      expect(pending.map((item) => item.revision)).toEqual([1, 2])
+      expect(pending.every((item) => item.synced_at === null)).toBe(true)
+      expect(pending.map((item) => item.payload_json)).toEqual([
+        expect.objectContaining({
+          revision: 1,
+          value_json: { writer: 'desktop' },
+        }),
+        expect.objectContaining({
+          revision: 2,
+          value_json: { writer: 'phone' },
+        }),
+      ])
+      expect(audits).toHaveLength(2)
+      expect(audits.map((item) => item.action).sort()).toEqual([
+        'create',
+        'update',
+      ])
+      expect(current?.value_json).toEqual({ writer: 'phone' })
+    } finally {
+      other_tab.close()
+    }
+  })
+
   it('keeps device-only settings local', async () => {
     const repositories = create_repositories(db)
 
