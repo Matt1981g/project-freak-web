@@ -63,8 +63,8 @@ import {
 import { rank_exercise_substitution_options } from '../../application/workout/exerciseSubstitutionOptions'
 import {
   adjust_display_load_by_step,
+  exact_load_for_entry,
   display_load_to_kilograms,
-  load_for_display,
   type WeightEntryUnit,
 } from '../../application/workout/weightUnits'
 import {
@@ -787,7 +787,7 @@ function CompletedSetCorrection(props: {
   const [open, setOpen] = useState(false)
   const [load, setLoad] = useState<number | null>(set.load_kg)
   const [load_entry, setLoadEntry] = useState(() =>
-    load_input_value(load_for_display(set.load_kg, load_unit)),
+    load_input_value(exact_load_for_entry(set.load_kg, load_unit)),
   )
   const previous_load_unit_ref = useRef(load_unit)
   const [reps, setReps] = useState<number>(set.completed_reps ?? 0)
@@ -801,12 +801,12 @@ function CompletedSetCorrection(props: {
   useEffect(() => {
     if (previous_load_unit_ref.current === load_unit) return
     previous_load_unit_ref.current = load_unit
-    setLoadEntry(load_input_value(load_for_display(load, load_unit)))
+    setLoadEntry(load_input_value(exact_load_for_entry(load, load_unit)))
   }, [load, load_unit])
 
   function cancel() {
     setLoad(set.load_kg)
-    setLoadEntry(load_input_value(load_for_display(set.load_kg, load_unit)))
+    setLoadEntry(load_input_value(exact_load_for_entry(set.load_kg, load_unit)))
     setReps(set.completed_reps ?? 0)
     setRpe(set.rpe ?? null)
     setFailed(set.failure_status === 'attempted_next_rep_failed')
@@ -998,7 +998,7 @@ function SetLoggerRow(props: {
       : build_component_drafts(planned_set, actual_components, initial_load_kg),
   )
   const [load_entry, setLoadEntry] = useState(() =>
-    load_input_value(load_for_display(
+    load_input_value(exact_load_for_entry(
       recovery ? recovery.load_kg : initial_load_kg, load_unit,
     )),
   )
@@ -1008,7 +1008,7 @@ function SetLoggerRow(props: {
     Object.fromEntries(
       components.map((component) => [
         component_load_key(component),
-        load_input_value(load_for_display(component.load_kg, load_unit)),
+        load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
       ]),
     ),
   )
@@ -1085,13 +1085,13 @@ function SetLoggerRow(props: {
     previous_load_unit_ref.current = load_unit
 
     setLoadEntry(
-      load_input_value(load_for_display(load_ref.current, load_unit)),
+      load_input_value(exact_load_for_entry(load_ref.current, load_unit)),
     )
     setComponentLoadEntries(
       Object.fromEntries(
         components_ref.current.map((component) => [
           component_load_key(component),
-          load_input_value(load_for_display(component.load_kg, load_unit)),
+          load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
         ]),
       ),
     )
@@ -1184,7 +1184,7 @@ function SetLoggerRow(props: {
     failed_ref.current = recoverable_draft.failed_next_rep
     components_ref.current = recoverable_draft.components as ComponentDraft[]
     setLoad(load_ref.current)
-    setLoadEntry(load_input_value(load_for_display(load_ref.current, load_unit)))
+    setLoadEntry(load_input_value(exact_load_for_entry(load_ref.current, load_unit)))
     setReps(reps_ref.current)
     setRpe(rpe_ref.current)
     setFailed(failed_ref.current)
@@ -1192,7 +1192,7 @@ function SetLoggerRow(props: {
     setComponentLoadEntries(Object.fromEntries(
       components_ref.current.map((component) => [
         component_load_key(component),
-        load_input_value(load_for_display(component.load_kg, load_unit)),
+        load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
       ]),
     ))
     setRecoverableDraft(null)
@@ -1242,7 +1242,7 @@ function SetLoggerRow(props: {
     clear_autosave_timer()
     const current_display =
       numeric_value(load_entry) ??
-      load_for_display(load_ref.current, load_unit) ??
+      exact_load_for_entry(load_ref.current, load_unit) ??
       0
     const next_display = adjust_display_load_by_step(
       current_display,
@@ -1511,7 +1511,7 @@ function SetLoggerRow(props: {
                           const key = component_load_key(component)
                           const current_display =
                             numeric_value(component_load_entries[key] ?? '') ??
-                            load_for_display(component.load_kg, load_unit) ??
+                            exact_load_for_entry(component.load_kg, load_unit) ??
                             0
                           const next_display = adjust_display_load_by_step(
                             current_display,
@@ -1566,7 +1566,7 @@ function SetLoggerRow(props: {
                           const key = component_load_key(component)
                           const current_display =
                             numeric_value(component_load_entries[key] ?? '') ??
-                            load_for_display(component.load_kg, load_unit) ??
+                            exact_load_for_entry(component.load_kg, load_unit) ??
                             0
                           const next_display = adjust_display_load_by_step(
                             current_display,
