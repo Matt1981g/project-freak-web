@@ -166,7 +166,8 @@ begin
   from public.project_freak_sync_conflicts
   where user_id = '11111111-1111-4111-8111-111111111111'
     and entity_id = 'set-1'
-    and resolved_revision = 2;
+    and resolved_revision = 2
+    and resolution_rule like 'equal_revision_%';
 
   if v_conflicts <> 1 then
     raise exception 'Expected exactly one equal-revision conflict audit, found %', v_conflicts;
