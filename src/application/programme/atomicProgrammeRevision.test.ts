@@ -239,7 +239,7 @@ describe('atomic programme revision publication', () => {
       new Map(blocks.map((entry) => [
         entry.id,
         rows.filter((row) => row.programme_block_id === entry.id),
-      ])),
+      ] as const)),
       [],
       { today_local: '2026-10-11', latest_programming_input_at: null },
     )
