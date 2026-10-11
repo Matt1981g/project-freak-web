@@ -1686,7 +1686,7 @@ function SetLoggerRow(props: {
       {saving && !completed && (
         <div className={styles.autosaveStatus}>AUTOSAVING…</div>
       )}
-      {error && <div className={styles.setError}>{error}</div>
+      {error && <div className={styles.setError}>{error}</div>}
 
       {completed && allow_correction && saved_set && (
         <CompletedSetCorrection
