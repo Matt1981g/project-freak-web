@@ -5,9 +5,11 @@
 ## Version and compatibility
 
 - The canonical frontend release number comes from root `package.json`; `src/release.ts` presents its `Vmajor.minor` label and the injected Git commit SHA. Display, Coach export, backup and deployed verifier must agree on this number. The npm package and lockfile carry the same version.
-- Release number is **not** data schema compatibility. Current local IndexedDB schema is 3, data contract 1.1.0, Coach export format 1.0.0, and cloud RPC contract 1.0.0. These advance independently and require explicit compatibility tests.
-- Current Coach v1 exporter includes per-set RPE and optional exercise enjoyment. Both may be null for older/absent records. The published JSON schema now describes these fields; absence must not be backfilled as a zero.
+- Release number is **not** data schema compatibility. Current local IndexedDB schema is 3, data contract 1.1.0, Coach export format 2.0.0 (published in `docs/schemas/project-freak-training-export-v2.schema.json`), legacy Coach schema v1.0.0, and cloud RPC contract 1.0.0. These advance independently and require explicit compatibility tests.
+- Current Coach **v2** exporter includes per-set RPE and optional exercise enjoyment. Both may be null for older/absent records. Current and legacy schemas separately describe these fields; absence must not be backfilled as a zero. The existing v1 schema remains available for supported legacy files, and its `schema_version` must not be relabelled to 2.0.0.
 - Record old-client compatibility before any backend migration. A retired client must retain its offline mutations for export/recovery even if cloud writes become version-gated.
+
+**Schema validation gap:** CI tests now ensure the producer version and separate v1/v2 schema declarations agree. Full runtime validation of representative generated v2 exports against the published JSON Schema is still outstanding and is a package-2 completion gate, not implied by these version checks.
 
 ## Data ownership and identity — intended invariants
 
