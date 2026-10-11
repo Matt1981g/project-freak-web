@@ -936,18 +936,16 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
         this.db.sync_outbox,
       ],
       async (): Promise<'committed' | 'duplicate_noop'> => {
-    const duplicate = await this.db.programme_blocks
-      .filter(
-        (block) =>
-          block.deleted_at === null &&
-          block.source_kind === 'programme_import' &&
-          block.source_id === entities.block.source_id,
-      )
-      .first()
+        const duplicate = await this.db.programme_blocks
+          .filter(
+            (block) =>
+              block.deleted_at === null &&
+              block.source_kind === 'programme_import' &&
+              block.source_id === entities.block.source_id,
+          )
+          .first()
 
-    if (duplicate) {
-      return 'duplicate_noop'
-    }
+        if (duplicate) return 'duplicate_noop'
 
         await this.db.programme_blocks.add(entities.block)
         await this.db.workout_templates.bulkAdd(entities.templates)
