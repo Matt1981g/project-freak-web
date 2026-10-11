@@ -203,7 +203,7 @@ describe('atomic remote apply against real IndexedDB connections', () => {
       entity_id: entity.id,
       operation: 'upsert' as const,
       revision: entity.revision,
-      payload_json: entity,
+      payload_json: entity as never,
       updated_at: entity.updated_at,
     }))
     const provider: SyncProvider = {
