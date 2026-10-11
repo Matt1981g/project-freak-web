@@ -12,6 +12,7 @@ export interface ExerciseScoreInput {
   rpe: number | null
   pump: number | null
   form: number | null
+  enjoyment?: number | null
   target_stimulus?: TargetStimulusRating | null
 }
 
@@ -37,12 +38,14 @@ export async function save_exercise_scores(
   validate_score(scores.rpe, 'RPE')
   validate_score(scores.pump, 'Pump')
   validate_score(scores.form, 'Form')
+  validate_score(scores.enjoyment ?? null, 'Enjoyment')
 
   const existing = await repository.get_exercise_metrics(session_exercise_id)
   const has_any_score =
     scores.rpe !== null ||
     scores.pump !== null ||
     scores.form !== null ||
+    scores.enjoyment != null ||
     (scores.target_stimulus !== undefined &&
       scores.target_stimulus !== null)
 
@@ -66,6 +69,7 @@ export async function save_exercise_scores(
     rpe: scores.rpe,
     pump: scores.pump,
     form: scores.form,
+    enjoyment: scores.enjoyment === undefined ? existing?.enjoyment ?? null : scores.enjoyment,
     where_felt_text: existing?.where_felt_text ?? null,
     where_felt_tags:
       scores.target_stimulus === undefined
