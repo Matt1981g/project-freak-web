@@ -23,4 +23,6 @@ jobs:
           npm install --save-dev @playwright/test@1.62.1 vitest@4.1.11
           npm update brace-expansion source-map-js
           node -e "for (const n of ['package.json','package-lock.json']) { const b=Buffer.from(require('fs').readFileSync(n)).toString('base64'); const k=n==='package.json'?'PACKAGE':'LOCK'; for(let i=0;i<b.length;i+=6000) console.log('PF_DEP_'+k+'_'+(i/6000)+'='+b.slice(i,i+6000)); console.log('PF_DEP_'+k+'_END='+(Math.ceil(b.length/6000))); }"
+      - name: Capture existing lint failures
+        run: npm run lint || true
       - run: npm audit --omit=dev --audit-level=high
