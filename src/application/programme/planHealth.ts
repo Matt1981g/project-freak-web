@@ -1,7 +1,6 @@
-import type { Exercise, ProgrammeBlock, ProgrammedSession } from '../../domain/models'
+import type { CompletedSession, Exercise, ProgrammeBlock, ProgrammedSession } from '../../domain/models'
 import type { ProgrammedSessionDetail } from '../../data/repositories/contracts'
-import type { ActivePlanSelection } from './activePlan'
-import { explicitly_supersedes } from './programmeLineage'
+import { select_plan_candidate_sessions, type ActivePlanSelection } from './activePlan'
 
 export type PlanHealthStatus = 'ok' | 'warning' | 'failed'
 export type PlanHealthSeverity = 'warning' | 'error'
@@ -34,6 +33,7 @@ export interface PlanHealthSource {
   list_blocks(): Promise<ProgrammeBlock[]>
   list_sessions(programme_block_id: string): Promise<ProgrammedSession[]>
   list_active_plan(): Promise<ActivePlanSelection>
+  list_actuals(): Promise<CompletedSession[]>
   get_session_detail(programmed_session_id: string): Promise<ProgrammedSessionDetail | undefined>
   list_active_exercises(): Promise<Exercise[]>
 }
@@ -44,80 +44,6 @@ function current_local_date(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-function programme_windows_overlap(
-  left: ProgrammeBlock,
-  right: ProgrammeBlock,
-): boolean {
-  if (left.block_type === 'custom' || right.block_type === 'custom') return false
-  if (left.block_type !== right.block_type) return false
-  if (
-    !left.start_date_local ||
-    !left.end_date_local ||
-    !right.start_date_local ||
-    !right.end_date_local
-  ) {
-    return false
-  }
-
-  return (
-    left.start_date_local <= right.end_date_local &&
-    right.start_date_local <= left.end_date_local
-  )
-}
-
-function is_superseded_candidate(
-  block: ProgrammeBlock,
-  blocks: readonly ProgrammeBlock[],
-): boolean {
-  return blocks.some((candidate) => {
-    if (
-      candidate.id === block.id ||
-      candidate.deleted_at !== null ||
-      candidate.status === 'archived' ||
-      candidate.status === 'completed'
-    ) {
-      return false
-    }
-
-    if (explicitly_supersedes(candidate, block.id)) return true
-
-    if (candidate.supersedes_programme_block_id !== undefined) return false
-
-    return (
-      candidate.created_at > block.created_at &&
-      programme_windows_overlap(block, candidate)
-    )
-  })
-}
-
-function block_is_candidate(
-  block: ProgrammeBlock,
-  blocks: readonly ProgrammeBlock[],
-  today_local: string,
-): boolean {
-  if (block.deleted_at !== null) return false
-  if (block.status === 'archived' || block.status === 'completed') return false
-  if (block.end_date_local !== null && block.end_date_local < today_local) return false
-  if (is_superseded_candidate(block, blocks)) return false
-  return true
-}
-
-function session_is_candidate(
-  session: ProgrammedSession,
-  today_local: string,
-): boolean {
-  if (session.deleted_at !== null) return false
-  if (session.status === 'completed' || session.status === 'cancelled') return false
-  if (
-    session.status === 'skipped' &&
-    session.scheduled_date_local !== null &&
-    session.scheduled_date_local < today_local
-  ) {
-    return false
-  }
-  return true
 }
 
 function issue(
@@ -149,10 +75,11 @@ export async function inspect_plan_health(
   const today_local = options.today_local ?? current_local_date()
   const checked_at = options.checked_at ?? new Date().toISOString()
 
-  const [blocks, selection, active_exercises] = await Promise.all([
+  const [blocks, selection, active_exercises, actuals] = await Promise.all([
     source.list_blocks(),
     source.list_active_plan(),
     source.list_active_exercises(),
+    source.list_actuals(),
   ])
 
   const sessions_by_block = new Map(
@@ -161,13 +88,20 @@ export async function inspect_plan_health(
     ),
   )
 
-  const candidate_blocks = blocks.filter((block) =>
-    block_is_candidate(block, blocks, today_local),
+  // Share Plan's exact date-level authority rules; health must never flag a
+  // superseded copy of a published week as a missing actionable workout.
+  const candidates = select_plan_candidate_sessions(
+    blocks, sessions_by_block, today_local,
   )
-  const candidate_sessions = candidate_blocks.flatMap((block) =>
-    (sessions_by_block.get(block.id) ?? []).filter((session) =>
-      session_is_candidate(session, today_local),
-    ),
+  const completed_actual_ids = new Set(
+    actuals.filter((actual) =>
+      actual.deleted_at === null &&
+      (actual.status === 'completed' || actual.status === 'abandoned') &&
+      actual.programmed_session_id !== null,
+    ).map((actual) => actual.programmed_session_id),
+  )
+  const candidate_sessions = [...candidates.values()].flat().filter((session) =>
+    !completed_actual_ids.has(session.id),
   )
   const visible_sessions = selection.programmes.flatMap((programme) => programme.sessions)
   const visible_ids = new Set(visible_sessions.map((session) => session.id))
@@ -328,7 +262,7 @@ export async function inspect_plan_health(
       status: status_from_issues(issues),
       checked_at,
       today_local,
-      candidate_blocks: candidate_blocks.length,
+      candidate_blocks: candidates.size,
       candidate_sessions: candidate_sessions.length,
       visible_sessions: visible_sessions.length,
       checked_exercises,

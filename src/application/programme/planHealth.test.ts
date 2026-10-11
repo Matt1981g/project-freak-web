@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Exercise, ProgrammeBlock, ProgrammedSession } from '../../domain/models'
 import type { ProgrammedSessionDetail } from '../../data/repositories/contracts'
-import type { ActivePlanSelection } from './activePlan'
+import { select_active_plan_programmes, type ActivePlanSelection } from './activePlan'
 import { inspect_plan_health, type PlanHealthSource } from './planHealth'
 
 const NOW = '2026-09-17T05:00:00.000Z'
@@ -78,6 +78,7 @@ function source(
     list_blocks: async () => [programme_block],
     list_sessions: async () => [programmed_session],
     list_active_plan: async () => selection,
+    list_actuals: async () => [],
     get_session_detail: async () => detail,
     list_active_exercises: async () => [exercise()],
   }
@@ -129,4 +130,65 @@ describe('Plan Health', () => {
     expect(result.report.checked_exercises).toBe(1)
     expect(result.report.issues).toEqual([])
   })
+
+  it('does not report five false missing sessions when ten stored sessions belong to duplicate imported weeks', async () => {
+    const first: ProgrammeBlock = {
+      ...block('old-week'),
+      created_at: '2026-09-14T10:00:00Z',
+      name: 'FREAK Week',
+    }
+    const second: ProgrammeBlock = {
+      ...block('new-week'),
+      created_at: '2026-09-16T10:00:00Z',
+      name: 'FREAK Week',
+    }
+    const dates = ['17','18','19','20','21']
+    const old_sessions = dates.map((day) => ({
+      ...session(first.id), id: 'old-' + day,
+      scheduled_date_local: '2026-09-' + day,
+    }))
+    const new_sessions = dates.map((day) => ({
+      ...session(second.id), id: 'new-' + day,
+      scheduled_date_local: '2026-09-' + day,
+    }))
+    const all = new Map([
+      [first.id, old_sessions],
+      [second.id, new_sessions],
+    ])
+    const selection = select_active_plan_programmes(
+      [first, second], all, [],
+      { today_local: '2026-09-17', latest_programming_input_at: null },
+    )
+    const detail = {
+      exercises: [{
+        exercise: {
+          id: 'programmed-exercise-1',
+          exercise_id: 'exercise-1',
+          exercise_name_snapshot: 'Cable Pressdown',
+        },
+        sets: [{ set: { id: 'programmed-set-1' }, components: [] }],
+      }],
+    } as unknown as ProgrammedSessionDetail
+    const input: PlanHealthSource = {
+      list_blocks: async () => [first, second],
+      list_sessions: async (id) => all.get(id) ?? [],
+      list_active_plan: async () => selection,
+      list_actuals: async () => [],
+      get_session_detail: async (id) => ({
+        ...detail,
+        session: new_sessions.find((entry) => entry.id === id)!,
+      }),
+      list_active_exercises: async () => [exercise()],
+    }
+    const inspected = await inspect_plan_health(input, {
+      today_local: '2026-09-17', checked_at: NOW,
+    })
+    expect(inspected.report.status).toBe('ok')
+    expect(inspected.report.candidate_sessions).toBe(5)
+    expect(inspected.report.visible_sessions).toBe(5)
+    expect(inspected.report.checked_exercises).toBe(5)
+    expect(inspected.report.issues).toEqual([])
+  })
+
+
 })
