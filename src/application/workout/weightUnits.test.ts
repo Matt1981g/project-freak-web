@@ -3,6 +3,7 @@ import {
   display_load_to_kilograms,
   kilograms_to_pounds,
   load_for_display,
+  exact_load_for_entry,
   load_step_for_unit,
   pounds_to_kilograms,
   adjust_display_load_by_step,
@@ -18,6 +19,14 @@ describe('weight unit conversion', () => {
   it('converts stored kilograms back to pounds for imperial entry', () => {
     expect(kilograms_to_pounds(45.3592)).toBeCloseTo(100, 2)
     expect(load_for_display(45.3592, 'lb')).toBeCloseTo(100, 2)
+  })
+
+  it('never rounds typed loads when recovering a draft or reopening a set', () => {
+    expect(exact_load_for_entry(37, 'kg')).toBe(37)
+    expect(load_for_display(37, 'kg')).toBe(37.5)
+    expect(exact_load_for_entry(46.3, 'kg')).toBe(46.3)
+    expect(exact_load_for_entry(pounds_to_kilograms(102), 'lb')).toBeCloseTo(102, 2)
+    expect(exact_load_for_entry(null, 'kg')).toBeNull()
   })
 
   it('uses agreed gym-friendly step sizes', () => {

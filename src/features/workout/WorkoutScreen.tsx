@@ -42,14 +42,29 @@ import {
 } from '../../application/workout/pairedRotation'
 import { can_safely_correct_set } from '../../application/history/correctCompletedSet'
 import {
+  clear_workout_form_draft,
+  form_draft_is_current,
+  read_workout_form_draft,
+  workout_form_key,
+  write_workout_form_draft,
+} from '../../application/workout/workoutFormJournal'
+import {
+  clear_workout_draft,
+  read_workout_draft,
+  should_recover_workout_draft,
+  track_workout_write,
+  workout_draft_key,
+  write_workout_draft,
+} from '../../application/workout/workoutDraftJournal'
+import {
   select_set_load_prefill,
   type SetLoadPrefillSource,
 } from '../../application/workout/setLoadPrefill'
 import { rank_exercise_substitution_options } from '../../application/workout/exerciseSubstitutionOptions'
 import {
   adjust_display_load_by_step,
+  exact_load_for_entry,
   display_load_to_kilograms,
-  load_for_display,
   type WeightEntryUnit,
 } from '../../application/workout/weightUnits'
 import {
@@ -359,7 +374,8 @@ function ReadinessPanel(props: {
   recovery_prompt: LiveWorkout['recovery_prompt']
 }) {
   const { completed_session_id, readiness, recovery_prompt } = props
-  const [form, setForm] = useState(() => ({
+  const draft_key = workout_form_key('readiness', completed_session_id)
+  const default_form = {
     bodyweight_kg: readiness?.bodyweight_kg ?? null,
     sleep_duration_minutes: readiness?.sleep_duration_minutes ?? null,
     sleep_score: readiness?.sleep_score ?? null,
@@ -374,19 +390,44 @@ function ReadinessPanel(props: {
     intra_workout_nutrition: readiness?.intra_workout_nutrition ?? '',
     intra_hydration_ml: readiness?.intra_hydration_ml ?? null,
     notes: readiness?.notes ?? '',
-  }))
-  const [dirty, setDirty] = useState(false)
+  }
+  const [initial_draft] = useState(() => read_workout_form_draft<typeof default_form>(draft_key))
+  const auto_restore = form_draft_is_current(
+    initial_draft, 'readiness', completed_session_id, readiness?.revision ?? 0,
+  )
+  const [form, setForm] = useState(() =>
+    auto_restore && initial_draft ? initial_draft.form : default_form,
+  )
+  const form_ref = useRef(form)
+  const edit_sequence_ref = useRef(initial_draft?.edit_sequence ?? 0)
+  const saved_revision_ref = useRef(readiness?.revision ?? 0)
+  const save_chain_ref = useRef<Promise<void>>(Promise.resolve())
+  const [recoverable_draft, setRecoverableDraft] = useState(
+    initial_draft && !auto_restore ? initial_draft : null,
+  )
+  const [draft_failed, setDraftFailed] = useState(false)
+  const [dirty, setDirty] = useState(Boolean(auto_restore))
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(Boolean(readiness))
+  const [saved, setSaved] = useState(Boolean(readiness && !auto_restore))
   const [error, setError] = useState<string | null>(null)
 
-  function update<K extends keyof typeof form>(
-    key: K,
-    value: (typeof form)[K],
-  ) {
-    setForm((current) => ({ ...current, [key]: value }))
+  function write_form(next: typeof form) {
+    form_ref.current = next
+    setForm(next)
+    const sequence = ++edit_sequence_ref.current
+    setDraftFailed(!write_workout_form_draft(draft_key, {
+      version: 1, kind: 'readiness', session_id: completed_session_id,
+      base_revision: saved_revision_ref.current,
+      edit_sequence: sequence, changed_at: 0, form: next,
+    }))
     setDirty(true)
     setSaved(false)
+  }
+
+  function update<K extends keyof typeof form>(
+    key: K, value: (typeof form)[K],
+  ) {
+    write_form({ ...form_ref.current, [key]: value })
   }
 
   function update_muscle_recovery(
@@ -395,7 +436,7 @@ function ReadinessPanel(props: {
   ) {
     if (!recovery_prompt) return
 
-    const next = form.muscle_recovery.filter(
+    const next = form_ref.current.muscle_recovery.filter(
       (rating) =>
         !(
           rating.muscle === muscle &&
@@ -414,42 +455,44 @@ function ReadinessPanel(props: {
 
   useEffect(() => {
     if (!dirty) return
-
+    const sequence = edit_sequence_ref.current
+    const snapshot = form
     const timer = window.setTimeout(() => {
       setSaving(true)
       setError(null)
-
-      void save_live_readiness({
-        completed_session_id,
-        bodyweight_kg: form.bodyweight_kg,
-        sleep_duration_minutes: form.sleep_duration_minutes,
-        sleep_score: form.sleep_score,
-        energy_pre: form.energy_pre,
-        motivation_pre: form.motivation_pre,
-        soreness_score: form.soreness_score,
-        soreness_notes: form.soreness_notes || null,
-        muscle_recovery: form.muscle_recovery,
-        joint_issue_present: form.joint_issue_present,
-        joint_issue_notes: form.joint_issue_notes || null,
-        pre_workout_nutrition: form.pre_workout_nutrition || null,
-        intra_workout_nutrition: form.intra_workout_nutrition || null,
-        intra_hydration_ml: form.intra_hydration_ml,
-        notes: form.notes || null,
-      })
-        .then(() => {
-          setDirty(false)
-          setSaved(true)
+      save_chain_ref.current = save_chain_ref.current
+        .then(() => track_workout_write(save_live_readiness({
+          completed_session_id,
+          bodyweight_kg: snapshot.bodyweight_kg,
+          sleep_duration_minutes: snapshot.sleep_duration_minutes,
+          sleep_score: snapshot.sleep_score,
+          energy_pre: snapshot.energy_pre,
+          motivation_pre: snapshot.motivation_pre,
+          soreness_score: snapshot.soreness_score,
+          soreness_notes: snapshot.soreness_notes || null,
+          muscle_recovery: snapshot.muscle_recovery,
+          joint_issue_present: snapshot.joint_issue_present,
+          joint_issue_notes: snapshot.joint_issue_notes || null,
+          pre_workout_nutrition: snapshot.pre_workout_nutrition || null,
+          intra_workout_nutrition: snapshot.intra_workout_nutrition || null,
+          intra_hydration_ml: snapshot.intra_hydration_ml,
+          notes: snapshot.notes || null,
+        })))
+        .then((saved) => {
+          saved_revision_ref.current = saved.revision
+          clear_workout_form_draft(draft_key, sequence)
+          if (sequence === edit_sequence_ref.current) {
+            setDirty(false)
+            setSaved(true)
+          }
         })
         .catch((cause) => {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : 'Unable to save readiness.',
-          )
+          setError(cause instanceof Error ? cause.message : 'Unable to save readiness.')
         })
-        .finally(() => setSaving(false))
+        .finally(() => {
+          if (sequence === edit_sequence_ref.current) setSaving(false)
+        })
     }, 400)
-
     return () => window.clearTimeout(timer)
   }, [completed_session_id, dirty, form])
 
@@ -461,9 +504,31 @@ function ReadinessPanel(props: {
           <strong>Readiness</strong>
         </div>
         <small>
-          {saving ? 'AUTOSAVING…' : error ? 'SAVE ERROR' : saved ? 'SAVED ✓' : 'OPTIONAL'}
+          {recoverable_draft ? 'DRAFT RECOVERY' : saving ? 'AUTOSAVING…' : error ? 'SAVE ERROR' : saved ? 'SAVED ✓' : 'OPTIONAL'}
         </small>
       </summary>
+      {recoverable_draft && (
+        <div className={styles.setError} role="status">
+          A previous readiness draft survived the interruption, but the saved
+          record has changed. Choose which to keep.
+          <div className={styles.draftRecoveryActions}>
+            <button type="button" onClick={() => {
+              write_form(recoverable_draft.form)
+              setRecoverableDraft(null)
+            }}>RESTORE DRAFT</button>
+            <button type="button" onClick={() => {
+              clear_workout_form_draft(draft_key)
+              setRecoverableDraft(null)
+            }}>KEEP SAVED</button>
+          </div>
+        </div>
+      )}
+      {draft_failed && (
+        <div className={styles.setError} role="alert">
+          Emergency draft storage is unavailable. Confirm readiness saves before closing.
+        </div>
+      )}
+
 
       <div className={styles.readinessGrid}>
         <label>
@@ -723,7 +788,7 @@ function CompletedSetCorrection(props: {
   const [open, setOpen] = useState(false)
   const [load, setLoad] = useState<number | null>(set.load_kg)
   const [load_entry, setLoadEntry] = useState(() =>
-    load_input_value(load_for_display(set.load_kg, load_unit)),
+    load_input_value(exact_load_for_entry(set.load_kg, load_unit)),
   )
   const previous_load_unit_ref = useRef(load_unit)
   const [reps, setReps] = useState<number>(set.completed_reps ?? 0)
@@ -737,12 +802,12 @@ function CompletedSetCorrection(props: {
   useEffect(() => {
     if (previous_load_unit_ref.current === load_unit) return
     previous_load_unit_ref.current = load_unit
-    setLoadEntry(load_input_value(load_for_display(load, load_unit)))
+    setLoadEntry(load_input_value(exact_load_for_entry(load, load_unit)))
   }, [load, load_unit])
 
   function cancel() {
     setLoad(set.load_kg)
-    setLoadEntry(load_input_value(load_for_display(set.load_kg, load_unit)))
+    setLoadEntry(load_input_value(exact_load_for_entry(set.load_kg, load_unit)))
     setReps(set.completed_reps ?? 0)
     setRpe(set.rpe ?? null)
     setFailed(set.failure_status === 'attempted_next_rep_failed')
@@ -898,20 +963,45 @@ function SetLoggerRow(props: {
     on_complete,
     on_corrected,
   } = props
+  const draft_key = workout_draft_key(
+    exercise.completed_session_id, exercise.id, set_number,
+  )
+  const [initial_journal] = useState(() => read_workout_draft(draft_key))
+  const can_recover = should_recover_workout_draft(
+    initial_journal, exercise.completed_session_id, exercise.id,
+    set_number, actual_set?.revision ?? 0,
+    Boolean(actual_set && is_training_set_completed(actual_set)) || allow_correction,
+  )
+  const recovery = can_recover ? initial_journal : null
+  const [recoverable_draft, setRecoverableDraft] = useState(
+    initial_journal && !can_recover && !allow_correction &&
+      !(actual_set && is_training_set_completed(actual_set))
+      ? initial_journal : null,
+  )
+  const [journal_error, setJournalError] = useState(false)
   const [saved_set, setSavedSet] = useState<TrainingSet | null>(actual_set)
-  const [rpe, setRpe] = useState<number | null>(actual_set?.rpe ?? null)
-  const [load, setLoad] = useState<number | null>(initial_load_kg)
+  const [rpe, setRpe] = useState<number | null>(
+    recovery?.rpe ?? actual_set?.rpe ?? null,
+  )
+  const [load, setLoad] = useState<number | null>(
+    recovery ? recovery.load_kg : initial_load_kg,
+  )
   const [reps, setReps] = useState<number | null>(
-    actual_set?.completed_reps ?? null,
+    recovery ? recovery.completed_reps : actual_set?.completed_reps ?? null,
   )
   const [failed, setFailed] = useState(
-    actual_set?.failure_status === 'attempted_next_rep_failed',
+    recovery ? recovery.failed_next_rep
+      : actual_set?.failure_status === 'attempted_next_rep_failed',
   )
   const [components, setComponents] = useState<ComponentDraft[]>(() =>
-    build_component_drafts(planned_set, actual_components, initial_load_kg),
+    recovery
+      ? recovery.components as ComponentDraft[]
+      : build_component_drafts(planned_set, actual_components, initial_load_kg),
   )
   const [load_entry, setLoadEntry] = useState(() =>
-    load_input_value(load_for_display(initial_load_kg, load_unit)),
+    load_input_value(exact_load_for_entry(
+      recovery ? recovery.load_kg : initial_load_kg, load_unit,
+    )),
   )
   const [component_load_entries, setComponentLoadEntries] = useState<
     Record<string, string>
@@ -919,7 +1009,7 @@ function SetLoggerRow(props: {
     Object.fromEntries(
       components.map((component) => [
         component_load_key(component),
-        load_input_value(load_for_display(component.load_kg, load_unit)),
+        load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
       ]),
     ),
   )
@@ -935,6 +1025,29 @@ function SetLoggerRow(props: {
   const autosave_timer_ref = useRef<number | null>(null)
   const save_chain_ref = useRef<Promise<void>>(Promise.resolve())
   const pending_saves_ref = useRef(0)
+  const edit_sequence_ref = useRef(recovery?.edit_sequence ?? 0)
+  const recovered_on_mount = useRef(false)
+  const user_edited_ref = useRef(Boolean(initial_journal || actual_set))
+
+  function journal_current_edit(): void {
+    user_edited_ref.current = true
+    const sequence = ++edit_sequence_ref.current
+    const ok = write_workout_draft(draft_key, {
+      version: 1,
+      session_id: exercise.completed_session_id,
+      exercise_id: exercise.id,
+      set_number,
+      base_revision: saved_set_ref.current?.revision ?? 0,
+      edit_sequence: sequence,
+      changed_at: Date.now(),
+      load_kg: load_ref.current,
+      completed_reps: reps_ref.current,
+      rpe: rpe_ref.current,
+      failed_next_rep: failed_ref.current,
+      components: components_ref.current,
+    })
+    setJournalError(!ok)
+  }
 
   const completed =
     saved_set !== null && is_training_set_completed(saved_set)
@@ -942,25 +1055,71 @@ function SetLoggerRow(props: {
   const challenge = progression_challenge_fields(target?.notes)
 
   useEffect(() => {
+    // A committed set is authoritative; never resurrect a previous draft.
+    if (completed || allow_correction) {
+      clear_workout_draft(draft_key)
+    } else if (recovery && !recovered_on_mount.current) {
+      recovered_on_mount.current = true
+      void queue_save()
+    }
+
+    const flush = () => {
+      if (document.visibilityState === 'hidden' ||
+          document.visibilityState === 'visible') {
+        if (autosave_timer_ref.current !== null) {
+          clear_autosave_timer()
+          void queue_save()
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', flush)
+    window.addEventListener('pagehide', flush)
     return () => {
+      document.removeEventListener('visibilitychange', flush)
+      window.removeEventListener('pagehide', flush)
       if (autosave_timer_ref.current !== null) {
         window.clearTimeout(autosave_timer_ref.current)
       }
     }
   }, [])
 
+  // Preserve the previous-set load autofill when a locked set becomes
+  // available. Stable row keys must not freeze a never-edited prescription.
+  useEffect(() => {
+    let mounted = true
+    queueMicrotask(() => {
+      if (!mounted || user_edited_ref.current ||
+          saved_set_ref.current || locked) return
+      load_ref.current = initial_load_kg
+      setLoad(initial_load_kg)
+      setLoadEntry(load_input_value(exact_load_for_entry(initial_load_kg, load_unit)))
+      const fresh_components = build_component_drafts(
+        planned_set, actual_components, initial_load_kg,
+      )
+      components_ref.current = fresh_components
+      setComponents(fresh_components)
+      setComponentLoadEntries(Object.fromEntries(
+        fresh_components.map((component) => [
+          component_load_key(component),
+          load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
+        ]),
+      ))
+    })
+    return () => { mounted = false }
+  }, [initial_load_kg, locked, load_unit, planned_set, actual_components])
+
   useEffect(() => {
     if (previous_load_unit_ref.current === load_unit) return
     previous_load_unit_ref.current = load_unit
 
     setLoadEntry(
-      load_input_value(load_for_display(load_ref.current, load_unit)),
+      load_input_value(exact_load_for_entry(load_ref.current, load_unit)),
     )
     setComponentLoadEntries(
       Object.fromEntries(
         components_ref.current.map((component) => [
           component_load_key(component),
-          load_input_value(load_for_display(component.load_kg, load_unit)),
+          load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
         ]),
       ),
     )
@@ -1000,6 +1159,7 @@ function SetLoggerRow(props: {
         ? options.components ?? []
         : components_ref.current
 
+    const saved_sequence = edit_sequence_ref.current
     pending_saves_ref.current += 1
     setSaving(true)
     setError(null)
@@ -1020,6 +1180,7 @@ function SetLoggerRow(props: {
         })
         saved_set_ref.current = updated
         setSavedSet(updated)
+        clear_workout_draft(draft_key, saved_sequence)
 
         if (complete) {
           await on_complete()
@@ -1036,8 +1197,36 @@ function SetLoggerRow(props: {
       }
     }
 
-    save_chain_ref.current = save_chain_ref.current.then(run, run)
+    save_chain_ref.current = save_chain_ref.current.then(
+      () => track_workout_write(run()),
+      () => track_workout_write(run()),
+    )
     return save_chain_ref.current
+  }
+
+  function restore_older_draft() {
+    if (!recoverable_draft) return
+    load_ref.current = recoverable_draft.load_kg
+    reps_ref.current = recoverable_draft.completed_reps
+    rpe_ref.current = recoverable_draft.rpe
+    failed_ref.current = recoverable_draft.failed_next_rep
+    components_ref.current = recoverable_draft.components as ComponentDraft[]
+    setLoad(load_ref.current)
+    setLoadEntry(load_input_value(exact_load_for_entry(load_ref.current, load_unit)))
+    setReps(reps_ref.current)
+    setRpe(rpe_ref.current)
+    setFailed(failed_ref.current)
+    setComponents(components_ref.current)
+    setComponentLoadEntries(Object.fromEntries(
+      components_ref.current.map((component) => [
+        component_load_key(component),
+        load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
+      ]),
+    ))
+    setRecoverableDraft(null)
+    journal_current_edit()
+    clear_autosave_timer()
+    void queue_save()
   }
 
   function schedule_autosave() {
@@ -1051,6 +1240,7 @@ function SetLoggerRow(props: {
   function change_load(value: number | null) {
     load_ref.current = value
     setLoad(value)
+    journal_current_edit()
     schedule_autosave()
   }
 
@@ -1064,6 +1254,7 @@ function SetLoggerRow(props: {
   function change_rpe(value: number | null) {
     rpe_ref.current = value
     setRpe(value)
+    journal_current_edit()
     clear_autosave_timer()
     void queue_save({ rpe: value })
   }
@@ -1071,6 +1262,7 @@ function SetLoggerRow(props: {
   function change_reps(value: number | null) {
     reps_ref.current = value
     setReps(value)
+    journal_current_edit()
     schedule_autosave()
   }
 
@@ -1078,7 +1270,7 @@ function SetLoggerRow(props: {
     clear_autosave_timer()
     const current_display =
       numeric_value(load_entry) ??
-      load_for_display(load_ref.current, load_unit) ??
+      exact_load_for_entry(load_ref.current, load_unit) ??
       0
     const next_display = adjust_display_load_by_step(
       current_display,
@@ -1089,6 +1281,7 @@ function SetLoggerRow(props: {
     setLoadEntry(load_input_value(next_display))
     load_ref.current = next_kg
     setLoad(next_kg)
+    journal_current_edit()
     void queue_save({ load_kg: next_kg })
   }
 
@@ -1097,6 +1290,7 @@ function SetLoggerRow(props: {
     const next = Math.max(0, (reps_ref.current ?? 0) + delta)
     reps_ref.current = next
     setReps(next)
+    journal_current_edit()
     void queue_save({ completed_reps: next })
   }
 
@@ -1105,6 +1299,7 @@ function SetLoggerRow(props: {
     const next = !failed_ref.current
     failed_ref.current = next
     setFailed(next)
+    journal_current_edit()
     void queue_save({ failed_next_rep: next })
   }
 
@@ -1117,6 +1312,7 @@ function SetLoggerRow(props: {
     )
     components_ref.current = next
     setComponents(next)
+    journal_current_edit()
     schedule_autosave()
   }
 
@@ -1343,7 +1539,7 @@ function SetLoggerRow(props: {
                           const key = component_load_key(component)
                           const current_display =
                             numeric_value(component_load_entries[key] ?? '') ??
-                            load_for_display(component.load_kg, load_unit) ??
+                            exact_load_for_entry(component.load_kg, load_unit) ??
                             0
                           const next_display = adjust_display_load_by_step(
                             current_display,
@@ -1398,7 +1594,7 @@ function SetLoggerRow(props: {
                           const key = component_load_key(component)
                           const current_display =
                             numeric_value(component_load_entries[key] ?? '') ??
-                            load_for_display(component.load_kg, load_unit) ??
+                            exact_load_for_entry(component.load_kg, load_unit) ??
                             0
                           const next_display = adjust_display_load_by_step(
                             current_display,
@@ -1552,6 +1748,24 @@ function SetLoggerRow(props: {
         </button>
       </div>
 
+      {recoverable_draft && !completed && (
+        <div className={styles.setError} role="status">
+          An unfinished set draft survived the interruption, but a newer database
+          revision exists. Review it before replacing the saved values.
+          <div className={styles.draftRecoveryActions}>
+            <button type="button" onClick={restore_older_draft}>RESTORE DRAFT</button>
+            <button type="button" onClick={() => {
+              clear_workout_draft(draft_key)
+              setRecoverableDraft(null)
+            }}>KEEP SAVED SET</button>
+          </div>
+        </div>
+      )}
+      {journal_error && !completed && (
+        <div className={styles.setError} role="alert">
+          Device draft protection is unavailable. Confirm the set saves before leaving.
+        </div>
+      )}
       {saving && !completed && (
         <div className={styles.autosaveStatus}>AUTOSAVING…</div>
       )}
@@ -3021,7 +3235,7 @@ export function WorkoutScreen() {
 
                       return (
                         <SetLoggerRow
-                          key={`${set_number}:${load_prefill.source}:${load_prefill.load_kg ?? 'blank'}`}
+                          key={`${exercise.id}:${set_number}`}
                           exercise={exercise}
                           set_number={set_number}
                           planned_set={planned_set}

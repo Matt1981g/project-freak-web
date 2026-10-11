@@ -254,3 +254,21 @@
     font-size: 11px;
   }
 }
+
+.draftRecoveryActions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.draftRecoveryActions button {
+  min-height: 44px;
+  flex: 1 1 125px;
+  border-radius: 8px;
+  border: 1px solid var(--pf-border);
+  background: var(--pf-panel-raised);
+  color: var(--pf-text-strong);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+}

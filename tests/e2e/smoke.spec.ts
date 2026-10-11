@@ -322,8 +322,53 @@ test('live workout survives the critical set-to-finish lifecycle', async ({ page
   await expect(page.getByText('E2E Workout', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: /E2E Curl/ }).click()
+  // Simulate a mobile PWA interruption during the 300ms debounce window.
+  // Either the synchronous journal or an already completed Dexie save must
+  // preserve this last input, without creating a duplicate set record.
+  await page.locator('#load-e2e-sx-1').fill('37')
+  await page.reload()
+  await page.getByRole('button', { name: /E2E Curl/ }).click()
+  await expect(page.locator('#load-e2e-sx-1')).toHaveValue('37')
+
   await page.locator('#load-e2e-sx-1').fill('40')
   await page.locator('#reps-e2e-sx-1').fill('10')
+  // Wait until the latest local save is durable, then inject an older draft.
+  await expect.poll(async () => page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('project-freak')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    const value = await new Promise<number | null>((resolve, reject) => {
+      const tx = db.transaction('sets', 'readonly')
+      const req = tx.objectStore('sets').getAll()
+      req.onsuccess = () => resolve(
+        (req.result as Array<{ session_exercise_id: string; load_kg: number | null; completed_reps: number | null }>)
+          .find((row) => row.session_exercise_id === 'e2e-sx' &&
+            row.load_kg === 40 && row.completed_reps === 10)?.load_kg ?? null,
+      )
+      req.onerror = () => reject(req.error)
+    })
+    db.close()
+    return value
+  })).toBe(40)
+
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'project-freak:workout-draft:v1:e2e-session:e2e-sx:1',
+      JSON.stringify({
+        version: 1, session_id: 'e2e-session', exercise_id: 'e2e-sx',
+        set_number: 1, base_revision: -1, edit_sequence: 99,
+        changed_at: Date.now(), load_kg: 999, completed_reps: 99,
+        rpe: 10, failed_next_rep: false, components: [],
+      }),
+    )
+  })
+  await page.reload()
+  await page.getByRole('button', { name: /E2E Curl/ }).click()
+  await expect(page.getByRole('button', { name: 'RESTORE DRAFT' })).toBeVisible()
+  await page.getByRole('button', { name: 'KEEP SAVED SET' }).click()
+  await expect(page.locator('#load-e2e-sx-1')).toHaveValue('40')
   await page.getByRole('button', { name: 'COMPLETE SET' }).click()
 
   await expect(page.getByRole('button', { name: 'COMPLETE EXERCISE' })).toBeVisible()

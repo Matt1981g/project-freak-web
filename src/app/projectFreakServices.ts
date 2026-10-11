@@ -4,6 +4,7 @@ import { PROJECT_FREAK_DB_NAME } from '../data/db/schema'
 import { with_dataset_operation_lock } from '../application/sync/datasetOperationLock'
 import { projectFreakAppAccess } from '../application/sync/datasetAppAccess'
 import { request_auto_sync } from '../application/sync/autoSyncEvents'
+import { with_atomic_workout_set_save } from '../application/workout/atomicSetSave'
 import { is_dangerous_feedback_deletion } from '../application/sync/syncSafetyGate'
 import { quarantine_feedback_reconciliation_outbox } from '../application/sync/quarantineReconciliationOutbox'
 import { load_local_conflict_diagnostics } from '../application/sync/conflictDiagnostics'
@@ -1318,10 +1319,17 @@ export async function save_live_training_set(input: {
   complete: boolean
   components?: Parameters<typeof save_training_set>[0]['components']
 }) {
-  return save_training_set(input, repositories.sessions, {
-    device_id: await current_device_id(),
-    now_iso: new Date().toISOString(),
-  })
+  const device_id = await current_device_id()
+  const now_iso = new Date().toISOString()
+  // Set, advanced components, exercise start marker, audits and cloud outbox
+  // must commit as ONE Dexie transaction. A suspended iPhone cannot leave
+  // completed reps without their drop/rest-pause components.
+  return with_atomic_workout_set_save(
+    projectFreakDb,
+    () => save_training_set(input, repositories.sessions, {
+      device_id, now_iso,
+    }),
+  )
 }
 
 export async function discard_live_workout(

@@ -6,6 +6,15 @@ import {
   save_live_recovery,
 } from '../../app/projectFreakServices'
 import styles from './PostWorkoutFeedbackPanel.module.css'
+import { track_workout_write } from '../../application/workout/workoutDraftJournal'
+import {
+  clear_workout_form_draft,
+  form_draft_is_current,
+  read_workout_form_draft,
+  workout_form_key,
+  write_workout_form_draft,
+  type WorkoutFormDraft,
+} from '../../application/workout/workoutFormJournal'
 
 type FeedbackKey =
   | 'session_quality'
@@ -107,8 +116,20 @@ function FeedbackSlider(props: {
 
 export function PostWorkoutFeedbackPanel() {
   const { completed_session_id } = useParams()
+  const draft_key = completed_session_id
+    ? workout_form_key('recovery', completed_session_id) : null
+  const [initial_draft] = useState(() =>
+    draft_key ? read_workout_form_draft<FeedbackForm>(draft_key) : null,
+  )
   const [status, setStatus] = useState<'in_progress' | 'completed' | 'abandoned' | null>(null)
   const [form, setForm] = useState<FeedbackForm>(EMPTY_FORM)
+  const form_ref = useRef<FeedbackForm>(EMPTY_FORM)
+  const saved_revision_ref = useRef(0)
+  const edit_sequence_ref = useRef(initial_draft?.edit_sequence ?? 0)
+  const save_chain_ref = useRef<Promise<void>>(Promise.resolve())
+  const [recoverable_draft, setRecoverableDraft] =
+    useState<WorkoutFormDraft<FeedbackForm> | null>(null)
+  const [draft_failed, setDraftFailed] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -141,15 +162,26 @@ export function PostWorkoutFeedbackPanel() {
         if (!workout || initialised.current) return
 
         const readiness = workout.readiness
-        setForm({
+        const saved_form: FeedbackForm = {
           session_quality: readiness?.session_quality ?? null,
           session_fatigue: readiness?.session_fatigue ?? null,
           energy_stability: readiness?.energy_stability ?? null,
           breathlessness: readiness?.breathlessness ?? null,
           coach_note: readiness?.coach_note ?? '',
           post_workout_intake: readiness?.post_workout_intake ?? '',
-        })
-        setSaved(
+        }
+        saved_revision_ref.current = readiness?.revision ?? 0
+        const resume = form_draft_is_current(
+          initial_draft, 'recovery', completed_session_id,
+          saved_revision_ref.current,
+        )
+        const restored = resume && initial_draft
+          ? initial_draft.form : saved_form
+        form_ref.current = restored
+        setForm(restored)
+        setDirty(Boolean(resume))
+        setRecoverableDraft(initial_draft && !resume ? initial_draft : null)
+        setSaved(!resume &&
           Boolean(
             readiness &&
               (readiness.session_quality != null ||
@@ -176,47 +208,61 @@ export function PostWorkoutFeedbackPanel() {
     }
   }, [completed_session_id])
 
-  function update<K extends keyof FeedbackForm>(
-    key: K,
-    value: FeedbackForm[K],
-  ) {
-    setForm((current) => ({ ...current, [key]: value }))
+  function write_form(next: FeedbackForm) {
+    form_ref.current = next
+    setForm(next)
+    const sequence = ++edit_sequence_ref.current
+    if (draft_key && completed_session_id) {
+      setDraftFailed(!write_workout_form_draft(draft_key, {
+        version: 1, kind: 'recovery', session_id: completed_session_id,
+        base_revision: saved_revision_ref.current,
+        edit_sequence: sequence, changed_at: 0, form: next,
+      }))
+    }
     setDirty(true)
     setSaved(false)
   }
 
+  function update<K extends keyof FeedbackForm>(
+    key: K, value: FeedbackForm[K],
+  ) {
+    write_form({ ...form_ref.current, [key]: value })
+  }
+
   useEffect(() => {
     if (!dirty || !completed_session_id || status !== 'completed') return
-
+    const sequence = edit_sequence_ref.current
+    const snapshot = form
     const timer = window.setTimeout(() => {
       setSaving(true)
       setError(null)
-
-      void save_live_recovery({
-        completed_session_id,
-        session_quality: form.session_quality,
-        session_fatigue: form.session_fatigue,
-        energy_stability: form.energy_stability,
-        breathlessness: form.breathlessness,
-        coach_note: form.coach_note || null,
-        post_workout_intake: form.post_workout_intake || null,
-      })
-        .then(() => {
-          setDirty(false)
-          setSaved(true)
+      save_chain_ref.current = save_chain_ref.current
+        .then(() => track_workout_write(save_live_recovery({
+          completed_session_id,
+          session_quality: snapshot.session_quality,
+          session_fatigue: snapshot.session_fatigue,
+          energy_stability: snapshot.energy_stability,
+          breathlessness: snapshot.breathlessness,
+          coach_note: snapshot.coach_note || null,
+          post_workout_intake: snapshot.post_workout_intake || null,
+        })))
+        .then((saved) => {
+          saved_revision_ref.current = saved.revision
+          if (draft_key) clear_workout_form_draft(draft_key, sequence)
+          if (sequence === edit_sequence_ref.current) {
+            setDirty(false)
+            setSaved(true)
+          }
         })
         .catch((cause) => {
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : 'Unable to save post-workout feedback.',
-          )
+          setError(cause instanceof Error ? cause.message : 'Unable to save post-workout feedback.')
         })
-        .finally(() => setSaving(false))
+        .finally(() => {
+          if (sequence === edit_sequence_ref.current) setSaving(false)
+        })
     }, 400)
-
     return () => window.clearTimeout(timer)
-  }, [completed_session_id, dirty, form, status])
+  }, [completed_session_id, dirty, form, status, draft_key])
 
   if (status !== 'completed') return null
 
@@ -239,6 +285,27 @@ export function PostWorkoutFeedbackPanel() {
         </small>
       </div>
 
+      {recoverable_draft && (
+        <div className={styles.error} role="status">
+          An interrupted feedback draft is available, but the saved record has
+          since changed. Choose which version to use.
+          <div className={styles.draftRecoveryActions}>
+            <button type="button" onClick={() => {
+              write_form(recoverable_draft.form)
+              setRecoverableDraft(null)
+            }}>RESTORE DRAFT</button>
+            <button type="button" onClick={() => {
+              if (draft_key) clear_workout_form_draft(draft_key)
+              setRecoverableDraft(null)
+            }}>KEEP SAVED</button>
+          </div>
+        </div>
+      )}
+      {draft_failed && (
+        <div className={styles.error} role="alert">
+          Emergency feedback storage is unavailable. Confirm SAVED before closing.
+        </div>
+      )}
       <div className={styles.sliderGrid}>
         <FeedbackSlider
           feedbackKey="session_quality"
