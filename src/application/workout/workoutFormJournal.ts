@@ -47,7 +47,7 @@ export function read_workout_form_draft<T>(
 export function form_draft_is_current<T>(
   draft: WorkoutFormDraft<T> | null,
   kind: 'readiness' | 'recovery', session_id: string, revision: number,
-): draft is WorkoutFormDraft<T> {
+): boolean {
   return Boolean(
     draft && draft.kind === kind && draft.session_id === session_id &&
     draft.base_revision === revision,
