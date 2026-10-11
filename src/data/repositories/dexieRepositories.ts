@@ -1,3 +1,4 @@
+import { is_sendable_mutation } from '../../application/sync/quarantineReconciliationOutbox'
 import { create_uuid } from '../../domain/ids/uuid'
 import type { Table } from 'dexie'
 import type {
@@ -200,7 +201,7 @@ export class DexieSyncRepository implements SyncRepository {
   async list_pending(limit: number): Promise<SyncOutbox[]> {
     const entries = await this.db.sync_outbox
       .orderBy('created_at')
-      .filter((entry) => entry.synced_at === null)
+      .filter(is_sendable_mutation)
       .limit(limit)
       .toArray()
 
@@ -216,7 +217,7 @@ export class DexieSyncRepository implements SyncRepository {
     await this.db.transaction('rw', this.db.sync_outbox, async () => {
       for (const id of outbox_ids) {
         const entry = await this.db.sync_outbox.get(id)
-        if (!entry || entry.synced_at !== null) continue
+        if (!entry || !is_sendable_mutation(entry)) continue
 
         await this.db.sync_outbox.put({
           ...entry,
@@ -236,7 +237,7 @@ export class DexieSyncRepository implements SyncRepository {
     await this.db.transaction('rw', this.db.sync_outbox, async () => {
       for (const id of outbox_ids) {
         const entry = await this.db.sync_outbox.get(id)
-        if (!entry) continue
+        if (!entry || entry.quarantined_at != null) continue
 
         await this.db.sync_outbox.put({
           ...entry,
@@ -248,7 +249,7 @@ export class DexieSyncRepository implements SyncRepository {
 
   async count_pending(): Promise<number> {
     return this.db.sync_outbox
-      .filter((entry) => entry.synced_at === null)
+      .filter(is_sendable_mutation)
       .count()
   }
 
@@ -266,7 +267,7 @@ export class DexieSyncRepository implements SyncRepository {
     const pending = await this.db.sync_outbox
       .where('[entity_type+entity_id]')
       .equals([entity_type, entity_id])
-      .filter((entry) => entry.synced_at === null)
+      .filter(is_sendable_mutation)
       .first()
 
     return pending !== undefined
