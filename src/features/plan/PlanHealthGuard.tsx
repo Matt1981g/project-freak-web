@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   load_active_exercise_options,
   load_active_plan_programmes,
+  load_plan_health_actuals,
   load_programme_blocks,
   load_programme_sessions,
   load_programmed_session_detail,
@@ -41,6 +42,7 @@ export function PlanHealthGuard() {
         list_blocks: load_programme_blocks,
         list_sessions: load_programme_sessions,
         list_active_plan: load_active_plan_programmes,
+        list_actuals: load_plan_health_actuals,
         get_session_detail: load_programmed_session_detail,
         list_active_exercises: load_active_exercise_options,
       })
