@@ -330,9 +330,8 @@ export class DexieSyncRepository implements SyncRepository {
   ): Promise<RemoteApplyOutcome> {
     const table = sync_table_for_entity_type(this.db, entity_type)
 
-    // The coordinator must not read a local version and write later: another
-    // tab may edit a workout in that interval. Lock the entity table and
-    // outbox in the same transaction used for the final remote write.
+    // Every writer shares this single transaction boundary. A remote pull
+    // may not overwrite an edit made in another tab after an earlier read.
     return this.db.transaction(
       'rw',
       table,
@@ -340,15 +339,42 @@ export class DexieSyncRepository implements SyncRepository {
       this.db.audit_events,
       async () => {
         const local = await table.get(entity.id)
-        const unsynced = await this.db.sync_outbox
-          .where('[entity_type+entity_id]')
-          .equals([entity_type, entity.id])
-          .filter((entry) => entry.synced_at === null)
-          .first()
+        const pending_for = async (entity_id: string) =>
+          this.db.sync_outbox
+            .where('[entity_type+entity_id]')
+            .equals([entity_type, entity_id])
+            .filter((entry) => entry.synced_at === null)
+            .first()
+
+        // Save the full competing remote snapshot with local evidence before
+        // reporting a conflict. Never advance a sync cursor over an unrecorded
+        // competing edit. Repeated pulls must not duplicate the same evidence.
+        const retain_conflict = async (reason: string): Promise<'retained_conflict'> => {
+          const existing = await this.db.audit_events
+            .where('[entity_type+entity_id]')
+            .equals([entity_type, entity.id])
+            .filter((entry) =>
+              entry.action === 'sync_conflict' &&
+              canonicalise_sync_json(entry.after_json) ===
+                canonicalise_sync_json(entity),
+            )
+            .first()
+          if (!existing) {
+            const audit = create_audit_event(
+              entity_type,
+              entity,
+              local ?? null,
+              'sync_conflict',
+            )
+            audit.reason = reason
+            audit.created_at = applied_at
+            await this.db.audit_events.add(audit)
+          }
+          return 'retained_conflict'
+        }
 
         if (local && local.revision > entity.revision) {
-          // This remote change has not been proved identical to local data.
-          // Do not overwrite or silently treat it as a verified duplicate.
+          await retain_conflict('Stale remote revision; local entity preserved')
           return 'stale'
         }
 
@@ -356,18 +382,35 @@ export class DexieSyncRepository implements SyncRepository {
           if (canonicalise_sync_json(local) === canonicalise_sync_json(entity)) {
             return 'verified_duplicate'
           }
-          return 'retained_conflict'
+          return retain_conflict('Equal revision with divergent content')
         }
 
-        if (unsynced) {
-          // Includes a missing local record with a pending deletion. That
-          // tombstone must not be silently undone by a delayed cloud pull.
-          return 'retained_conflict'
+        if (await pending_for(entity.id)) {
+          // A missing entity can still have a pending deletion. Do not
+          // resurrect a local tombstone while its outbox is unsent.
+          return retain_conflict('Local mutation pending for remote entity')
         }
 
-        // apply_remote_entity's nested Dexie transaction participates in
-        // this enclosing lock, including its duplicate natural-key handling,
-        // audit record and any resulting outbox mutations.
+        const natural_key = one_to_one_natural_key(entity_type, entity)
+        if (natural_key) {
+          const logical = await table
+            .where(natural_key.index_name)
+            .equals(natural_key.value)
+            .first()
+
+          if (
+            logical &&
+            logical.id !== entity.id &&
+            await pending_for(logical.id)
+          ) {
+            // Reconciliation must not delete unsent updates for another ID
+            // sharing the unique readiness/metrics logical key.
+            return retain_conflict('A one-to-one logical entity has a pending local edit')
+          }
+        }
+
+        // Nested Dexie transaction uses the parent lock for the actual
+        // record, audit and any natural-key reconciliation outbox entries.
         await this.apply_remote_entity(entity_type, entity, applied_at)
         return 'applied'
       },
