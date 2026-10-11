@@ -273,6 +273,7 @@ describe('weekly training analysis', () => {
       rpe: { value: null, samples: 0 },
       pump: { value: null, samples: 0 },
       form: { value: null, samples: 0 },
+      enjoyment: { value: null, samples: 0 },
     })
 
     expect(weeks[1]).toEqual({
@@ -285,6 +286,7 @@ describe('weekly training analysis', () => {
       rpe: { value: 8.5, samples: 2 },
       pump: { value: 4.5, samples: 2 },
       form: { value: 5, samples: 1 },
+      enjoyment: { value: null, samples: 0 },
     })
   })
 })
