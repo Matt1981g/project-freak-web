@@ -2357,7 +2357,10 @@ export function WorkoutScreen() {
       next_rep_target: target_planned_set
         ? rep_target(target_planned_set.target_rep_min, target_planned_set.target_rep_max)
         : null,
-      next_target_load_kg: target_planned_set?.target_load_kg ?? null,
+      next_target_load_kg: target_planned_set?.target_load_kg ??
+        [...(target_entry?.sets ?? [])]
+          .filter(is_training_set_completed)
+          .sort((left, right) => right.set_number - left.set_number)[0]?.load_kg ?? null,
     })
   }
 
