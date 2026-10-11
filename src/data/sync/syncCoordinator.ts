@@ -314,21 +314,30 @@ export async function run_pull_sync(
       } else if (outcome === 'verified_duplicate') {
         skipped += 1
       } else {
-        // A stale or divergent snapshot is not proof of redundancy. Do not
-        // advance the pull cursor until a recoverable outcome is persisted.
+        // This outcome is returned ONLY after the Dexie repository has
+        // durably recorded the competing snapshot in the local audit store.
+        // A change-stream batch can legitimately contain older revisions
+        // before its latest version. Halting on the first old revision causes
+        // permanent starvation even after the latest edit was synchronised.
         conflicts += 1
-        break
       }
     }
 
     if (conflicts > 0) {
       const error =
-        'Remote sync conflict detected. Local unsynced data was preserved and the pull cursor was not advanced.'
+        `${conflicts} remote change(s) quarantined in the local conflict audit. ` +
+        'Local work was preserved; review conflicts before resolving. ' +
+        'The pull cursor advanced past the durably recorded changes.'
 
+      // Advance ONLY after the complete response was processed and every
+      // divergent payload was retained. A thrown/failed audit write instead
+      // reaches the catch below and leaves the prior cursor untouched.
       await repository.put_state({
         ...previous_state,
         remote_user_id:
           response.remote_user_id ?? previous_state.remote_user_id,
+        pull_cursor: response.next_cursor,
+        last_pull_at: options.now_iso,
         status: 'error',
         error,
       })
@@ -339,7 +348,7 @@ export async function run_pull_sync(
         applied,
         skipped,
         conflicts,
-        cursor: previous_state.pull_cursor,
+        cursor: response.next_cursor,
         status: 'error',
         error,
       }
