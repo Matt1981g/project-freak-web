@@ -123,7 +123,6 @@ class MemorySyncRepository implements SyncRepository {
   async apply_remote_entity_checked(
     entity_type: string,
     entity: MutableEntity,
-    applied_at: string,
   ) {
     const local = await this.get_local_entity(entity_type, entity.id)
     if (local && local.revision > entity.revision) return 'stale' as const
