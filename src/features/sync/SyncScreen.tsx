@@ -4,6 +4,7 @@ import {
   clear_cloud_sync_configuration,
   configure_cloud_sync,
   load_cloud_sync_status,
+  link_cloud_sync_dataset,
   run_full_cloud_sync,
   sign_in_cloud_sync,
   sign_out_cloud_sync,
@@ -37,6 +38,7 @@ export function SyncScreen() {
   const can_sync = Boolean(
     status?.configured &&
       status?.signed_in &&
+      status.dataset_binding === 'matched' &&
       backendHealth?.contract_version === '1.0.0',
   )
 
@@ -58,6 +60,8 @@ export function SyncScreen() {
   const state_label = useMemo(() => {
     if (!status?.configured) return 'NOT CONFIGURED'
     if (!status.signed_in) return 'SIGNED OUT'
+    if (status.dataset_binding === 'unbound') return 'LINK REQUIRED'
+    if (status.dataset_binding === 'mismatch') return 'ACCOUNT MISMATCH'
     return (status.sync_state?.status ?? 'idle').toUpperCase()
   }, [status])
 
@@ -130,7 +134,8 @@ export function SyncScreen() {
         <div>
           <span>AUTO SYNC</span>
           <strong>
-            {status?.configured && status?.signed_in ? 'ON' : 'WAITING'}
+            {status?.configured && status?.signed_in &&
+            status.dataset_binding === 'matched' ? 'ON' : 'WAITING'}
           </strong>
         </div>
       </section>
@@ -180,7 +185,7 @@ export function SyncScreen() {
             disabled={busy !== null}
             onClick={() =>
               void run_action('config', async () => {
-                configure_cloud_sync(projectUrl, anonKey)
+                await configure_cloud_sync(projectUrl, anonKey)
                 setBackendHealth(null)
                 setAnonKey('')
                 setMessage('Supabase configuration saved on this device.')
@@ -254,7 +259,7 @@ export function SyncScreen() {
                 await sign_in_cloud_sync(email, password)
                 setBackendHealth(null)
                 setPassword('')
-                setMessage('Signed in. Check the backend before syncing.')
+                setMessage('Signed in. Check the backend and dataset ownership before syncing.')
               })
             }
           >
@@ -311,6 +316,59 @@ export function SyncScreen() {
           </button>
         </div>
       </section>
+
+      {status?.signed_in && status.dataset_binding === 'unbound' && (
+        <section className={styles.panel}>
+          <div className={styles.panelHeading}>
+            <div>
+              <span>DATA OWNERSHIP</span>
+              <h2>Confirm before your first cloud sync</h2>
+            </div>
+            <strong>UPLOAD PAUSED</strong>
+          </div>
+          <p>
+            This browser contains a dataset that has not yet been linked to a
+            Supabase identity. Check the account and project below. Linking is
+            permanent for this local dataset; it does not delete workouts or
+            upload them by itself. Other accounts require a separate browser
+            profile.
+          </p>
+          <p>
+            Account: <strong>{status.email ?? status.user_id ?? 'Unknown'}</strong>
+            {' · '}Project: <strong>{status.project_url ?? 'Unknown'}</strong>
+          </p>
+          <div className={styles.actions}>
+            <button
+              className={styles.primary}
+              type="button"
+              disabled={busy !== null || !backendHealth ||
+                backendHealth.authenticated_user_id !== status.user_id}
+              onClick={() => {
+                if (!window.confirm(
+                  `Link this browser's existing training data to ${status.email ?? status.user_id} at ${status.project_url}? This cannot be reassigned to another account. Continue?`,
+                )) return
+                void run_action('link', async () => {
+                  await link_cloud_sync_dataset()
+                  setMessage('Dataset linked. Check backend and sync when ready.')
+                })
+              }}
+            >
+              {busy === 'link' ? 'LINKING…' : 'LINK THIS DATASET'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {status?.dataset_binding === 'mismatch' && (
+        <section className={styles.panel}>
+          <h2>Dataset belongs to another cloud account or project</h2>
+          <p>
+            Synchronisation is blocked. Sign in to the original account at
+            { ' ' }{status.dataset_owner_project_url ?? 'the original project'},
+            or open a separate browser profile. No local records were deleted.
+          </p>
+        </section>
+      )}
 
       <section className={styles.syncPanel}>
         <div>
