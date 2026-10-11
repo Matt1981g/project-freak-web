@@ -104,6 +104,7 @@ export async function build_long_term_trends(
       rpe: weighted_average(selected_weeks.map((week) => week.rpe)),
       pump: weighted_average(selected_weeks.map((week) => week.pump)),
       form: weighted_average(selected_weeks.map((week) => week.form)),
+      enjoyment: weighted_average(selected_weeks.map((week) => week.enjoyment ?? { value: null, samples: 0 })),
       muscles: aggregate_muscles(selected_muscles, priorities),
     }
   })
