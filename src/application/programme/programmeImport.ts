@@ -459,7 +459,15 @@ export async function preview_programme_import(
       source_id: '',
       document_hash: '',
       document: null,
-      issues: [issue('error', 'programme_too_large', '
+      issues: [issue('error', 'programme_too_large', '$',
+        'Programme JSON exceeds the 2 MiB import limit.')],
+      exercise_resolutions: [],
+      counts: { sessions: 0, exercises: 0, sets: 0, components: 0 },
+      can_commit: false,
+    }
+  }
+
+  let raw: unknown
 
   try {
     raw = JSON.parse(json_text)
