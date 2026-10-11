@@ -930,6 +930,10 @@ export function load_programme_blocks() {
   return repositories.programme.list_blocks()
 }
 
+export function load_plan_health_actuals() {
+  return repositories.sessions.list_sessions_descending()
+}
+
 export async function load_active_plan_programmes() {
   const [blocks, actuals, priority_setting, mapping_setting] = await Promise.all([
     repositories.programme.list_blocks(),
