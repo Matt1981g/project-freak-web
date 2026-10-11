@@ -799,31 +799,6 @@ function CompletedSetCorrection(props: {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Preserve the previous-set load autofill when a locked set becomes
-  // available. Stable row keys must not freeze a never-edited prescription.
-  useEffect(() => {
-    let mounted = true
-    queueMicrotask(() => {
-      if (!mounted || user_edited_ref.current ||
-          saved_set_ref.current || locked) return
-      load_ref.current = initial_load_kg
-      setLoad(initial_load_kg)
-      setLoadEntry(load_input_value(exact_load_for_entry(initial_load_kg, load_unit)))
-      const fresh_components = build_component_drafts(
-        planned_set, actual_components, initial_load_kg,
-      )
-      components_ref.current = fresh_components
-      setComponents(fresh_components)
-      setComponentLoadEntries(Object.fromEntries(
-        fresh_components.map((component) => [
-          component_load_key(component),
-          load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
-        ]),
-      ))
-    })
-    return () => { mounted = false }
-  }, [initial_load_kg, locked, load_unit, planned_set, actual_components])
-
   useEffect(() => {
     if (previous_load_unit_ref.current === load_unit) return
     previous_load_unit_ref.current = load_unit
@@ -1107,6 +1082,31 @@ function SetLoggerRow(props: {
       }
     }
   }, [])
+
+  // Preserve the previous-set load autofill when a locked set becomes
+  // available. Stable row keys must not freeze a never-edited prescription.
+  useEffect(() => {
+    let mounted = true
+    queueMicrotask(() => {
+      if (!mounted || user_edited_ref.current ||
+          saved_set_ref.current || locked) return
+      load_ref.current = initial_load_kg
+      setLoad(initial_load_kg)
+      setLoadEntry(load_input_value(exact_load_for_entry(initial_load_kg, load_unit)))
+      const fresh_components = build_component_drafts(
+        planned_set, actual_components, initial_load_kg,
+      )
+      components_ref.current = fresh_components
+      setComponents(fresh_components)
+      setComponentLoadEntries(Object.fromEntries(
+        fresh_components.map((component) => [
+          component_load_key(component),
+          load_input_value(exact_load_for_entry(component.load_kg, load_unit)),
+        ]),
+      ))
+    })
+    return () => { mounted = false }
+  }, [initial_load_kg, locked, load_unit, planned_set, actual_components])
 
   useEffect(() => {
     if (previous_load_unit_ref.current === load_unit) return
