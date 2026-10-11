@@ -34,6 +34,13 @@
 - **Still outstanding:** workout logging and all arbitrary local record writes do not yet participate in the maintenance lock. Other tabs might therefore edit the local database during restoration. A whole-app read-only maintenance mode and/or cross-tab active-editor detection is required before describing destructive restoration as safe under concurrent workout logging.
 - Database snapshots remain read-transaction-consistent independently of this lock. No changes to the production Supabase project are made by these tests.
 
+## App-lifetime maintenance protection — Package 3 incremental implementation
+
+- Every loaded PF tab obtains a **shared app-lifetime Web Lock** before mounting the application routes. It stays held while workout logging, history editing, programme import and other UI operations remain available. Routine cloud sync has a **different lock**, so early-morning workouts are not blocked by unrelated synchronisation.
+- A destructive **Restore Backup** first obtains the cloud-operation mutex, pauses and makes the current app UI inert, releases its own shared lease, and attempts a **non-queuing exclusive app lease**. Any other open PF tab holding a shared lease makes the restore fail **before replacement or rollback starts**. Other newly opened PF tabs wait to load their routes until the restore releases the exclusive lease. The original UI is unpaused on both success and failure.
+- On browsers without Web Locks, normal offline logging remains available, but destructive restore refuses rather than risking mixed data. This does not alter the backup JSON format, IndexedDB schema or cloud RPC contract.
+- **Remaining acceptance work:** pending work launched asynchronously before the UI is paused must be audited (especially programme import and background write tasks); not every bare repository write currently acquires a maintenance lease. Two-device iPhone/desktop testing and offline re-entry remain required before a production release. Account visibility after sign-out also remains open.
+
 ## Graph, drafts and coaching — intended invariants
 
 - Set completion, workout finalisation and programme replacement commit related entities, revisions, audit and outbox as one graph operation. Idempotent retries never create duplicates.
