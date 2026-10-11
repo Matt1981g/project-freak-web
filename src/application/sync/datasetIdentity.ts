@@ -152,7 +152,7 @@ export async function link_dataset_cloud_owner(
     await db.settings.add({
       key: DATASET_OWNER_SETTING_KEY,
       scope: 'device',
-      value_json: owner,
+      value_json: { ...owner },
       updated_at: linked_at,
       device_id: null,
     })
