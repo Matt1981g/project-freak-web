@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clear_workout_draft,
   read_workout_draft,
+  rebase_newer_workout_draft,
   should_recover_workout_draft,
   track_workout_write,
   workout_draft_key,
@@ -55,6 +56,31 @@ describe('uncommitted workout edit journal', () => {
     expect(read_workout_draft(KEY)?.completed_reps).toBe(13)
     clear_workout_draft(KEY, 2)
     expect(read_workout_draft(KEY)).toBeNull()
+  })
+
+  it('rebases a newer emergency edit when an earlier set save commits', () => {
+    write_workout_draft(KEY, INITIAL)
+    write_workout_draft(KEY, { ...INITIAL, edit_sequence: 2, completed_reps: 14 })
+    expect(rebase_newer_workout_draft(KEY, 1, 4, 5)).toBe(true)
+    clear_workout_draft(KEY, 1)
+    expect(read_workout_draft(KEY)).toMatchObject({
+      edit_sequence: 2, completed_reps: 14, base_revision: 5,
+    })
+    expect(should_recover_workout_draft(
+      read_workout_draft(KEY), 'session-a', 'exercise-a', 2, 5, false,
+    )).toBe(true)
+  })
+
+  it('never rebases another set or an unchanged saved draft', () => {
+    write_workout_draft(KEY, INITIAL)
+    expect(rebase_newer_workout_draft(KEY, 1, 4, 5)).toBe(false)
+    expect(rebase_newer_workout_draft(KEY, 0, 3, 5)).toBe(false)
+    expect(rebase_newer_workout_draft(KEY, 0, 4, 3)).toBe(false)
+    write_workout_draft(KEY, { ...INITIAL, edit_sequence: 3 })
+    expect(rebase_newer_workout_draft(
+      workout_draft_key('other', 'exercise-a', 2), 1, 4, 5,
+    )).toBe(false)
+    expect(read_workout_draft(KEY)?.base_revision).toBe(4)
   })
 
   it('prevents app update during a draft or an in-flight save', async () => {
