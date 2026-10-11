@@ -12,6 +12,7 @@ import {
   build_full_backup,
   preview_backup_json,
   restore_validated_backup,
+  sha256_text,
   verify_database_against_backup,
 } from './databaseBackup'
 
@@ -223,11 +224,22 @@ describe('isolated-profile recovery acceptance (synthetic records only)', () => 
       completed_session_id: 'missing-parent-session',
     }
 
-    const preview = await preview_backup_json(JSON.stringify(backup)).catch(
-      () => null,
+    // Attacker/bug recomputes a valid checksum for a structurally valid but
+    // relationally broken snapshot. The restore must still fail and roll back.
+    backup.checksums.tables.sets = await sha256_text(
+      JSON.stringify(backup.database.tables.sets),
     )
-    expect(preview).toBeNull()
+    const preview = await preview_backup_json(JSON.stringify(backup))
+    await expect(
+      restore_validated_backup(recovered, preview, {
+        now_iso: NOW,
+        source_device_id: 'isolated-browser-fixture',
+      }),
+    ).rejects.toThrow('relational integrity validation')
+
     expect(await recovered.settings.get('separate-profile-original')).toBeDefined()
+    expect(await recovered.completed_sessions.count()).toBe(0)
+    expect(await recovered.sets.count()).toBe(0)
     expect(await source.sets.get(set.id)).toEqual(set)
   })
 })
