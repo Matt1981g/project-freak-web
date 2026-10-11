@@ -29,7 +29,9 @@ async function verify() {
   if (
     manifest.format !== 'project-freak-release' ||
     manifest.display_version !== expected ||
-    !/^[0-9]+\\.[0-9]+\\.[0-9]+$/.test(manifest.version)
+    (typeof manifest.version !== 'string' ||
+      manifest.version.split('.').length !== 3 ||
+      manifest.version.split('.').some((part) => !/^[0-9]+$/.test(part)))
   ) {
     throw new Error(`Release manifest version/format mismatch (wanted ${expected})`)
   }
