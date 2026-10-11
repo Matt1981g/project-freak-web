@@ -1318,10 +1318,24 @@ export async function save_live_training_set(input: {
   complete: boolean
   components?: Parameters<typeof save_training_set>[0]['components']
 }) {
-  return save_training_set(input, repositories.sessions, {
-    device_id: await current_device_id(),
-    now_iso: new Date().toISOString(),
-  })
+  const device_id = await current_device_id()
+  const now_iso = new Date().toISOString()
+  // Set, advanced components, exercise start marker, audits and cloud outbox
+  // must commit as ONE Dexie transaction. A suspended iPhone cannot leave
+  // completed reps without their drop/rest-pause components.
+  return projectFreakDb.transaction(
+    'rw',
+    [
+      projectFreakDb.sets,
+      projectFreakDb.set_components,
+      projectFreakDb.session_exercises,
+      projectFreakDb.audit_events,
+      projectFreakDb.sync_outbox,
+    ],
+    () => save_training_set(input, repositories.sessions, {
+      device_id, now_iso,
+    }),
+  )
 }
 
 export async function discard_live_workout(
