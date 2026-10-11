@@ -58,6 +58,33 @@ export function write_workout_draft(key: string, draft: WorkoutSetDraft): boolea
   }
 }
 
+/**
+ * An older queued set save may finish after a later keystroke was journalled.
+ * That newer draft still describes the same unfinished set, but its original
+ * base revision is now stale. Rebase ONLY when the committed earlier snapshot
+ * belongs to the same set and the newer draft has not changed identity.
+ */
+export function rebase_newer_workout_draft(
+  key: string,
+  saved_sequence: number,
+  previous_revision: number,
+  committed_revision: number,
+): boolean {
+  const current = read_workout_draft(key)
+  if (!current ||
+      current.edit_sequence <= saved_sequence ||
+      current.base_revision !== previous_revision ||
+      !Number.isSafeInteger(committed_revision) ||
+      committed_revision < previous_revision ||
+      key !== workout_draft_key(
+        current.session_id, current.exercise_id, current.set_number,
+      )) return false
+  return write_workout_draft(key, {
+    ...current,
+    base_revision: committed_revision,
+  })
+}
+
 export function clear_workout_draft(
   key: string, edit_sequence?: number,
 ): void {
