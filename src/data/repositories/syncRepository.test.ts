@@ -126,7 +126,7 @@ describe('DexieSyncRepository', () => {
     })
   })
 
-  it('reconciles duplicate exercise metrics that share one session exercise', async () => {
+  it('quarantines duplicate exercise metrics IDs without deleting or rewriting local scores', async () => {
     const local: ExerciseMetrics = {
       id: 'metrics-b',
       created_at: '2026-09-30T05:59:54.142Z',
@@ -155,30 +155,26 @@ describe('DexieSyncRepository', () => {
     }
 
     await db.exercise_metrics.add(local)
-    await repository.apply_remote_entity('exercise_metrics', remote, NOW)
+    await expect(
+      repository.apply_remote_entity_checked('exercise_metrics', remote, NOW),
+    ).resolves.toBe('retained_conflict')
 
-    const rows = await db.exercise_metrics.toArray()
-    expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({
-      id: 'metrics-a',
-      session_exercise_id: 'session-exercise-1',
-      updated_at: NOW,
-      revision: 4,
-      device_id: 'device-evening',
-      deleted_at: null,
+    expect(await db.exercise_metrics.toArray()).toEqual([local])
+    expect(await db.sync_outbox.count()).toBe(0)
+    const evidence = await db.audit_events.toArray()
+    expect(evidence).toHaveLength(1)
+    expect(evidence[0]).toMatchObject({
+      action: 'sync_conflict',
+      before_json: expect.objectContaining({ id: 'metrics-b', rpe: 1 }),
+      after_json: expect.objectContaining({ id: 'metrics-a' }),
     })
-
-    const pending = await db.sync_outbox
-      .filter((entry) => entry.synced_at === null)
-      .toArray()
-    expect(pending).toHaveLength(2)
-    expect(pending.map((entry) => [entry.entity_id, entry.operation]).sort()).toEqual([
-      ['metrics-a', 'upsert'],
-      ['metrics-b', 'delete'],
-    ])
+    await expect(
+      repository.apply_remote_entity('exercise_metrics', remote, NOW),
+    ).rejects.toThrow('One-to-one ID collision')
+    expect(await db.exercise_metrics.toArray()).toEqual([local])
   })
 
-  it('reconciles duplicate readiness records and preserves the newest logical content', async () => {
+  it('quarantines duplicate readiness IDs without deleting or rewriting local recovery', async () => {
     const local: ReadinessEntry = {
       id: 'readiness-a',
       created_at: '2026-09-30T06:00:07.416Z',
@@ -224,29 +220,59 @@ describe('DexieSyncRepository', () => {
     }
 
     await db.readiness_entries.add(local)
-    await repository.apply_remote_entity('readiness_entry', remote, NOW)
+    await expect(
+      repository.apply_remote_entity_checked('readiness_entry', remote, NOW),
+    ).resolves.toBe('retained_conflict')
 
-    const rows = await db.readiness_entries.toArray()
-    expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({
-      id: 'readiness-a',
-      completed_session_id: 'session-1',
-      updated_at: NOW,
-      revision: 38,
-      device_id: 'device-evening',
-      session_quality: 7,
-      session_fatigue: 8,
-      coach_note: 'newer coach note',
+    expect(await db.readiness_entries.toArray()).toEqual([local])
+    expect(await db.sync_outbox.count()).toBe(0)
+    const evidence = await db.audit_events.toArray()
+    expect(evidence).toHaveLength(1)
+    expect(evidence[0]).toMatchObject({
+      action: 'sync_conflict',
+      before_json: expect.objectContaining({ id: 'readiness-a', session_quality: 8 }),
+      after_json: expect.objectContaining({ id: 'readiness-b', session_quality: 7 }),
     })
+  })
 
-    const pending = await db.sync_outbox
-      .filter((entry) => entry.synced_at === null)
-      .toArray()
-    expect(pending).toHaveLength(2)
-    expect(pending.map((entry) => [entry.entity_id, entry.operation]).sort()).toEqual([
-      ['readiness-a', 'upsert'],
-      ['readiness-b', 'delete'],
-    ])
+  it('quarantines remote deletes of active exercise feedback, preserving recorded scores', async () => {
+    const active: ExerciseMetrics = {
+      id: 'metrics-same', created_at: NOW, updated_at: NOW,
+      deleted_at: null, revision: 2, device_id: 'pc', source_kind: 'user',
+      source_id: null, session_exercise_id: 'session-exercise-feedback',
+      rpe: 9, pump: 8, form: 10, where_felt_text: null,
+      where_felt_tags: [], legacy_tension: null, legacy_mmc: null, notes: null,
+    }
+    await db.exercise_metrics.add(active)
+    const remote = {
+      ...active,
+      deleted_at: '2026-10-11T12:23:44Z',
+      updated_at: '2026-10-11T12:23:44Z',
+      revision: 100,
+      device_id: 'phone',
+    }
+    expect(await repository.apply_remote_entity_checked('exercise_metrics', remote, NOW))
+      .toBe('retained_conflict')
+    expect(await db.exercise_metrics.get(active.id)).toEqual(active)
+    expect(await db.sync_outbox.count()).toBe(0)
+    expect((await db.audit_events.toArray())[0]).toMatchObject({
+      action: 'sync_conflict',
+      after_json: expect.objectContaining({ deleted_at: remote.deleted_at }),
+    })
+  })
+
+  it('does not materialise remote one-to-one tombstones when there is no local row', async () => {
+    const tombstone: ExerciseMetrics = {
+      id: 'metrics-orphan', created_at: NOW, updated_at: NOW,
+      deleted_at: NOW, revision: 50, device_id: 'other', source_kind: 'user',
+      source_id: null, session_exercise_id: 'session-exercise-one-to-one',
+      rpe: 8, pump: 7, form: 9, where_felt_text: null,
+      where_felt_tags: [], legacy_tension: null, legacy_mmc: null, notes: null,
+    }
+    expect(await repository.apply_remote_entity_checked('exercise_metrics', tombstone, NOW))
+      .toBe('retained_conflict')
+    expect(await db.exercise_metrics.count()).toBe(0)
+    expect((await db.audit_events.toArray())[0].action).toBe('sync_conflict')
   })
 
   it('detects pending local mutations for the same entity', async () => {

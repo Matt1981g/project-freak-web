@@ -181,57 +181,6 @@ function one_to_one_natural_key(
   return null
 }
 
-function freshest_entity(
-  left: MutableEntity,
-  right: MutableEntity,
-): MutableEntity {
-  const by_updated_at = left.updated_at.localeCompare(right.updated_at)
-  if (by_updated_at !== 0) {
-    return by_updated_at > 0 ? left : right
-  }
-
-  if (left.revision !== right.revision) {
-    return left.revision > right.revision ? left : right
-  }
-
-  return left.id.localeCompare(right.id) <= 0 ? left : right
-}
-
-function reconciled_one_to_one_entity(
-  left: MutableEntity,
-  right: MutableEntity,
-  applied_at: string,
-): {
-  canonical: MutableEntity
-  loser_tombstone: MutableEntity
-} {
-  const canonical_id =
-    left.id.localeCompare(right.id) <= 0 ? left.id : right.id
-  const freshest = freshest_entity(left, right)
-  const loser_source = left.id === canonical_id ? right : left
-  const created_at =
-    left.created_at.localeCompare(right.created_at) <= 0
-      ? left.created_at
-      : right.created_at
-  const revision = Math.max(left.revision, right.revision) + 1
-
-  return {
-    canonical: {
-      ...freshest,
-      id: canonical_id,
-      created_at,
-      updated_at: applied_at,
-      revision,
-    },
-    loser_tombstone: {
-      ...loser_source,
-      deleted_at: applied_at,
-      updated_at: applied_at,
-      revision: loser_source.revision + 1,
-    },
-  }
-}
-
 export class DexieSyncRepository implements SyncRepository {
   private readonly db: ProjectFreakDatabase
 
@@ -349,7 +298,10 @@ export class DexieSyncRepository implements SyncRepository {
         // Save the full competing remote snapshot with local evidence before
         // reporting a conflict. Never advance a sync cursor over an unrecorded
         // competing edit. Repeated pulls must not duplicate the same evidence.
-        const retain_conflict = async (reason: string): Promise<'retained_conflict'> => {
+        const retain_conflict = async (
+          reason: string,
+          existing_logical?: MutableEntity | null,
+        ): Promise<'retained_conflict'> => {
           const existing = await this.db.audit_events
             .where('[entity_type+entity_id]')
             .equals([entity_type, entity.id])
@@ -363,7 +315,7 @@ export class DexieSyncRepository implements SyncRepository {
             const audit = create_audit_event(
               entity_type,
               entity,
-              local ?? null,
+              local ?? existing_logical ?? null,
               'sync_conflict',
             )
             audit.reason = reason
@@ -398,19 +350,32 @@ export class DexieSyncRepository implements SyncRepository {
             .equals(natural_key.value)
             .first()
 
-          if (
-            logical &&
-            logical.id !== entity.id &&
-            await pending_for(logical.id)
-          ) {
-            // Reconciliation must not delete unsent updates for another ID
-            // sharing the unique readiness/metrics logical key.
-            return retain_conflict('A one-to-one logical entity has a pending local edit')
+          if (logical && logical.id !== entity.id) {
+            // Previously an automatic natural-key merge could generate a
+            // new canonical ID, tombstone the other ID, and upload BOTH.
+            // Opposing devices repeated that merge, ultimately deleting
+            // live feedback and generating hundreds of revisions.
+            // Never change or delete either competing record automatically.
+            return retain_conflict(
+              'Distinct IDs for the same one-to-one record. Both snapshots retained for manual review; no automatic deletion.',
+              logical,
+            )
+          }
+
+          // A remote tombstone must not hide valid readiness or exercise
+          // feedback for a completed workout. Verify the parent workflow
+          // before any intentional deletion is propagated.
+          if (entity.deleted_at !== null &&
+              (!local || local.deleted_at === null)) {
+            return retain_conflict(
+              'Incoming deletion of one-to-one workout feedback quarantined for manual review.',
+              logical,
+            )
           }
         }
 
         // Nested Dexie transaction uses the parent lock for the actual
-        // record, audit and any natural-key reconciliation outbox entries.
+        // record and audit, without creating outbound reconciliation edits.
         await this.apply_remote_entity(entity_type, entity, applied_at)
         return 'applied'
       },
@@ -429,52 +394,21 @@ export class DexieSyncRepository implements SyncRepository {
       'rw',
       table,
       this.db.audit_events,
-      this.db.sync_outbox,
       async () => {
         const before = await table.get(entity.id)
 
+        // Defence in depth for any caller bypassing checked remote apply.
+        // A mismatch must be quarantined by apply_remote_entity_checked.
         if (natural_key) {
-          const existing_logical = await table
+          const logical = await table
             .where(natural_key.index_name)
             .equals(natural_key.value)
             .first()
-
-          if (existing_logical && existing_logical.id !== entity.id) {
-            const { canonical, loser_tombstone } =
-              reconciled_one_to_one_entity(
-                existing_logical,
-                entity,
-                applied_at,
-              )
-
-            await this.db.sync_outbox
-              .where('[entity_type+entity_id]')
-              .anyOf([
-                [entity_type, existing_logical.id],
-                [entity_type, entity.id],
-              ])
-              .filter((entry) => entry.synced_at === null)
-              .delete()
-
-            await table.delete(existing_logical.id)
-            await table.put(canonical)
-
-            const audit_event = create_audit_event(
-              entity_type,
-              canonical,
-              existing_logical,
-              'sync_apply',
-            )
-            audit_event.reason =
-              `Remote sync reconciled duplicate ${natural_key.index_name}=${natural_key.value}; canonical entity ${canonical.id}, retired entity ${loser_tombstone.id}`
-            audit_event.created_at = applied_at
-            await this.db.audit_events.add(audit_event)
-
-            await this.db.sync_outbox.bulkAdd([
-              create_sync_outbox_entry(entity_type, loser_tombstone),
-              create_sync_outbox_entry(entity_type, canonical),
-            ])
-            return
+          if (logical && logical.id !== entity.id) {
+            throw new Error('One-to-one ID collision: remote apply requires non-destructive conflict quarantine.')
+          }
+          if (entity.deleted_at !== null && (!before || before.deleted_at === null)) {
+            throw new Error('One-to-one tombstone requires explicit review before remote apply.')
           }
         }
 
