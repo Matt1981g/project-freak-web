@@ -50,3 +50,29 @@ test('two live PF tabs cannot hold a data-operation lock simultaneously', async 
     LOCK_NAME,
   )).toBe(true)
 })
+
+
+test('each loaded PF tab holds a shared lease that denies exclusive restoration', async ({ page, context }) => {
+  const APP_LOCK = 'project-freak:open-app:project-freak'
+  await page.goto('./#/plan')
+  await expect(page.getByText('Current programme', { exact: true })).toBeVisible()
+  const second = await context.newPage()
+  await second.goto('./#/plan')
+  await expect(second.getByText('Current programme', { exact: true })).toBeVisible()
+
+  // Both actual app instances must be holding their shared dataset leases.
+  for (const tab of [page, second]) {
+    const refused = await tab.evaluate(async (name) =>
+      navigator.locks.request(name, { mode: 'exclusive', ifAvailable: true }, async (lock) => lock === null),
+      APP_LOCK,
+    )
+    expect(refused).toBe(true)
+  }
+
+  // Closing just one tab cannot remove the other tab's protection.
+  await second.close()
+  await expect.poll(() => page.evaluate(async (name) =>
+    navigator.locks.request(name, { mode: 'exclusive', ifAvailable: true }, async (lock) => lock === null),
+    APP_LOCK,
+  )).toBe(true)
+})
