@@ -45,6 +45,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_PF_BUILD_SHA: ${{ github.sha }}
 
       - name: Install required browser engines
         run: npx playwright install --with-deps chromium webkit
