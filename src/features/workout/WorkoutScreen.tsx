@@ -45,6 +45,7 @@ import {
   clear_workout_form_draft,
   form_draft_is_current,
   read_workout_form_draft,
+  rebase_newer_workout_form_draft,
   workout_form_key,
   write_workout_form_draft,
 } from '../../application/workout/workoutFormJournal'
@@ -480,7 +481,11 @@ function ReadinessPanel(props: {
           notes: snapshot.notes || null,
         })))
         .then((saved) => {
+          const previous_revision = saved_revision_ref.current
           saved_revision_ref.current = saved.revision
+          rebase_newer_workout_form_draft(
+            draft_key, sequence, previous_revision, saved.revision,
+          )
           clear_workout_form_draft(draft_key, sequence)
           if (sequence === edit_sequence_ref.current) {
             setDirty(false)
