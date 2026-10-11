@@ -183,6 +183,36 @@ describe('programme import', () => {
     ).toBe(true)
   })
 
+  it('pins the reviewed gym so publication can catch a later gym switch', async () => {
+    const result = await preview_programme_import(
+      JSON.stringify(valid_document()), exercise_repository(), {
+        gym_profile_id: 'gym-trident-plymouth',
+        gym_name: 'Trident',
+        allowed_exercise_ids: new Set([EXERCISE_ID]),
+      },
+    )
+    expect(result.can_commit).toBe(true)
+    expect(result.reviewed_gym_profile_id).toBe('gym-trident-plymouth')
+  })
+
+  it('rejects a scheduled session outside its programme date window', async () => {
+    const document = valid_document()
+    document.programme.sessions[0].scheduled_date_local = '2026-10-08'
+    const result = await preview_programme_import(
+      JSON.stringify(document), exercise_repository(),
+    )
+    expect(result.issues.some((entry) => entry.code === 'session_outside_programme_window')).toBe(true)
+    expect(result.can_commit).toBe(false)
+  })
+
+  it('blocks an oversized programme before attempting JSON parsing', async () => {
+    const result = await preview_programme_import(
+      '{' + 'x'.repeat(2 * 1024 * 1024), exercise_repository(),
+    )
+    expect(result.can_commit).toBe(false)
+    expect(result.issues[0].code).toBe('programme_too_large')
+  })
+
   it('rejects explicit target set counts that contradict supplied sets', async () => {
     const document = valid_document()
     document.programme.sessions[0].exercises[0].target_sets = 3
