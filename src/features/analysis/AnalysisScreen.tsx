@@ -170,7 +170,7 @@ export function AnalysisScreen() {
               <article>
                 <span>AVG RPE</span>
                 <strong>{format_average(current.rpe.value)}</strong>
-                <small>{current.rpe.samples} scored exercises</small>
+                <small>{current.rpe.samples} RPE samples</small>
               </article>
               <article>
                 <span>AVG PUMP</span>
@@ -181,6 +181,11 @@ export function AnalysisScreen() {
                 <span>AVG FORM</span>
                 <strong>{format_average(current.form.value)}</strong>
                 <small>{current.form.samples} scored exercises</small>
+              </article>
+              <article>
+                <span>AVG ENJOYMENT</span>
+                <strong>{format_average(current.enjoyment?.value ?? null)}</strong>
+                <small>{current.enjoyment?.samples ?? 0} scored exercises</small>
               </article>
             </div>
           </section>
@@ -299,6 +304,7 @@ export function AnalysisScreen() {
                   <strong>{format_average(muscle.rpe.value)}</strong>
                   <strong>{format_average(muscle.pump.value)}</strong>
                   <strong>{format_average(muscle.form.value)}</strong>
+                  <strong>{format_average(muscle.enjoyment?.value ?? null)}</strong>
                   <span>{recovery_label(muscle.recovery_status)}</span>
                   <strong>{muscle.underperformance_exercises || '—'}</strong>
                 </div>
@@ -350,6 +356,7 @@ export function AnalysisScreen() {
                       <div><span>RPE</span><strong>{format_average(window.rpe.value)}</strong></div>
                       <div><span>PUMP</span><strong>{format_average(window.pump.value)}</strong></div>
                       <div><span>FORM</span><strong>{format_average(window.form.value)}</strong></div>
+                       <div><span>ENJOYMENT</span><strong>{format_average(window.enjoyment?.value ?? null)}</strong></div>
                     </div>
 
                     <div className={styles.trendMuscles}>
@@ -394,6 +401,7 @@ export function AnalysisScreen() {
                   <div><span>FAIL</span><strong>{week.failure_sets}</strong></div>
                   <div><span>RPE</span><strong>{format_average(week.rpe.value)}</strong></div>
                   <div><span>FORM</span><strong>{format_average(week.form.value)}</strong></div>
+                   <div><span>ENJOYMENT</span><strong>{format_average(week.enjoyment?.value ?? null)}</strong></div>
                 </article>
               ))}
             </div>
