@@ -16,9 +16,12 @@ export function DailySessionPrompt() {
   const [dismissed, setDismissed] = useState(false)
   const [startingId, setStartingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // A start/resume dialog belongs to the home Plan screen, never over gym
+  // editing, History, Coach Bridge, Sync, or equipment setup.
+  const on_plan = location.pathname === '/plan'
 
   useEffect(() => {
-    if (dismissed || location.pathname.startsWith('/workout/')) return
+    if (dismissed || !on_plan) return
 
     // Observe local completion and incoming sync writes, not just navigation.
     // Unsubscribing also prevents an older query from restoring a stale prompt.
@@ -38,12 +41,12 @@ export function DailySessionPrompt() {
     })
 
     return () => subscription.unsubscribe()
-  }, [dismissed, location.pathname])
+  }, [dismissed, on_plan])
 
   if (
     dismissed ||
     sessions.length === 0 ||
-    location.pathname.startsWith('/workout/')
+    !on_plan
   ) {
     return null
   }
