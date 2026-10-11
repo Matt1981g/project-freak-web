@@ -19,6 +19,27 @@ const appUrl = new URL(base.endsWith('/') ? base : base + '/')
 let lastError
 
 async function verify() {
+  const manifestUrl = new URL('pf-release.json', appUrl)
+  manifestUrl.searchParams.set('pf_health', Date.now().toString())
+  const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' })
+  if (!manifestResponse.ok) {
+    throw new Error(`Release manifest HTTP ${manifestResponse.status}: ${manifestUrl}`)
+  }
+  const manifest = await manifestResponse.json()
+  if (
+    manifest.format !== 'project-freak-release' ||
+    manifest.display_version !== expected ||
+    !/^[0-9]+\\.[0-9]+\\.[0-9]+$/.test(manifest.version)
+  ) {
+    throw new Error(`Release manifest version/format mismatch (wanted ${expected})`)
+  }
+  const expectedSha = process.env.GITHUB_SHA
+  if (expectedSha && manifest.build_sha !== expectedSha) {
+    throw new Error(
+      `Release commit mismatch: expected ${expectedSha}, served ${manifest.build_sha}`,
+    )
+  }
+
   const htmlUrl = new URL(appUrl)
   htmlUrl.searchParams.set('pf_health', Date.now().toString())
   const page = await fetch(htmlUrl, { cache: 'no-store', redirect: 'follow' })
@@ -32,7 +53,7 @@ async function verify() {
   if (!assetPaths.some((path) => /\.js(?:\?|$)/i.test(path))) {
     throw new Error('No JavaScript entry bundle is referenced')
   }
-  let foundVersion = false
+  let foundBuildSha = false
   for (const path of assetPaths) {
     const assetUrl = new URL(path, appUrl)
     if (assetUrl.origin !== appUrl.origin) throw new Error(`Unexpected external asset: ${assetUrl}`)
@@ -40,11 +61,11 @@ async function verify() {
     const asset = await fetch(assetUrl, { cache: 'no-store' })
     if (!asset.ok) throw new Error(`Missing build asset (${asset.status}): ${assetUrl}`)
     const body = await asset.text()
-    if (/\.js(?:\?|$)/i.test(path) && body.includes(expected)) foundVersion = true
+    if (/\.js(?:\?|$)/i.test(path) && body.includes(manifest.build_sha)) foundBuildSha = true
     if (!body.trim()) throw new Error(`Empty build asset: ${assetUrl}`)
   }
-  if (!foundVersion) throw new Error(`Expected version ${expected} not found in the served JavaScript bundles`)
-  console.log(`PF release health PASS: ${expected}; HTML and ${assetPaths.length} assets checked at ${appUrl}`)
+  if (!foundBuildSha) throw new Error(`Expected release SHA ${manifest.build_sha} not found in the served JavaScript bundles`)
+  console.log(`PF release health PASS: ${expected}; commit ${manifest.build_sha}; manifest, HTML and ${assetPaths.length} assets checked at ${appUrl}`)
 }
 
 for (let attempt = 1; attempt <= 6; attempt += 1) {
