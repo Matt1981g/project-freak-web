@@ -52,3 +52,5 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sync/project-freak-supabase-v1.sql
       - name: Exercise RPC auth, isolation, conflict and validation contracts
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/sync-contract-smoke.sql
+      - name: Prove concurrent commit ordering with two real PostgreSQL connections
+        run: bash tests/sql/sync-concurrency.sh
