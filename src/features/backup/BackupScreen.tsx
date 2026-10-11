@@ -152,7 +152,7 @@ export function BackupScreen() {
     if (!preview || restoring) return
 
     const confirmed = window.confirm(
-      'Restore this backup? The current database will be replaced. A safety backup will be downloaded first.',
+      'Restore this backup? Close every other PROJECT FREAK tab or window first. The current database will be replaced, and a safety backup will be downloaded first.',
     )
     if (!confirmed) return
 
@@ -216,6 +216,8 @@ export function BackupScreen() {
             Export every local PROJECT FREAK table with SHA-256 checksums.
             Restore validates first, downloads a safety backup, then replaces the
             database transactionally and verifies the restored data.
+            Close other PROJECT FREAK tabs or windows before restoring: the
+            app refuses destructive restore while another copy is open.
           </p>
         </div>
         <span>PHASE 12</span>
