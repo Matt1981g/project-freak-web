@@ -42,12 +42,12 @@ export class DatasetAppAccess {
     for (const listener of this.listeners) listener(available)
   }
 
-  private open_lease() {
+  private open_lease(): Lease | null {
     if (!this.locks) {
       // Offline training is still available on older browsers; destructive
       // restore remains prohibited without a reliable cross-tab lock.
       this.emit(true)
-      return
+      return null
     }
 
     const abort = new AbortController()
@@ -77,7 +77,7 @@ export class DatasetAppAccess {
       }
     })
 
-    this.lease = {
+    const lease: Lease = {
       acquired: ready,
       finished,
       held: () => acquired,
@@ -86,6 +86,8 @@ export class DatasetAppAccess {
         else abort.abort()
       },
     }
+    this.lease = lease
+    return lease
   }
 
   subscribe(listener: AvailabilityListener): () => void {
@@ -141,8 +143,8 @@ export class DatasetAppAccess {
     } finally {
       this.paused = false
       if (this.listeners.size > 0) {
-        this.open_lease()
-        await this.lease?.acquired
+        const reopened = this.open_lease()
+        await reopened?.acquired
       }
     }
   }
