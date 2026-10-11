@@ -200,7 +200,7 @@ export function SyncScreen() {
             disabled={!status?.configured || busy !== null}
             onClick={() =>
               void run_action('clear', async () => {
-                clear_cloud_sync_configuration()
+                await clear_cloud_sync_configuration()
                 setBackendHealth(null)
                 setProjectUrl('')
                 setAnonKey('')
