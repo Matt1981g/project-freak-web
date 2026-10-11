@@ -95,6 +95,11 @@ type AudioWindow = Window &
     webkitAudioContext?: typeof AudioContext
   }
 
+// Called by the set-completion event handler, never during React rendering.
+function read_event_clock_ms(): number {
+  return Date.now()
+}
+
 const SCORE_DESCRIPTIONS: Record<ScoreKey, readonly string[]> = {
   pump: [
     'Nothing happening',
@@ -2053,7 +2058,7 @@ export function WorkoutScreen() {
     }
   }
 
-  function prime_rest_audio() {
+  const prime_rest_audio = useCallback(() => {
     if (typeof window === 'undefined') return
 
     const audio_window = window as AudioWindow
@@ -2071,9 +2076,9 @@ export function WorkoutScreen() {
     } catch {
       // Audio is best-effort. The visual timer remains authoritative.
     }
-  }
+  }, [])
 
-  function play_rest_countdown_beep() {
+  const play_rest_countdown_beep = useCallback(() => {
     prime_rest_audio()
     const context = audio_context_ref.current
     if (!context || context.state === 'closed') return
@@ -2097,9 +2102,9 @@ export function WorkoutScreen() {
     } catch {
       // Audio is best-effort. The visual timer remains authoritative.
     }
-  }
+  }, [prime_rest_audio])
 
-  function play_rest_complete_beep() {
+  const play_rest_complete_beep = useCallback(() => {
     prime_rest_audio()
     const context = audio_context_ref.current
     if (!context || context.state === 'closed') return
@@ -2154,8 +2159,7 @@ export function WorkoutScreen() {
     } finally {
       setFinishing(false)
     }
-  }
-
+  }, [prime_rest_audio])
   useEffect(() => {
     let active = true
 
@@ -2183,19 +2187,19 @@ export function WorkoutScreen() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     if (workout?.session.status !== 'in_progress') {
-      setWakeLockState('idle')
+      queueMicrotask(() => { if (!cancelled) setWakeLockState('idle') })
       void wake_lock_ref.current?.release().catch(() => undefined)
       wake_lock_ref.current = null
-      return
+      return () => { cancelled = true }
     }
 
-    let cancelled = false
     const wake_lock = (navigator as NavigatorWithWakeLock).wakeLock
 
     if (!wake_lock) {
-      setWakeLockState('unavailable')
-      return
+      queueMicrotask(() => { if (!cancelled) setWakeLockState('unavailable') })
+      return () => { cancelled = true }
     }
 
     async function acquire() {
@@ -2231,40 +2235,35 @@ export function WorkoutScreen() {
   }, [workout?.session.id, workout?.session.status])
 
   useEffect(() => {
-    void refresh_workout()
+    void Promise.resolve().then(refresh_workout)
   }, [refresh_workout])
 
   useEffect(() => {
     const gym_id = workout?.session.gym_profile_id
-    if (!gym_id) {
-      setGymExercises(null)
-      return
-    }
-
     let active = true
-    setGymExercises(null)
-    void load_gym_equipment(gym_id)
-      .then((rows) => {
-        if (active) setGymExercises(rows)
-      })
-      .catch(() => {
-        if (active) setGymExercises([])
-      })
+    // Reset then load in order; a late result from the previous gym is ignored.
+    queueMicrotask(() => {
+      if (!active) return
+      setGymExercises(null)
+      if (!gym_id) return
+      void load_gym_equipment(gym_id)
+        .then((rows) => { if (active) setGymExercises(rows) })
+        .catch(() => { if (active) setGymExercises([]) })
+    })
 
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [workout?.session.gym_profile_id])
 
   useEffect(() => {
     if (workout?.session.status !== 'in_progress') return
 
-    setSessionNowMs(Date.now())
+    let active = true
+    queueMicrotask(() => { if (active) setSessionNowMs(Date.now()) })
     const tick = window.setInterval(() => {
       setSessionNowMs(Date.now())
     }, 1000)
 
-    return () => window.clearInterval(tick)
+    return () => { active = false; window.clearInterval(tick) }
   }, [workout?.session.id, workout?.session.status])
 
   useEffect(() => {
@@ -2306,7 +2305,7 @@ export function WorkoutScreen() {
     }
 
     last_rest_remaining_ref.current = remaining
-  }, [rest_now_ms, rest_timer])
+  }, [rest_now_ms, rest_timer, play_rest_countdown_beep, play_rest_complete_beep])
 
   useEffect(() => {
     if (!completed_session_id) return
@@ -2352,7 +2351,7 @@ export function WorkoutScreen() {
         (detail) => detail.set.set_number === target_set_number,
       )?.set ?? null
 
-    const now = Date.now()
+    const now = read_event_clock_ms()
     setRestNowMs(now)
     setRestTimer({
       ...start_rest_timer(exercise.rest_seconds, now),
