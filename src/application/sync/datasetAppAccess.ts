@@ -90,6 +90,13 @@ export class DatasetAppAccess {
     return lease
   }
 
+  /** Reacquire a lost lease when an iOS PWA resumes from suspension. */
+  ensure_access() {
+    if (this.listeners.size > 0 && !this.paused && !this.lease) {
+      this.open_lease()
+    }
+  }
+
   subscribe(listener: AvailabilityListener): () => void {
     this.listeners.add(listener)
     listener(this.available)
