@@ -5,6 +5,7 @@ import { create_repositories } from '../../data/repositories'
 import type { ProgrammeBlock, ProgrammedSession, CompletedSession } from '../../domain/models'
 import type { ProgrammeImportPreview } from './programmeImport'
 import { commit_programme_revision_atomically } from './atomicProgrammeRevision'
+import { select_active_plan_programmes } from './activePlan'
 
 const DB_NAME = 'pf-atomic-programme-revision-tests'
 const NOW = '2026-10-11T17:00:00.000Z'
@@ -220,7 +221,10 @@ describe('atomic programme revision publication', () => {
   })
 
   it('preserves a prior programme with other scheduled sessions and does not archive it', async () => {
-    await db.programme_blocks.add(block('old'))
+    await db.programme_blocks.add({
+      ...block('old'),
+      end_date_local: '2026-10-15',
+    })
     await db.programmed_sessions.bulkAdd([
       session('old-day', 'old'),
       session('old-future', 'old', 'planned', '2026-10-15'),
@@ -228,6 +232,20 @@ describe('atomic programme revision publication', () => {
     await publish()
     expect((await db.programme_blocks.get('old'))?.status).toBe('active')
     expect((await db.programmed_sessions.get('old-future'))?.status).toBe('planned')
+    const blocks = await db.programme_blocks.toArray()
+    const rows = await db.programmed_sessions.toArray()
+    const visible = select_active_plan_programmes(
+      blocks,
+      new Map(blocks.map((entry) => [
+        entry.id,
+        rows.filter((row) => row.programme_block_id === entry.id),
+      ])),
+      [],
+      { today_local: '2026-10-11', latest_programming_input_at: null },
+    )
+    expect(visible.programmes.flatMap((entry) => entry.sessions)
+      .map((entry) => entry.id)).toContain('old-future')
+    expect(visible.programmes).toHaveLength(2)
   })
 
   it('refuses a duplicate or undated incoming session before changing storage', async () => {
