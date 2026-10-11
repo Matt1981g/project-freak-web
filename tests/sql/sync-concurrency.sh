@@ -76,4 +76,60 @@ end;
 $test$;
 SQL
 
-echo "PF concurrent per-user push and cursor-order contract PASS"
+
+# Simultaneous first inserts for the SAME entity must use the equal-revision
+# conflict path instead of letting ON CONFLICT overwrite the first snapshot.
+rm -f "$ready"
+psql -X -v ON_ERROR_STOP=1 >"$a_log" 2>&1 <<SQL &
+begin;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '33333333-3333-4333-8333-333333333333', true);
+select public.project_freak_push_mutations('[{"outbox_id":"same-pc","entity_type":"set","entity_id":"race-same","operation":"upsert","revision":1,"payload_json":{"id":"race-same","revision":1,"device_id":"pc","updated_at":"2026-10-11T11:00:00Z","reps":8}}]'::jsonb);
+\! touch "$ready"
+select pg_sleep(2);
+commit;
+SQL
+a_pid=$!
+for attempt in $(seq 1 120); do
+  if [[ -e "$ready" ]]; then break; fi
+  if ! kill -0 "$a_pid" 2>/dev/null; then cat "$a_log"; exit 1; fi
+  sleep 0.05
+done
+test -e "$ready" || { echo "First same-entity transaction never started"; exit 1; }
+
+psql -X -v ON_ERROR_STOP=1 >"$b_log" 2>&1 <<'SQL' &
+begin;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '33333333-3333-4333-8333-333333333333', true);
+select public.project_freak_push_mutations('[{"outbox_id":"same-phone","entity_type":"set","entity_id":"race-same","operation":"upsert","revision":1,"payload_json":{"id":"race-same","revision":1,"device_id":"phone","updated_at":"2026-10-11T11:01:00Z","reps":10}}]'::jsonb);
+commit;
+SQL
+b_pid=$!
+wait "$a_pid" || { cat "$a_log"; exit 1; }
+wait "$b_pid" || { cat "$b_log"; exit 1; }
+
+psql -X -v ON_ERROR_STOP=1 <<'SQL'
+do $test$
+declare
+  v_revision integer;
+  v_conflicts integer;
+begin
+  select revision into v_revision
+  from public.project_freak_sync_entities
+  where user_id = '33333333-3333-4333-8333-333333333333'
+    and entity_id = 'race-same';
+  select count(*) into v_conflicts
+  from public.project_freak_sync_conflicts
+  where user_id = '33333333-3333-4333-8333-333333333333'
+    and entity_id = 'race-same'
+    and resolution_rule like 'equal_revision_%';
+  if v_revision <> 2 or v_conflicts <> 1 then
+    raise exception 'Concurrent first-insert conflict lost: revision %, conflicts %',
+      v_revision, v_conflicts;
+  end if;
+end;
+$test$;
+SQL
+
+echo "PF concurrent different-entity ordering and same-entity first-insert contract PASS"
+
