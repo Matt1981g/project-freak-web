@@ -4,6 +4,7 @@ import {
   clear_cloud_sync_configuration,
   configure_cloud_sync,
   load_cloud_sync_status,
+  load_cloud_sync_conflict_diagnostics,
   link_cloud_sync_dataset,
   run_full_cloud_sync,
   sign_in_cloud_sync,
@@ -22,6 +23,7 @@ function format_date(value: string | null | undefined): string {
 
 export function SyncScreen() {
   const [status, setStatus] = useState<CloudSyncStatus | null>(null)
+  const [localConflicts, setLocalConflicts] = useState<Awaited<ReturnType<typeof load_cloud_sync_conflict_diagnostics>> | null>(null)
   const [projectUrl, setProjectUrl] = useState('')
   const [anonKey, setAnonKey] = useState('')
   const [email, setEmail] = useState('')
@@ -43,8 +45,12 @@ export function SyncScreen() {
   )
 
   async function refresh() {
-    const next_status = await load_cloud_sync_status()
+    const [next_status, conflicts] = await Promise.all([
+      load_cloud_sync_status(),
+      load_cloud_sync_conflict_diagnostics(),
+    ])
     setStatus(next_status)
+    setLocalConflicts(conflicts)
     setProjectUrl((current) => current || next_status.project_url || '')
   }
 
@@ -138,6 +144,36 @@ export function SyncScreen() {
             status.dataset_binding === 'matched' ? 'ON' : 'WAITING'}
           </strong>
         </div>
+      </section>
+
+      <section className={styles.panel} aria-label="Local sync conflict diagnostics">
+        <div className={styles.panelHeading}>
+          <div>
+            <span>RECOVERY EVIDENCE</span>
+            <h2>Retained local sync conflicts</h2>
+          </div>
+          <strong>{localConflicts?.retained_total ?? '…'} SAVED</strong>
+        </div>
+        <p>
+          Competing cloud revisions are retained in this device's local audit,
+          not silently discarded. The complete backup preserves these records.
+          This is local evidence only; it does not include Supabase's server-side conflict history.
+        </p>
+        {localConflicts && localConflicts.recent.length > 0 && (
+          <ul className={styles.conflictList}>
+            {localConflicts.recent.map((conflict, index) => (
+              <li key={`${conflict.entity_type}:${conflict.entity_id}:${conflict.recorded_at}:${index}`}>
+                <strong>{conflict.entity_type.replaceAll('_', ' ')} · {conflict.entity_id.slice(0, 12)}</strong>
+                <span>{conflict.reason ?? 'Competing cloud revision preserved'}</span>
+                <time dateTime={conflict.recorded_at}>{format_date(conflict.recorded_at)}</time>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p>
+          These records have not been automatically resolved. Keep a current
+          full backup before investigating a disagreement between PC and iPhone.
+        </p>
       </section>
 
       <section className={styles.panel}>

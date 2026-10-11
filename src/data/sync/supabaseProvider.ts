@@ -4,6 +4,11 @@ import type {
   SyncPushMutation,
   SyncPushResult,
 } from './contracts'
+import { 
+  SupabaseRequestError,
+  is_terminal_refresh_failure,
+  supabase_fetch,
+} from './supabaseNetwork'
 
 const CONFIG_KEY = 'project-freak:sync:supabase:config:v1'
 const SESSION_KEY = 'project-freak:sync:supabase:session:v1'
@@ -146,7 +151,7 @@ async function parse_json_response<T>(response: Response): Promise<T> {
           (value): value is string => typeof value === 'string' && value.length > 0,
         )) ||
       `Supabase request failed with HTTP ${response.status}.`
-    throw new Error(message)
+    throw new SupabaseRequestError(message, response.status, response.status >= 500 || response.status === 429)
   }
 
   return payload as T
@@ -206,7 +211,7 @@ export async function supabase_sign_up(
   precommit?: AuthSessionPrecommit,
 ): Promise<SupabaseAuthSession | null> {
   const config = validate_supabase_config(config_input)
-  const response = await fetch(`${config.project_url}/auth/v1/signup`, {
+  const response = await supabase_fetch(`${config.project_url}/auth/v1/signup`, {
     method: 'POST',
     headers: auth_headers(config),
     body: JSON.stringify({ email: email.trim(), password }),
@@ -227,7 +232,7 @@ export async function supabase_sign_in(
   precommit?: AuthSessionPrecommit,
 ): Promise<SupabaseAuthSession> {
   const config = validate_supabase_config(config_input)
-  const response = await fetch(
+  const response = await supabase_fetch(
     `${config.project_url}/auth/v1/token?grant_type=password`,
     {
       method: 'POST',
@@ -250,7 +255,7 @@ export async function supabase_sign_out(
 
   try {
     if (session) {
-      await fetch(`${config.project_url}/auth/v1/logout`, {
+      await supabase_fetch(`${config.project_url}/auth/v1/logout`, {
         method: 'POST',
         headers: auth_headers(config, session.access_token),
       })
@@ -264,7 +269,7 @@ async function refresh_supabase_session(
   config: SupabaseSyncConfig,
   session: SupabaseAuthSession,
 ): Promise<SupabaseAuthSession> {
-  const response = await fetch(
+  const response = await supabase_fetch(
     `${config.project_url}/auth/v1/token?grant_type=refresh_token`,
     {
       method: 'POST',
@@ -284,6 +289,7 @@ async function refresh_supabase_session(
 
 export async function require_supabase_session(
   config_input: SupabaseSyncConfig,
+  force_refresh = false,
 ): Promise<SupabaseAuthSession> {
   const config = validate_supabase_config(config_input)
   const session = load_supabase_session()
@@ -292,14 +298,22 @@ export async function require_supabase_session(
     throw new Error('Sign in to Supabase before syncing.')
   }
 
-  if (session.expires_at > Date.now()) {
+  if (!force_refresh && session.expires_at > Date.now()) {
     return session
   }
 
   try {
     return await refresh_supabase_session(config, session)
   } catch (cause) {
-    clear_supabase_session()
+    // Timeouts, airplane mode, proxies and 5xx are not revoked credentials.
+    // Clearing the refresh token on a transient failure strands an offline
+    // device even though all its workouts/outbox are still recoverable.
+    if (
+      cause instanceof SupabaseRequestError &&
+      is_terminal_refresh_failure(cause.status, cause.message)
+    ) {
+      clear_supabase_session()
+    }
     throw cause
   }
 }
@@ -314,22 +328,31 @@ async function rpc<T>(
   if (expected_user_id && session.user_id !== expected_user_id) {
     throw new Error('Supabase account changed during sync. Local changes were preserved.')
   }
-  const response = await fetch(
-    `${config.project_url}/rest/v1/rpc/${function_name}`,
-    {
-      method: 'POST',
-      headers: {
-        ...auth_headers(config, session.access_token),
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(body),
+  const url = `${config.project_url}/rest/v1/rpc/${function_name}`
+  const execute = (access_token: string) => supabase_fetch(url, {
+    method: 'POST',
+    headers: {
+      ...auth_headers(config, access_token),
+      Accept: 'application/json',
     },
-  )
+    body: JSON.stringify(body),
+  }, {
+    // The SQL RPC already deduplicates outbox IDs and revisions. Retrying a
+    // lost HTTP acknowledgment must not invent a new mutation.
+    attempts: 3,
+  })
 
+  let response = await execute(session.access_token)
   if (response.status === 401) {
-    clear_supabase_session()
+    // A JWT may expire early through clock skew or server-side invalidation.
+    // Refresh exactly once and retry the idempotent RPC; a transient refresh
+    // failure leaves the existing local session and pending work intact.
+    const refreshed = await require_supabase_session(config, true)
+    if (expected_user_id && refreshed.user_id !== expected_user_id) {
+      throw new Error('Supabase account changed during token refresh. Sync stopped.')
+    }
+    response = await execute(refreshed.access_token)
   }
-
   return parse_json_response<T>(response)
 }
 
