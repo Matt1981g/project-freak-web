@@ -31,6 +31,7 @@ interface MutableMuscleRow {
   rpe: number[]
   pump: number[]
   form: number[]
+  enjoyment: number[]
   recovery: MuscleRecoveryStatus[]
   underperformance_exercises: number
 }
@@ -61,11 +62,14 @@ function failed(set: TrainingSet): boolean {
   )
 }
 
-function collect_metrics(row: MutableMuscleRow, metrics: ExerciseMetrics | undefined) {
+function collect_metrics(row: MutableMuscleRow, metrics: ExerciseMetrics | undefined, sets: TrainingSet[]) {
+  const rated_sets = sets.filter((set) => set.rpe != null)
+  for (const set of rated_sets) row.rpe.push(set.rpe!)
   if (!metrics || metrics.deleted_at !== null) return
-  if (metrics.rpe !== null) row.rpe.push(metrics.rpe)
+  if (rated_sets.length === 0 && metrics.rpe !== null) row.rpe.push(metrics.rpe)
   if (metrics.pump !== null) row.pump.push(metrics.pump)
   if (metrics.form !== null) row.form.push(metrics.form)
+  if (metrics.enjoyment != null) row.enjoyment.push(metrics.enjoyment)
 }
 
 const RECOVERY_RANK: Record<MuscleRecoveryStatus, number> = {
@@ -108,6 +112,7 @@ export async function load_current_week_muscle_analysis(
       rpe: [],
       pump: [],
       form: [],
+      enjoyment: [],
       recovery: [],
       underperformance_exercises: 0,
     })
@@ -188,7 +193,7 @@ export async function load_current_week_muscle_analysis(
         row.weighted_sets += sets.length * target.allocation_weight
         row.sessions.add(session.id)
         row.failure_exposure_sets += failures
-        collect_metrics(row, metrics)
+        collect_metrics(row, metrics, sets)
       }
     }
 
@@ -214,6 +219,7 @@ export async function load_current_week_muscle_analysis(
         rpe: average(row.rpe),
         pump: average(row.pump),
         form: average(row.form),
+        enjoyment: average(row.enjoyment),
         recovery_status: worst_recovery(row.recovery),
         recovery_samples: row.recovery.length,
         underperformance_exercises: row.underperformance_exercises,
