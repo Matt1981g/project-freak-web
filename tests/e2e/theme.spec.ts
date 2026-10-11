@@ -16,6 +16,7 @@ async function expectApprovedBackground(page: import('@playwright/test').Page) {
       text: root.getPropertyValue('--pf-text').trim(),
       approvedBackground: getComputedStyle(document.querySelector('.app-shell')!, '::before').backgroundImage,
       readabilityVeil: getComputedStyle(document.querySelector('.app-shell')!, '::after').backgroundImage,
+      readabilityVeilColor: getComputedStyle(document.querySelector('.app-shell')!, '::after').backgroundColor,
     }
   })
 
@@ -25,7 +26,13 @@ async function expectApprovedBackground(page: import('@playwright/test').Page) {
   expect(theme.orange).toBe('#ff6a00')
   expect(theme.text).toBe('#d8e1cf')
   expect(theme.approvedBackground).toContain('data:image/webp;base64')
-  expect(theme.readabilityVeil).toContain('linear-gradient')
+  if ((page.viewportSize()?.width ?? 0) <= 700) {
+    // Mobile deliberately uses a translucent colour instead of the desktop gradient.
+    expect(theme.readabilityVeil).toBe('none')
+    expect(theme.readabilityVeilColor).toBe('rgba(0, 0, 0, 0.08)')
+  } else {
+    expect(theme.readabilityVeil).toContain('linear-gradient')
+  }
 }
 
 test('approved PF background renders on desktop', async ({ page }, testInfo) => {
