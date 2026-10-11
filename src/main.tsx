@@ -4,11 +4,14 @@ import { HashRouter } from 'react-router'
 import './index.css'
 import App from './App.tsx'
 import { initialize_pwa_runtime } from './application/pwa/pwaRuntime'
+import { DatasetAppGate } from './features/sync/DatasetAppGate'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
-      <App />
+      <DatasetAppGate>
+        <App />
+      </DatasetAppGate>
     </HashRouter>
   </StrictMode>,
 )

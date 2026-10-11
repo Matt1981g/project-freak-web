@@ -5,6 +5,7 @@ import type {
   SyncState,
 } from '../../domain/models'
 import type { SyncProvider, SyncRepository } from './contracts'
+import { canonicalise_sync_json } from './canonicalSyncJson'
 import {
   run_pull_sync,
   run_push_sync,
@@ -118,6 +119,25 @@ class MemorySyncRepository implements SyncRepository {
     this.entities.set(this.key(entity_type, entity.id), entity)
     this.applied.push(this.key(entity_type, entity.id))
   }
+
+  async apply_remote_entity_checked(
+    entity_type: string,
+    entity: MutableEntity,
+  ) {
+    const local = await this.get_local_entity(entity_type, entity.id)
+    if (local && local.revision > entity.revision) return 'stale' as const
+    if (local && local.revision === entity.revision) {
+      return canonicalise_sync_json(local) === canonicalise_sync_json(entity)
+        ? 'verified_duplicate' as const
+        : 'retained_conflict' as const
+    }
+    if (await this.has_pending_entity_mutation(entity_type, entity.id)) {
+      return 'retained_conflict' as const
+    }
+    await this.apply_remote_entity(entity_type, entity)
+    return 'applied' as const
+  }
+
 }
 
 function provider_fixture(
@@ -332,8 +352,44 @@ describe('run_pull_sync', () => {
 
     expect(result.status).toBe('error')
     expect(result.conflicts).toBe(1)
-    expect(result.cursor).toBeNull()
+    expect(result.cursor).toBe('cursor-conflict')
     expect(repository.entities.get('exercise:entity-1')).toEqual(local)
+  })
+
+  it('does not starve at an older cloud event before a matching latest revision', async () => {
+    const repository = new MemorySyncRepository([])
+    const latest = entity_fixture('old-history', 3)
+    repository.entities.set('exercise:old-history', latest)
+    const first = entity_fixture('old-history', 1)
+    const new_exercise = entity_fixture('new-later', 1)
+    const provider = provider_fixture(
+      async () => ({ acknowledged_outbox_ids: [], remote_user_id: null, error: null }),
+      async () => ({
+        changes: [
+          { remote_change_id: 'evt-1', entity_type: 'exercise',
+            entity_id: first.id, operation: 'upsert', revision: first.revision,
+            payload_json: first as never, updated_at: first.updated_at },
+          { remote_change_id: 'evt-2', entity_type: 'exercise',
+            entity_id: latest.id, operation: 'upsert', revision: latest.revision,
+            payload_json: latest as never, updated_at: latest.updated_at },
+          { remote_change_id: 'evt-3', entity_type: 'exercise',
+            entity_id: new_exercise.id, operation: 'upsert', revision: new_exercise.revision,
+            payload_json: new_exercise as never, updated_at: new_exercise.updated_at },
+        ],
+        next_cursor: 'evt-3',
+        remote_user_id: 'signed-in-user',
+        error: null,
+      }),
+    )
+    const result = await run_pull_sync(repository, provider, { now_iso: NOW })
+    expect(result).toMatchObject({
+      status: 'error', conflicts: 1, applied: 1, skipped: 1,
+      cursor: 'evt-3',
+    })
+    expect(result.error).toContain('quarantined')
+    expect(repository.entities.get('exercise:old-history')).toEqual(latest)
+    expect(repository.entities.get('exercise:new-later')).toEqual(new_exercise)
+    expect(repository.state.get('test-cloud')?.pull_cursor).toBe('evt-3')
   })
 
   it('does not overwrite a newer remote revision while local work is pending', async () => {

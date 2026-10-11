@@ -30,7 +30,8 @@ import type {
   WorkoutTemplate,
 } from '../../domain/models'
 import type { ProjectFreakDatabase } from '../db/projectFreakDb'
-import type { SyncRepository } from '../sync/contracts'
+import type { RemoteApplyOutcome, SyncRepository } from '../sync/contracts'
+import { canonicalise_sync_json } from '../sync/canonicalSyncJson'
 import type {
   DeviceRepository,
   ExerciseRepository,
@@ -322,6 +323,100 @@ export class DexieSyncRepository implements SyncRepository {
     return pending !== undefined
   }
 
+  async apply_remote_entity_checked(
+    entity_type: string,
+    entity: MutableEntity,
+    applied_at: string,
+  ): Promise<RemoteApplyOutcome> {
+    const table = sync_table_for_entity_type(this.db, entity_type)
+
+    // Every writer shares this single transaction boundary. A remote pull
+    // may not overwrite an edit made in another tab after an earlier read.
+    return this.db.transaction(
+      'rw',
+      table,
+      this.db.sync_outbox,
+      this.db.audit_events,
+      async () => {
+        const local = await table.get(entity.id)
+        const pending_for = async (entity_id: string) =>
+          this.db.sync_outbox
+            .where('[entity_type+entity_id]')
+            .equals([entity_type, entity_id])
+            .filter((entry) => entry.synced_at === null)
+            .first()
+
+        // Save the full competing remote snapshot with local evidence before
+        // reporting a conflict. Never advance a sync cursor over an unrecorded
+        // competing edit. Repeated pulls must not duplicate the same evidence.
+        const retain_conflict = async (reason: string): Promise<'retained_conflict'> => {
+          const existing = await this.db.audit_events
+            .where('[entity_type+entity_id]')
+            .equals([entity_type, entity.id])
+            .filter((entry) =>
+              entry.action === 'sync_conflict' &&
+              canonicalise_sync_json(entry.after_json) ===
+                canonicalise_sync_json(entity),
+            )
+            .first()
+          if (!existing) {
+            const audit = create_audit_event(
+              entity_type,
+              entity,
+              local ?? null,
+              'sync_conflict',
+            )
+            audit.reason = reason
+            audit.created_at = applied_at
+            await this.db.audit_events.add(audit)
+          }
+          return 'retained_conflict'
+        }
+
+        if (local && local.revision > entity.revision) {
+          await retain_conflict('Stale remote revision; local entity preserved')
+          return 'stale'
+        }
+
+        if (local && local.revision === entity.revision) {
+          if (canonicalise_sync_json(local) === canonicalise_sync_json(entity)) {
+            return 'verified_duplicate'
+          }
+          return retain_conflict('Equal revision with divergent content')
+        }
+
+        if (await pending_for(entity.id)) {
+          // A missing entity can still have a pending deletion. Do not
+          // resurrect a local tombstone while its outbox is unsent.
+          return retain_conflict('Local mutation pending for remote entity')
+        }
+
+        const natural_key = one_to_one_natural_key(entity_type, entity)
+        if (natural_key) {
+          const logical = await table
+            .where(natural_key.index_name)
+            .equals(natural_key.value)
+            .first()
+
+          if (
+            logical &&
+            logical.id !== entity.id &&
+            await pending_for(logical.id)
+          ) {
+            // Reconciliation must not delete unsent updates for another ID
+            // sharing the unique readiness/metrics logical key.
+            return retain_conflict('A one-to-one logical entity has a pending local edit')
+          }
+        }
+
+        // Nested Dexie transaction uses the parent lock for the actual
+        // record, audit and any natural-key reconciliation outbox entries.
+        await this.apply_remote_entity(entity_type, entity, applied_at)
+        return 'applied'
+      },
+    )
+  }
+
   async apply_remote_entity(
     entity_type: string,
     entity: MutableEntity,
@@ -476,34 +571,38 @@ export class DexieSettingsRepository implements SettingsRepository {
       return setting.key
     }
 
-    const existing = await this.db.synced_settings.get(setting.key)
-    const local_device = await this.db.devices.toCollection().first()
-    const device_id =
-      setting.device_id ??
-      existing?.device_id ??
-      local_device?.id ??
-      'project-freak-settings'
-
-    const entity: SyncedSetting = {
-      id: setting.key,
-      key: setting.key,
-      scope: 'global',
-      value_json: setting.value_json,
-      created_at: existing?.created_at ?? setting.updated_at,
-      updated_at: setting.updated_at,
-      deleted_at: null,
-      revision: (existing?.revision ?? 0) + 1,
-      device_id,
-      source_kind: 'user',
-      source_id: null,
-    }
-
+    // Revision allocation, data, audit evidence and the outbound mutation
+    // must be one serialised transaction. Reading the previous revision
+    // outside it lets two tabs issue the same revision for different values.
     await this.db.transaction(
       'rw',
       this.db.synced_settings,
+      this.db.devices,
       this.db.audit_events,
       this.db.sync_outbox,
       async () => {
+        const existing = await this.db.synced_settings.get(setting.key)
+        const local_device = await this.db.devices.toCollection().first()
+        const device_id =
+          setting.device_id ??
+          existing?.device_id ??
+          local_device?.id ??
+          'project-freak-settings'
+
+        const entity: SyncedSetting = {
+          id: setting.key,
+          key: setting.key,
+          scope: 'global',
+          value_json: setting.value_json,
+          created_at: existing?.created_at ?? setting.updated_at,
+          updated_at: setting.updated_at,
+          deleted_at: null,
+          revision: (existing?.revision ?? 0) + 1,
+          device_id,
+          source_kind: 'user',
+          source_id: null,
+        }
+
         await this.db.synced_settings.put(entity)
 
         const audit_event = create_audit_event(

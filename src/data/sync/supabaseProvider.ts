@@ -178,19 +178,32 @@ function session_from_auth_response(payload: SupabaseAuthResponse): SupabaseAuth
     )
   }
 
-  return save_supabase_session({
+  return {
     access_token,
     refresh_token,
     expires_at: Date.now() + Math.max(0, expires_in - 60) * 1000,
     user_id,
     email: typeof user?.email === 'string' ? user.email : null,
-  })
+  }
+}
+
+export type AuthSessionPrecommit = (candidate: SupabaseAuthSession) => Promise<void>
+
+/** Run owner verification before replacing the existing persisted login. */
+async function accept_authenticated_session(
+  response: SupabaseAuthResponse,
+  precommit?: AuthSessionPrecommit,
+): Promise<SupabaseAuthSession> {
+  const candidate = session_from_auth_response(response)
+  await precommit?.(candidate)
+  return save_supabase_session(candidate)
 }
 
 export async function supabase_sign_up(
   config_input: SupabaseSyncConfig,
   email: string,
   password: string,
+  precommit?: AuthSessionPrecommit,
 ): Promise<SupabaseAuthSession | null> {
   const config = validate_supabase_config(config_input)
   const response = await fetch(`${config.project_url}/auth/v1/signup`, {
@@ -204,13 +217,14 @@ export async function supabase_sign_up(
     return null
   }
 
-  return session_from_auth_response(payload)
+  return accept_authenticated_session(payload, precommit)
 }
 
 export async function supabase_sign_in(
   config_input: SupabaseSyncConfig,
   email: string,
   password: string,
+  precommit?: AuthSessionPrecommit,
 ): Promise<SupabaseAuthSession> {
   const config = validate_supabase_config(config_input)
   const response = await fetch(
@@ -222,8 +236,9 @@ export async function supabase_sign_in(
     },
   )
 
-  return session_from_auth_response(
+  return accept_authenticated_session(
     await parse_json_response<SupabaseAuthResponse>(response),
+    precommit,
   )
 }
 
@@ -258,9 +273,13 @@ async function refresh_supabase_session(
     },
   )
 
-  return session_from_auth_response(
+  const refreshed = session_from_auth_response(
     await parse_json_response<SupabaseAuthResponse>(response),
   )
+  if (refreshed.user_id !== session.user_id) {
+    throw new Error('Supabase refresh changed account identity. Sync stopped; login was not replaced.')
+  }
+  return save_supabase_session(refreshed)
 }
 
 export async function require_supabase_session(
@@ -289,8 +308,12 @@ async function rpc<T>(
   config: SupabaseSyncConfig,
   function_name: string,
   body: unknown,
+  expected_user_id?: string,
 ): Promise<T> {
   const session = await require_supabase_session(config)
+  if (expected_user_id && session.user_id !== expected_user_id) {
+    throw new Error('Supabase account changed during sync. Local changes were preserved.')
+  }
   const response = await fetch(
     `${config.project_url}/rest/v1/rpc/${function_name}`,
     {
@@ -337,29 +360,41 @@ export async function check_supabase_backend(
 export class SupabaseSyncProvider implements SyncProvider {
   readonly id = 'supabase'
   private readonly config: SupabaseSyncConfig
+  private readonly expected_user_id?: string
 
-  constructor(config: SupabaseSyncConfig) {
+  constructor(config: SupabaseSyncConfig, expected_user_id?: string) {
     this.config = validate_supabase_config(config)
+    this.expected_user_id = expected_user_id
   }
 
-  push_mutations(
+  async push_mutations(
     mutations: readonly SyncPushMutation[],
   ): Promise<SyncPushResult> {
-    return rpc<SyncPushResult>(
+    const result = await rpc<SyncPushResult>(
       this.config,
       'project_freak_push_mutations',
       { p_mutations: mutations },
+      this.expected_user_id,
     )
+    if (this.expected_user_id && result.remote_user_id !== this.expected_user_id) {
+      throw new Error('Supabase push acknowledged a different account. Outbox remains pending.')
+    }
+    return result
   }
 
-  pull_changes(
+  async pull_changes(
     cursor: string | null,
     limit: number,
   ): Promise<SyncPullResult> {
-    return rpc<SyncPullResult>(
+    const result = await rpc<SyncPullResult>(
       this.config,
       'project_freak_pull_changes',
       { p_cursor: cursor, p_limit: limit },
+      this.expected_user_id,
     )
+    if (this.expected_user_id && result.remote_user_id !== this.expected_user_id) {
+      throw new Error('Supabase pull returned another account. Pull cursor was not advanced.')
+    }
+    return result
   }
 }

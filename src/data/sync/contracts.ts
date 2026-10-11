@@ -47,6 +47,16 @@ export interface SyncProvider {
   ): Promise<SyncPullResult>
 }
 
+/**
+ * Durable outcome of a remote snapshot compared with the current local
+ * entity and pending outbox inside a single IndexedDB write transaction.
+ */
+export type RemoteApplyOutcome =
+  | 'applied'
+  | 'verified_duplicate'
+  | 'stale'
+  | 'retained_conflict'
+
 export interface SyncRepository {
   get_state(provider: string): Promise<SyncState | undefined>
   put_state(state: SyncState): Promise<string>
@@ -67,4 +77,9 @@ export interface SyncRepository {
     entity: MutableEntity,
     applied_at: string,
   ): Promise<void>
+  apply_remote_entity_checked(
+    entity_type: string,
+    entity: MutableEntity,
+    applied_at: string,
+  ): Promise<RemoteApplyOutcome>
 }

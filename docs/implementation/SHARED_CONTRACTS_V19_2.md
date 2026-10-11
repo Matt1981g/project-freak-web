@@ -19,6 +19,35 @@
 4. A cross-tab, account-scoped coordination lock covers sync, refresh and exclusive restore; every writer respects maintenance exclusion. A JavaScript promise shared within one tab is insufficient.
 5. A pull cursor advances only after each incoming record was applied, verified redundant, or durably recorded for recovery. Dependent children stage until a parent can be resolved. Stale competing snapshots cannot be silently discarded.
 
+## Account/project ownership gate — Package 3 incremental implementation
+
+- `src/application/sync/datasetIdentity.ts` now stores a **device-only dataset binding** in the existing IndexedDB `settings` table, preserving backup compatibility and avoiding an unfinished database migration. The binding contains the canonical HTTPS project origin, authenticated Supabase user ID and linking timestamp; **never** tokens or service-role credentials.
+- A dataset with no binding **cannot push or pull**. After checking the authenticated backend, the user must deliberately confirm **LINK THIS DATASET** on the Cloud Sync screen. This is a potentially one-time upgrade step on each previously used browser profile, including the live PC and iPhone when eventually deployed. Existing offline workout records are not purged or relabelled.
+- The first link is serialized across tabs; an existing binding cannot be reassigned to another user or project. A conflicting legacy `sync_state.remote_user_id` also blocks automatic linking. Sign-in precommit validation rejects a different owner **before** replacing the stored login; refresh rejects a changed user ID. Sync RPC requests pin the expected user and validate provider response identities.
+- **Unfinished:** this is a cloud I/O guard for a **single-owner local database**, not full account-scoped storage or UI privacy. Signing out currently does not hide this owner's offline workout screens from an unauthenticated person using the same browser profile. Full account-scoped storage and visibility plus explicit migration/recovery UX remain hard release gates. Cross-tab operation locking is implemented separately below. Never describe the one-way link button alone as complete multi-account isolation.
+
+## Cross-tab operation lock — Package 3 incremental implementation
+
+- `src/application/sync/datasetOperationLock.ts` uses an origin-wide browser **Web Lock** named after the local database. The operation is exclusive and non-queuing: when another tab is syncing, login/logout, project configuration, linking and restore reject with a retryable error instead of interleaving network responses or changing the dataset under an active operation.
+- Lock acquisition covers all asynchronous cloud push/pull batches and the complete restore/rollback promise. Auth configuration changes, sign-in/up/out and the initial account link use the same lock. A denied lock does not mutate the dataset.
+- **Unsupported Web Locks fail closed** for these operations. Browser E2E tests on Chromium/WebKit verify origin-wide exclusion. On unsupported browsers, do not deploy until an explicitly designed alternative is available; no silent unsafe fallback.
+- The separate app-lifetime shared lease described below now blocks destructive restore while other PF tabs are open. The remaining risk is a previously launched asynchronous writer in the *same* tab; background write-task drain still requires acceptance testing.
+- Database snapshots remain read-transaction-consistent independently of this lock. No changes to the production Supabase project are made by these tests.
+
+## Quarantined change-stream recovery — Package 3 incremental implementation
+
+- Cloud change history may include an older revision before the latest snapshot of the same entity. A permanently blocked pull cursor would starve all later records. The transactional Dexie apply now returns `applied`, `verified_duplicate`, `stale` or `retained_conflict`. Both conflict outcomes durably store the competing remote payload in the local `sync_conflict` audit **before** returning.
+- The coordinator processes the complete returned batch, preserving local outbox/records and recording divergent payloads, then advances `pull_cursor` to the response cursor. It reports an **error with the conflict count** to the UI, so the conflict is never silently hidden. A failed audit transaction or malformed payload aborts the batch without advancing the cursor.
+- This is a durable quarantine/transport-progress mechanism, **not an automated conflict resolution policy or a recovery UI**. Manual review tooling for retained conflicts and end-to-end two-device Supabase tests remain required.
+
+## App-lifetime maintenance protection — Package 3 incremental implementation
+
+- Every loaded PF tab obtains a **shared app-lifetime Web Lock** before mounting the application routes. It stays held while workout logging, history editing, programme import and other UI operations remain available. Routine cloud sync has a **different lock**, so early-morning workouts are not blocked by unrelated synchronisation.
+- A destructive **Restore Backup** first obtains the cloud-operation mutex, pauses and makes the current app UI inert, releases its own shared lease, and attempts a **non-queuing exclusive app lease**. Any other open PF tab holding a shared lease makes the restore fail **before replacement or rollback starts**. Other newly opened PF tabs wait to load their routes until the restore releases the exclusive lease. The original UI is unpaused on both success and failure.
+- On browsers without Web Locks, normal offline logging remains available, but destructive restore refuses rather than risking mixed data. This does not alter the backup JSON format, IndexedDB schema or cloud RPC contract.
+- If the browser suspends/releases a tab's shared lease, the gate retries acquisition when the page becomes visible, focused or receives `pageshow`. Offline workout logging is not gated by a password prompt.
+- **Remaining acceptance work:** pending work launched asynchronously before the UI is paused must be audited (especially programme import and background write tasks); not every bare repository write currently acquires a maintenance lease. Two-device iPhone/desktop testing and offline re-entry remain required before a production release. Account visibility after sign-out also remains open.
+
 ## Graph, drafts and coaching — intended invariants
 
 - Set completion, workout finalisation and programme replacement commit related entities, revisions, audit and outbox as one graph operation. Idempotent retries never create duplicates.
@@ -34,7 +63,7 @@
 
 ## External gates still open
 
-- **Production recovery:** phone/PC backup files have been downloaded by the owner; a checksum/restore verification in a separate browser profile is still required. Git commit history does not meet this gate.
+- **Production recovery:** the owner confirmed both backup validation and a separate-browser-profile restore using an actual downloaded backup. No destructive recovery has been performed in production; this confirmation is a prerequisite, not proof of every rollback and iPhone-PWA edge case.
 - **Database testing (no paid branch):** Supabase rejected a temporary branch because the connected organization is on Free (branching requires Pro). Instead, `.github/workflows/db-contract-ci.yml` creates a disposable PostgreSQL 17 container, loads `docs/sync/project-freak-supabase-v1.sql`, and runs synthetic smoke tests from `tests/sql/` for unauthenticated rejection, cross-user isolation, equal-revision conflict convergence and RPC role privileges. This database vanishes after each GitHub Actions run; it incurs no ongoing database subscription. It is **not** a full hosted Supabase staging project: real Supabase Auth, API-gateway behaviour, two-browser convergence, network failures and migration parity still need separate validation. Production and Chantastic are never used as staging.
 - **Hosting/auth entitlement:** decide HTTP `frame-ancestors` response-header hosting route and leaked-password protection plan availability; unsupported protections remain explicitly open.
 - **Device & private data:** test physical iPhone portrait/landscape and resume; separately test the private historical workbook when provided. Do not pass synthetic fixtures off as those demonstrations.

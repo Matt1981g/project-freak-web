@@ -1,5 +1,8 @@
 import { PF_RELEASE_VERSION } from '../release'
 import { projectFreakDb } from '../data/db/projectFreakDb'
+import { PROJECT_FREAK_DB_NAME } from '../data/db/schema'
+import { with_dataset_operation_lock } from '../application/sync/datasetOperationLock'
+import { projectFreakAppAccess } from '../application/sync/datasetAppAccess'
 import { request_auto_sync } from '../application/sync/autoSyncEvents'
 import {
   SupabaseSyncProvider,
@@ -17,6 +20,15 @@ import {
   type SupabaseSyncConfig,
 } from '../data/sync'
 import { inspect_data_integrity } from '../application/diagnostics/dataIntegrity'
+import {
+  assert_dataset_account_compatible,
+  evaluate_dataset_binding,
+  get_dataset_cloud_owner,
+  link_dataset_cloud_owner,
+  normalize_dataset_project_url,
+  require_dataset_cloud_owner,
+  type DatasetBindingState,
+} from '../application/sync/datasetIdentity'
 import {
   build_full_backup,
   preview_backup_json,
@@ -280,6 +292,9 @@ export interface CloudSyncStatus {
   pending_mutations: number
   sync_state: Awaited<ReturnType<typeof repositories.sync.get_state>> | null
   project_url: string | null
+  dataset_binding: DatasetBindingState
+  dataset_owner_user_id: string | null
+  dataset_owner_project_url: string | null
 }
 
 export interface FullCloudSyncResult {
@@ -295,9 +310,10 @@ export interface FullCloudSyncResult {
 export async function load_cloud_sync_status(): Promise<CloudSyncStatus> {
   const config = load_supabase_config()
   const session = load_supabase_session()
-  const [pending_mutations, sync_state] = await Promise.all([
+  const [pending_mutations, sync_state, dataset_owner] = await Promise.all([
     repositories.sync.count_pending(),
     repositories.sync.get_state('supabase'),
+    get_dataset_cloud_owner(projectFreakDb),
   ])
 
   return {
@@ -308,36 +324,63 @@ export async function load_cloud_sync_status(): Promise<CloudSyncStatus> {
     pending_mutations,
     sync_state: sync_state ?? null,
     project_url: config?.project_url ?? null,
+    dataset_binding: evaluate_dataset_binding(
+      dataset_owner, config?.project_url ?? null, session?.user_id ?? null,
+    ),
+    dataset_owner_user_id: dataset_owner?.user_id ?? null,
+    dataset_owner_project_url: dataset_owner?.project_url ?? null,
   }
 }
 
 export function configure_cloud_sync(
   project_url: string,
   anon_key: string,
-): SupabaseSyncConfig {
-  return save_supabase_config({ project_url, anon_key })
+): Promise<SupabaseSyncConfig> {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'configure cloud', async () => {
+    const existing_owner = await get_dataset_cloud_owner(projectFreakDb)
+    if (existing_owner &&
+        existing_owner.project_url !== normalize_dataset_project_url(project_url)) {
+      throw new Error(
+        'This dataset is linked to another Supabase project. ' +
+        'Open the original project or use a separate browser profile.',
+      )
+    }
+    return save_supabase_config({ project_url, anon_key })
+  })
 }
 
-export function clear_cloud_sync_configuration(): void {
-  clear_supabase_config()
+export function clear_cloud_sync_configuration(): Promise<void> {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'clear cloud', async () => {
+    clear_supabase_config()
+  })
 }
 
 export function sign_up_cloud_sync(email: string, password: string) {
-  const config = load_supabase_config()
-  if (!config) throw new Error('Configure Supabase before creating an account.')
-  return supabase_sign_up(config, email, password)
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'sign up', async () => {
+    const config = load_supabase_config()
+    if (!config) throw new Error('Configure Supabase before creating an account.')
+    return supabase_sign_up(config, email, password, (candidate) =>
+      assert_dataset_account_compatible(projectFreakDb, config.project_url, candidate.user_id),
+    )
+  })
 }
 
 export function sign_in_cloud_sync(email: string, password: string) {
-  const config = load_supabase_config()
-  if (!config) throw new Error('Configure Supabase before signing in.')
-  return supabase_sign_in(config, email, password)
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'sign in', async () => {
+    const config = load_supabase_config()
+    if (!config) throw new Error('Configure Supabase before signing in.')
+    return supabase_sign_in(config, email, password, (candidate) =>
+      assert_dataset_account_compatible(projectFreakDb, config.project_url, candidate.user_id),
+    )
+  })
 }
 
-export async function sign_out_cloud_sync() {
-  const config = load_supabase_config()
-  if (!config) return
-  await supabase_sign_out(config)
+export function sign_out_cloud_sync() {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'sign out', async () => {
+    const config = load_supabase_config()
+    if (!config) return
+    await supabase_sign_out(config)
+  })
 }
 
 export async function check_cloud_sync_backend(): Promise<SupabaseBackendHealth> {
@@ -352,16 +395,38 @@ export async function check_cloud_sync_backend(): Promise<SupabaseBackendHealth>
   if (health.authenticated_user_id !== session.user_id) {
     throw new Error('Supabase backend user does not match the local auth session.')
   }
-
+  await assert_dataset_account_compatible(projectFreakDb, config.project_url, session.user_id)
   return health
+}
+
+export function link_cloud_sync_dataset(): Promise<void> {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'link cloud account', async () => {
+    const config = load_supabase_config()
+    const session = load_supabase_session()
+    if (!config || !session) throw new Error('Configure Supabase and sign in before linking.')
+    // Verify the account through Supabase RPC before accepting this deliberate
+    // user-initiated association of existing training records.
+    const health = await check_cloud_sync_backend()
+    if (health.authenticated_user_id !== session.user_id) {
+      throw new Error('Authenticated backend account changed. Dataset link refused.')
+    }
+    await link_dataset_cloud_owner(
+      projectFreakDb,
+      config.project_url,
+      session.user_id,
+      new Date().toISOString(),
+    )
+  })
 }
 
 async function run_full_cloud_sync_once(): Promise<FullCloudSyncResult> {
   const config = load_supabase_config()
   if (!config) throw new Error('Configure Supabase before syncing.')
-  if (!load_supabase_session()) throw new Error('Sign in before syncing.')
+  const session = load_supabase_session()
+  if (!session) throw new Error('Sign in before syncing.')
+  await require_dataset_cloud_owner(projectFreakDb, config.project_url, session.user_id)
 
-  const provider = new SupabaseSyncProvider(config)
+  const provider = new SupabaseSyncProvider(config, session.user_id)
   let pushed = 0
   let acknowledged = 0
   let pulled = 0
@@ -448,7 +513,9 @@ let full_cloud_sync_in_flight: Promise<FullCloudSyncResult> | null = null
 export function run_full_cloud_sync(): Promise<FullCloudSyncResult> {
   if (full_cloud_sync_in_flight) return full_cloud_sync_in_flight
 
-  const operation = run_full_cloud_sync_once().finally(() => {
+  const operation = with_dataset_operation_lock(
+    PROJECT_FREAK_DB_NAME, 'cloud sync', run_full_cloud_sync_once,
+  ).finally(() => {
     full_cloud_sync_in_flight = null
   })
 
@@ -571,12 +638,16 @@ export async function preview_database_backup(file: File) {
 }
 
 
-export async function restore_database_backup(preview: BackupPreview) {
-  return restore_validated_backup(projectFreakDb, preview, {
-    now_iso: new Date().toISOString(),
-    source_device_id: await current_device_id(),
-    app_version: PF_RELEASE_VERSION,
-  })
+export function restore_database_backup(preview: BackupPreview) {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'restore', () =>
+    projectFreakAppAccess.restore_exclusively(async () =>
+      restore_validated_backup(projectFreakDb, preview, {
+        now_iso: new Date().toISOString(),
+        source_device_id: await current_device_id(),
+        app_version: PF_RELEASE_VERSION,
+      }),
+    ),
+  )
 }
 
 export function load_exercise_library(query: ExerciseLibraryQuery = {}) {

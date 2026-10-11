@@ -166,32 +166,6 @@ function parse_remote_entity(change: SyncRemoteMutation): MutableEntity {
   return payload as unknown as MutableEntity
 }
 
-function canonicalise_json(value: unknown): string {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value)
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalise_json).join(',')}]`
-  }
-
-  const entries = Object.entries(value as Record<string, unknown>)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(
-      ([key, nested]) =>
-        `${JSON.stringify(key)}:${canonicalise_json(nested)}`,
-    )
-
-  return `{${entries.join(',')}}`
-}
-
-function entities_match(
-  local: MutableEntity,
-  remote: MutableEntity,
-): boolean {
-  return canonicalise_json(local) === canonicalise_json(remote)
-}
-
 export async function run_push_sync(
   repository: SyncRepository,
   provider: SyncProvider,
@@ -327,62 +301,43 @@ export async function run_pull_sync(
 
     for (const change of response.changes) {
       const remote = parse_remote_entity(change)
-      const local = await repository.get_local_entity(
-        change.entity_type,
-        change.entity_id,
-      )
-
-      if (!local) {
-        await repository.apply_remote_entity(
-          change.entity_type,
-          remote,
-          options.now_iso,
-        )
-        applied += 1
-        continue
-      }
-
-      if (change.revision < local.revision) {
-        skipped += 1
-        continue
-      }
-
-      if (change.revision === local.revision) {
-        if (entities_match(local, remote)) {
-          skipped += 1
-          continue
-        }
-
-        conflicts += 1
-        break
-      }
-
-      if (
-        await repository.has_pending_entity_mutation(
-          change.entity_type,
-          change.entity_id,
-        )
-      ) {
-        conflicts += 1
-        break
-      }
-
-      await repository.apply_remote_entity(
+      // Do not split this into get_local_entity, check pending and write:
+      // a workout edit in another tab can commit between those awaits.
+      const outcome = await repository.apply_remote_entity_checked(
         change.entity_type,
         remote,
         options.now_iso,
       )
-      applied += 1
+
+      if (outcome === 'applied') {
+        applied += 1
+      } else if (outcome === 'verified_duplicate') {
+        skipped += 1
+      } else {
+        // This outcome is returned ONLY after the Dexie repository has
+        // durably recorded the competing snapshot in the local audit store.
+        // A change-stream batch can legitimately contain older revisions
+        // before its latest version. Halting on the first old revision causes
+        // permanent starvation even after the latest edit was synchronised.
+        conflicts += 1
+      }
     }
 
     if (conflicts > 0) {
       const error =
-        'Remote sync conflict detected. Local unsynced data was preserved and the pull cursor was not advanced.'
+        `${conflicts} remote change(s) quarantined in the local conflict audit. ` +
+        'Local work was preserved; review conflicts before resolving. ' +
+        'The pull cursor advanced past the durably recorded changes.'
 
+      // Advance ONLY after the complete response was processed and every
+      // divergent payload was retained. A thrown/failed audit write instead
+      // reaches the catch below and leaves the prior cursor untouched.
       await repository.put_state({
         ...previous_state,
         remote_user_id:
           response.remote_user_id ?? previous_state.remote_user_id,
+        pull_cursor: response.next_cursor,
+        last_pull_at: options.now_iso,
         status: 'error',
         error,
       })
@@ -393,7 +348,7 @@ export async function run_pull_sync(
         applied,
         skipped,
         conflicts,
-        cursor: previous_state.pull_cursor,
+        cursor: response.next_cursor,
         status: 'error',
         error,
       }
