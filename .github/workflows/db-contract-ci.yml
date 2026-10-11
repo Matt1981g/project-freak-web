@@ -50,6 +50,8 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/bootstrap-test-auth.sql
       - name: Install PF sync SQL contract on isolated database
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sync/project-freak-supabase-v1.sql
+      - name: Check additive V20.7 migration can be reapplied safely
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sync/migrations/pf_v20_7_serialized_sync.sql
       - name: Exercise RPC auth, isolation, conflict and validation contracts
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/sync-contract-smoke.sql
       - name: Prove concurrent commit ordering with two real PostgreSQL connections
