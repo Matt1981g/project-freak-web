@@ -25,6 +25,10 @@ export function AutoSyncRuntime() {
         const status = await load_cloud_sync_status()
         const now = Date.now()
 
+        // A legacy/unbound profile must never send or pull data until the
+        // owner explicitly confirms the correct account and project.
+        if (status.dataset_binding !== 'matched') return
+
         if (
           !should_attempt_auto_sync({
             configured: status.configured,
