@@ -2159,7 +2159,8 @@ export function WorkoutScreen() {
     } finally {
       setFinishing(false)
     }
-  }, [prime_rest_audio])
+  }
+
   useEffect(() => {
     let active = true
 
