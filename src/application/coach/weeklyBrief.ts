@@ -50,7 +50,7 @@ function set_description(set: TrainingExportSet): string {
       ? ''
       : ` [${set.structure_type.replaceAll('_', ' ')}]`
 
-  return `S${set.set_number} ${format_load(set.load_kg)} × ${reps}${structure}`
+  return `S${set.set_number} ${format_load(set.load_kg)} × ${reps}${structure} · RPE ${format_score(set.rpe)}`
 }
 
 function target_number(
@@ -272,7 +272,7 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
             : '—')
 
         lines.push(
-          `  Scores: RPE ${format_score(exercise.metrics.rpe)} | Pump ${format_score(exercise.metrics.pump)} | Form ${format_score(exercise.metrics.form)} | Where felt ${where_felt}`,
+          `  Exercise: Pump ${format_score(exercise.metrics.pump)} | Form ${format_score(exercise.metrics.form)} | Enjoyment ${format_score(exercise.metrics.enjoyment)} | Legacy RPE ${format_score(exercise.metrics.rpe)} | Where felt ${where_felt}`,
         )
       } else {
         lines.push('  Scores: Not recorded')
@@ -286,7 +286,7 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     '',
     'DATA QUALITY',
     `Sessions without readiness/recovery: ${missing_readiness}`,
-    `Exercise appearances without RPE/Pump/Form metrics: ${missing_metrics}`,
+    `Exercise appearances without exercise review (Pump/Form/Enjoyment): ${missing_metrics}`,
     `Exercise appearances without programmed targets: ${missing_targets}`,
     '',
     'COACH HANDOFF',
