@@ -298,7 +298,8 @@ function PreviousComparablePanel(props: {
 
         {previous.metrics && (
           <div className={styles.previousScores}>
-            <span>RPE {previous.metrics.rpe ?? '—'}</span>
+            {!previous.sets.some((set) => set.rpe != null) && <span>LEGACY RPE {previous.metrics.rpe ?? '—'}</span>}
+            <span>ENJOYMENT {previous.metrics.enjoyment ?? '—'}</span>
             <span>PUMP {previous.metrics.pump ?? '—'}</span>
             <span>FORM {previous.metrics.form ?? '—'}</span>
           </div>
@@ -308,7 +309,7 @@ function PreviousComparablePanel(props: {
       <div className={styles.previousSetStrip}>
         {previous.sets.map((set) => (
           <div className={styles.previousSet} key={set.set_number}>
-            <span>SET {set.set_number}</span>
+            <span>SET {set.set_number}{set.rpe != null ? ` · RPE ${set.rpe}` : ''}</span>
             <strong>
               {set.load_kg === null ? '—' : `${set.load_kg} kg`} ×{' '}
               {set.completed_reps ?? '—'}
