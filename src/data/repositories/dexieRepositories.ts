@@ -888,19 +888,6 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
   async commit_import(
     entities: ProgrammeImportEntities,
   ): Promise<'committed' | 'duplicate_noop'> {
-    const duplicate = await this.db.programme_blocks
-      .filter(
-        (block) =>
-          block.deleted_at === null &&
-          block.source_kind === 'programme_import' &&
-          block.source_id === entities.block.source_id,
-      )
-      .first()
-
-    if (duplicate) {
-      return 'duplicate_noop'
-    }
-
     const syncable: Array<[string, SyncableEntity]> = [
       ['programme_block', entities.block],
       ...entities.templates.map(
@@ -948,7 +935,20 @@ export class DexieProgrammeRepository implements ProgrammeRepository {
         this.db.audit_events,
         this.db.sync_outbox,
       ],
-      async (): Promise<'committed'> => {
+      async (): Promise<'committed' | 'duplicate_noop'> => {
+    const duplicate = await this.db.programme_blocks
+      .filter(
+        (block) =>
+          block.deleted_at === null &&
+          block.source_kind === 'programme_import' &&
+          block.source_id === entities.block.source_id,
+      )
+      .first()
+
+    if (duplicate) {
+      return 'duplicate_noop'
+    }
+
         await this.db.programme_blocks.add(entities.block)
         await this.db.workout_templates.bulkAdd(entities.templates)
         await this.db.template_exercises.bulkAdd(entities.template_exercises)
