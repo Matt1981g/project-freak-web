@@ -69,7 +69,7 @@ type LiveWorkout = NonNullable<
 >
 type LiveExercise = LiveWorkout['exercises'][number]
 type PlannedSet = LiveExercise['planned_sets'][number]
-type ScoreKey = 'rpe' | 'pump' | 'form'
+type ScoreKey = 'pump' | 'form' | 'enjoyment'
 type ComponentDraft = {
   sequence: number
   component_type: SetComponent['component_type']
@@ -99,18 +99,6 @@ type AudioWindow = Window &
   }
 
 const SCORE_DESCRIPTIONS: Record<ScoreKey, readonly string[]> = {
-  rpe: [
-    'Very easy · 9+ reps left',
-    'Easy · about 8 reps left',
-    'Easy-moderate · about 7 reps left',
-    'Moderate · about 6 reps left',
-    'Working · about 5 reps left',
-    'Challenging · about 4 reps left',
-    'Hard · about 3 good reps left',
-    'Very hard · about 2 good reps left',
-    'Near limit · about 1 good rep left',
-    '0 RIR · no good rep left',
-  ],
   pump: [
     'Nothing happening',
     'Barely noticeable',
@@ -134,6 +122,10 @@ const SCORE_DESCRIPTIONS: Record<ScoreKey, readonly string[]> = {
     'Good · minor technique drift',
     'Very clean · tiny deviation',
     'Textbook',
+  ],
+  enjoyment: [
+    'Disliked it', 'Would avoid', 'Frustrating', 'Unpleasant', 'Neutral',
+    'Acceptable', 'Enjoyable', 'Really enjoyed it', 'Loved it', 'Absolute favourite',
   ],
 }
 
@@ -894,6 +886,7 @@ function SetLoggerRow(props: {
     on_corrected,
   } = props
   const [saved_set, setSavedSet] = useState<TrainingSet | null>(actual_set)
+  const [rpe, setRpe] = useState<number | null>(actual_set?.rpe ?? null)
   const [load, setLoad] = useState<number | null>(initial_load_kg)
   const [reps, setReps] = useState<number | null>(
     actual_set?.completed_reps ?? null,
@@ -922,6 +915,7 @@ function SetLoggerRow(props: {
   const [error, setError] = useState<string | null>(null)
   const load_ref = useRef(load)
   const reps_ref = useRef(reps)
+  const rpe_ref = useRef(rpe)
   const failed_ref = useRef(failed)
   const components_ref = useRef(components)
   const saved_set_ref = useRef<TrainingSet | null>(saved_set)
@@ -970,6 +964,7 @@ function SetLoggerRow(props: {
     complete?: boolean
     load_kg?: number | null
     completed_reps?: number | null
+    rpe?: number | null
     failed_next_rep?: boolean
     components?: ComponentDraft[]
   }) {
@@ -982,6 +977,7 @@ function SetLoggerRow(props: {
       options && 'completed_reps' in options
         ? options.completed_reps ?? null
         : reps_ref.current
+    const set_rpe = options && 'rpe' in options ? options.rpe ?? null : rpe_ref.current
     const failed_next_rep =
       options && 'failed_next_rep' in options
         ? options.failed_next_rep ?? false
@@ -1004,6 +1000,7 @@ function SetLoggerRow(props: {
           set_number,
           load_kg,
           completed_reps,
+          rpe: set_rpe,
           failed_next_rep,
           complete,
           components: component_values,
@@ -1049,6 +1046,13 @@ function SetLoggerRow(props: {
     change_load(
       display_load_to_kilograms(numeric_value(raw), load_unit),
     )
+  }
+
+  function change_rpe(value: number | null) {
+    rpe_ref.current = value
+    setRpe(value)
+    clear_autosave_timer()
+    void queue_save({ rpe: value })
   }
 
   function change_reps(value: number | null) {
@@ -1239,6 +1243,17 @@ function SetLoggerRow(props: {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className={styles.setRpePanel}>
+        <label htmlFor={`rpe-${exercise.id}-${set_number}`}>SET RPE</label>
+        <select id={`rpe-${exercise.id}-${set_number}`} value={rpe ?? ''} disabled={completed || locked} onChange={(event) => change_rpe(event.target.value === '' ? null : Number(event.target.value))}>
+          <option value="">Choose exertion…</option>
+          {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
+            <option key={value} value={value}>{value} / 10</option>
+          ))}
+        </select>
+        <small>{rpe === null ? 'One RPE score per working set' : `RPE ${rpe} · approx. ${10 - rpe} reps in reserve`}</small>
       </div>
 
       {planned_set && planned_set.components.length > 0 && (
@@ -1558,7 +1573,7 @@ function ExerciseScoringPanel(props: {
   on_complete: () => Promise<void>
 }) {
   const { exercise, metrics, on_complete } = props
-  const [rpe, setRpe] = useState(metrics?.rpe ?? 5)
+  const [enjoyment, setEnjoyment] = useState(metrics?.enjoyment ?? 5)
   const [pump, setPump] = useState(metrics?.pump ?? 5)
   const [form, setForm] = useState(metrics?.form ?? 5)
   const initial_target_stimulus = read_target_stimulus(
@@ -1569,7 +1584,7 @@ function ExerciseScoringPanel(props: {
   const [stimulus_touched, setStimulusTouched] = useState(
     initial_target_stimulus !== null,
   )
-  const [rpe_touched, setRpeTouched] = useState(metrics?.rpe != null)
+  const [enjoyment_touched, setEnjoymentTouched] = useState(metrics?.enjoyment != null)
   const [pump_touched, setPumpTouched] = useState(metrics?.pump != null)
   const [form_touched, setFormTouched] = useState(metrics?.form != null)
   const [saved_metrics, setSavedMetrics] = useState<ExerciseMetrics | null>(
@@ -1585,11 +1600,13 @@ function ExerciseScoringPanel(props: {
     override_stimulus?: TargetStimulusRating,
   ) {
     return {
-      rpe:
-        override_key === 'rpe'
-          ? (override_value ?? rpe)
-          : rpe_touched
-            ? rpe
+      // Preserve historical exercise RPE; new workouts rate each set.
+      rpe: metrics?.rpe ?? null,
+      enjoyment:
+        override_key === 'enjoyment'
+          ? (override_value ?? enjoyment)
+          : enjoyment_touched
+            ? enjoyment
             : null,
       pump:
         override_key === 'pump'
@@ -1620,7 +1637,7 @@ function ExerciseScoringPanel(props: {
     )
 
     if (
-      saved_metrics?.rpe === scores.rpe &&
+      saved_metrics?.enjoyment === scores.enjoyment &&
       saved_metrics?.pump === scores.pump &&
       saved_metrics?.form === scores.form &&
       (scores.target_stimulus === undefined ||
@@ -1722,11 +1739,6 @@ function ExerciseScoringPanel(props: {
               </span>
             ))}
           </div>
-          {key === 'rpe' && (
-            <small>
-              RPE 10 means 0 RIR. It does not require a failed rep attempt.
-            </small>
-          )}
         </details>
       </div>
     )
@@ -1742,7 +1754,7 @@ function ExerciseScoringPanel(props: {
         <small>Untouched sliders are not recorded.</small>
       </div>
 
-      {slider('rpe', 'RPE', rpe, rpe_touched, setRpe, setRpeTouched)}
+      {slider('enjoyment', 'ENJOYMENT', enjoyment, enjoyment_touched, setEnjoyment, setEnjoymentTouched)}
       {slider('pump', 'PUMP', pump, pump_touched, setPump, setPumpTouched)}
       {slider('form', 'FORM', form, form_touched, setForm, setFormTouched)}
 
@@ -1917,7 +1929,7 @@ function CompletedExerciseSummary(props: {
     <div className={styles.completedExerciseSummary}>
       <strong>EXERCISE COMPLETE ✓</strong>
       <div>
-        <span>RPE {metrics?.rpe ?? '—'}</span>
+        <span>ENJOYMENT {metrics?.enjoyment ?? '—'}</span>
         <span>PUMP {metrics?.pump ?? '—'}</span>
         <span>FORM {metrics?.form ?? '—'}</span>
       </div>
