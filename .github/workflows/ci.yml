@@ -14,21 +14,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
-      - name: Install
+      - name: Install reproducibly
         run: npm ci
-
       - name: Validate release verifier
         run: node --check scripts/verify-deployment.mjs
-
-      - name: Test
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and integration tests
         run: npm test
-
       - name: Build
         run: npm run build
+      - name: Install required browser engines
+        run: npx playwright install --with-deps chromium webkit
+      - name: Required Chromium and WebKit tests
+        run: npx playwright test
