@@ -2137,7 +2137,7 @@ export function WorkoutScreen() {
     } catch {
       // Some iOS audio states may still suppress sound; visual GO remains.
     }
-  }
+  }, [prime_rest_audio])
 
   async function finish_workout() {
     if (!completed_session_id || finishing) return
