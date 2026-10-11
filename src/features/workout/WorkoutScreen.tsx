@@ -51,6 +51,7 @@ import {
 import {
   clear_workout_draft,
   read_workout_draft,
+  rebase_newer_workout_draft,
   should_recover_workout_draft,
   track_workout_write,
   workout_draft_key,
@@ -1166,6 +1167,7 @@ function SetLoggerRow(props: {
 
     const run = async () => {
       try {
+        const previous_revision = saved_set_ref.current?.revision ?? 0
         const updated = await save_live_training_set({
           session_exercise: exercise,
           programmed_set: target ?? null,
@@ -1180,6 +1182,12 @@ function SetLoggerRow(props: {
         })
         saved_set_ref.current = updated
         setSavedSet(updated)
+        // A newer keystroke can be journalled while the previous snapshot
+        // commits. Its previous base revision must advance with that commit,
+        // otherwise iOS suspension makes the next recovery appear stale.
+        rebase_newer_workout_draft(
+          draft_key, saved_sequence, previous_revision, updated.revision,
+        )
         clear_workout_draft(draft_key, saved_sequence)
 
         if (complete) {
