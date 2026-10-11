@@ -49,48 +49,96 @@ function programme_windows_overlap(
   )
 }
 
-function is_superseded(
-  block: ProgrammeBlock,
+/**
+ * Single source of truth for Plan, the daily workout prompt and Plan Health.
+ *
+ * An older prescription is displaced per scheduled DATE, not merely because
+ * a newer same-name or overlapping block exists. During phone/cloud sync a
+ * replacement block may arrive before its sessions; it must not hide a usable
+ * earlier workout. Older dates not yet replaced remain actionable.
+ *
+ * Intentional explicit lineage also supports a wholesale move to a new date
+ * window once the successor has at least one persisted prescription.
+ */
+export function select_plan_candidate_sessions(
   blocks: readonly ProgrammeBlock[],
-): boolean {
-  return blocks.some((candidate) => {
-    if (
-      candidate.id === block.id ||
-      candidate.deleted_at !== null ||
-      candidate.status === 'archived' ||
-      candidate.status === 'completed'
-    ) {
-      return false
-    }
+  sessions_by_block: ReadonlyMap<string, readonly ProgrammedSession[]>,
+  today_local: string,
+): Map<string, ProgrammedSession[]> {
+  const eligible_blocks = blocks.filter((block) =>
+    block.deleted_at === null &&
+    block.status !== 'archived' &&
+    block.status !== 'completed' &&
+    (block.end_date_local === null || block.end_date_local >= today_local),
+  )
 
-    if (explicitly_supersedes(candidate, block.id)) return true
+  const usable_sessions = new Map(eligible_blocks.map((block) => [
+    block.id,
+    (sessions_by_block.get(block.id) ?? []).filter((session) =>
+      session.deleted_at === null &&
+      session.status !== 'cancelled',
+    ),
+  ] as const))
 
-    // Reimports can create an identical week with new session UUIDs without
-    // recording lineage. Suppress the older identical prescription by creation
-    // time; retaining both in the DB keeps actuals/history untouched.
-    if (
-      candidate.block_type === block.block_type &&
-      candidate.block_type !== 'custom' &&
-      candidate.name === block.name &&
-      candidate.start_date_local !== null &&
-      candidate.end_date_local !== null &&
-      candidate.start_date_local === block.start_date_local &&
-      candidate.end_date_local === block.end_date_local &&
-      (candidate.created_at > block.created_at ||
-        (candidate.created_at === block.created_at && candidate.id > block.id))
-    ) {
-      return true
-    }
+  const candidate_sessions = new Map<string, ProgrammedSession[]>()
 
-    // Existing databases pre-date explicit lineage. Only legacy rows that do
-    // not have the field at all use the old overlap/creation-time heuristic.
-    if (candidate.supersedes_programme_block_id !== undefined) return false
+  for (const block of eligible_blocks) {
+    const sessions = (usable_sessions.get(block.id) ?? []).filter((session) => {
+      if (session.status === 'completed') return false
+      if (
+        session.status === 'skipped' &&
+        session.scheduled_date_local !== null &&
+        session.scheduled_date_local < today_local
+      ) return false
 
-    return (
-      candidate.created_at > block.created_at &&
-      programme_windows_overlap(block, candidate)
-    )
-  })
+      return !eligible_blocks.some((successor) => {
+        if (successor.id === block.id) return false
+        const successor_sessions = usable_sessions.get(successor.id) ?? []
+        if (successor_sessions.length === 0) return false
+
+        const explicit = explicitly_supersedes(successor, block.id)
+        const newer =
+          successor.created_at > block.created_at ||
+          (successor.created_at === block.created_at && successor.id > block.id)
+        const same_named_week =
+          newer &&
+          successor.block_type === block.block_type &&
+          successor.block_type !== 'custom' &&
+          successor.name === block.name &&
+          successor.start_date_local !== null &&
+          successor.end_date_local !== null &&
+          successor.start_date_local === block.start_date_local &&
+          successor.end_date_local === block.end_date_local
+        const legacy_overlap =
+          newer &&
+          successor.supersedes_programme_block_id === undefined &&
+          programme_windows_overlap(block, successor)
+
+        if (!explicit && !same_named_week && !legacy_overlap) return false
+
+        // Explicit lineage to a distinct window deliberately replaces the old
+        // schedule. A partially arrived, same-window successor only replaces
+        // dates whose session has arrived; never hide missing future days.
+        if (
+          explicit &&
+          !programme_windows_overlap(block, successor) &&
+          (successor.start_date_local !== block.start_date_local ||
+            successor.end_date_local !== block.end_date_local)
+        ) return true
+
+        return (
+          session.scheduled_date_local !== null &&
+          successor_sessions.some((replacement) =>
+            replacement.scheduled_date_local === session.scheduled_date_local,
+          )
+        )
+      })
+    })
+
+    if (sessions.length > 0) candidate_sessions.set(block.id, sessions)
+  }
+
+  return candidate_sessions
 }
 
 function session_is_visible(
@@ -134,31 +182,19 @@ export function select_active_plan_programmes(
 
   const programmes: PlanProgrammeSummary[] = []
 
+  const candidates = select_plan_candidate_sessions(
+    blocks, sessions_by_block, context.today_local,
+  )
+
   for (const block of blocks) {
-    if (block.deleted_at !== null) continue
-    if (block.status === 'archived' || block.status === 'completed') continue
+    const raw = candidates.get(block.id)
+    if (!raw) continue
 
-    if (
-      block.end_date_local !== null &&
-      block.end_date_local < context.today_local
-    ) {
-      continue
-    }
-
-    // Programme visibility is controlled only by explicit programme/session
-    // lifecycle state. Changes to priorities, muscle mappings, exercise
-    // metadata, or newly completed evidence must never make a valid future
-    // programme silently disappear from Plan.
-    if (is_superseded(block, blocks)) continue
-
-    const sessions = (sessions_by_block.get(block.id) ?? []).filter((session) =>
+    const sessions = raw.filter((session) =>
       session_is_visible(
-        session,
-        final_actual_programmed_ids,
-        context.today_local,
+        session, final_actual_programmed_ids, context.today_local,
       ),
     )
-
     if (sessions.length === 0) continue
 
     programmes.push({
