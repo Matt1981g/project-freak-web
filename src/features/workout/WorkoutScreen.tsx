@@ -729,10 +729,6 @@ function CompletedSetCorrection(props: {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  if (!can_safely_correct_set(set)) {
-    return null
-  }
-
   useEffect(() => {
     if (previous_load_unit_ref.current === load_unit) return
     previous_load_unit_ref.current = load_unit
@@ -772,6 +768,10 @@ function CompletedSetCorrection(props: {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!can_safely_correct_set(set)) {
+    return null
   }
 
   return (
