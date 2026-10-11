@@ -5,6 +5,7 @@ import { with_dataset_operation_lock } from '../application/sync/datasetOperatio
 import { projectFreakAppAccess } from '../application/sync/datasetAppAccess'
 import { request_auto_sync } from '../application/sync/autoSyncEvents'
 import { is_dangerous_feedback_deletion } from '../application/sync/syncSafetyGate'
+import { quarantine_feedback_reconciliation_outbox } from '../application/sync/quarantineReconciliationOutbox'
 import { load_local_conflict_diagnostics } from '../application/sync/conflictDiagnostics'
 import {
   SupabaseSyncProvider,
@@ -432,12 +433,15 @@ async function run_full_cloud_sync_once(): Promise<FullCloudSyncResult> {
   if (!session) throw new Error('Sign in before syncing.')
   await require_dataset_cloud_owner(projectFreakDb, config.project_url, session.user_id)
 
-  // Historical duplicate-ID reconciliation produced delete outbox entries
-  // for readiness and exercise scores belonging to completed workouts.
-  // Stop BEFORE any network request; do not silently upload those tombstones
-  // or discard them from the local outbox/backup.
+  // Preserve old duplicate-ID reconciliation outbox entries, including
+  // associated unsent edits, in the same local DB with durable audit evidence.
+  // Neither acknowledge nor upload them. The repaired cloud canonical record
+  // is then able to converge on both devices through normal pull.
+  await quarantine_feedback_reconciliation_outbox(
+    projectFreakDb, new Date().toISOString(),
+  )
   const dangerous_deletions = await projectFreakDb.sync_outbox
-    .filter(is_dangerous_feedback_deletion)
+    .filter((entry) => entry.quarantined_at == null && is_dangerous_feedback_deletion(entry))
     .count()
   if (dangerous_deletions > 0) {
     return {
