@@ -5,7 +5,9 @@
  * This verifies publicly reachable assets only; authenticated sync requires a user session.
  */
 const base = process.argv[2]
-const expected = process.argv[3] ?? 'V19.1'
+const package_metadata = JSON.parse(await (await import('node:fs/promises')).readFile(new URL('../package.json', import.meta.url), 'utf8'))
+const [major, minor] = package_metadata.version.split('.')
+const expected = process.argv[3] ?? `V${major}.${minor}`
 
 if (!base || !/^https:\/\//i.test(base)) {
   console.error('Usage: node scripts/verify-deployment.mjs https://example.github.io/project-freak-web/ V19.0')
