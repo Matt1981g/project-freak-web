@@ -78,6 +78,7 @@ function source(
     list_blocks: async () => [programme_block],
     list_sessions: async () => [programmed_session],
     list_active_plan: async () => selection,
+    list_actuals: async () => [],
     get_session_detail: async () => detail,
     list_active_exercises: async () => [exercise()],
   }
