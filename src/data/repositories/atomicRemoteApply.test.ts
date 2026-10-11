@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Exercise, ExerciseMetrics } from '../../domain/models'
 import { ProjectFreakDatabase } from '../db/projectFreakDb'
 import { create_sync_outbox_entry } from './persistenceUtils'
+import { run_pull_sync } from '../sync/syncCoordinator'
+import type { SyncProvider } from '../sync/contracts'
 import { DexieSyncRepository } from './dexieRepositories'
 
 const DB_NAME = 'pf-atomic-remote-apply-test'
@@ -175,5 +177,60 @@ describe('atomic remote apply against real IndexedDB connections', () => {
     expect(await first.exercise_metrics.get(remote.id)).toBeUndefined()
     expect(await first.sync_outbox.count()).toBe(1)
     expect((await first.audit_events.toArray())[0].action).toBe('sync_conflict')
+  })
+
+  it('quarantines stale cloud history and advances the real Dexie cursor after the complete batch', async () => {
+    const latest = {
+      ...local_exercise,
+      canonical_name: 'Current local and remote edit',
+      revision: 3,
+    }
+    await first.exercises.put(latest)
+    const stale = {
+      ...local_exercise,
+      canonical_name: 'Prior cloud edit',
+      revision: 1,
+    }
+    const new_record = {
+      ...local_exercise,
+      id: 'exercise-next-1',
+      canonical_name: 'Next cloud exercise',
+      revision: 1,
+    }
+    const changes = [stale, latest, new_record].map((entity, index) => ({
+      remote_change_id: String(index + 1),
+      entity_type: 'exercise',
+      entity_id: entity.id,
+      operation: 'upsert' as const,
+      revision: entity.revision,
+      payload_json: entity,
+      updated_at: entity.updated_at,
+    }))
+    const provider: SyncProvider = {
+      id: 'supabase',
+      push_mutations: async () => ({
+        acknowledged_outbox_ids: [], remote_user_id: 'test-user', error: null,
+      }),
+      pull_changes: async () => ({
+        changes,
+        next_cursor: '3',
+        remote_user_id: 'test-user',
+        error: null,
+      }),
+    }
+    const result = await run_pull_sync(sync, provider, { now_iso: NOW })
+    expect(result).toMatchObject({
+      status: 'error', conflicts: 1, skipped: 1,
+      applied: 1, cursor: '3',
+    })
+    expect((await first.sync_state.get('supabase'))?.pull_cursor).toBe('3')
+    expect(await first.exercises.get(latest.id)).toEqual(latest)
+    expect(await first.exercises.get(new_record.id)).toEqual(new_record)
+    const audits = (await first.audit_events.toArray())
+      .filter((entry) => entry.action === 'sync_conflict')
+    expect(audits).toHaveLength(1)
+    expect(audits[0].after_json).toMatchObject({
+      canonical_name: 'Prior cloud edit', revision: 1,
+    })
   })
 })
