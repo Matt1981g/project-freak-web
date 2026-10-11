@@ -42,12 +42,15 @@ export function ExerciseHistoryScreen() {
     let cancelled = false
 
     if (!exercise_id) {
-      setError('Exercise ID is missing.')
-      setLoading(false)
-      return
+      queueMicrotask(() => {
+        if (cancelled) return
+        setError('Exercise ID is missing.')
+        setLoading(false)
+      })
+      return () => { cancelled = true }
     }
 
-    setLoading(true)
+    queueMicrotask(() => { if (!cancelled) setLoading(true) })
     void load_exercise_history_entries(exercise_id)
       .then((result) => {
         if (cancelled) return
