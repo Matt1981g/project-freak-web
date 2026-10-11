@@ -32,8 +32,8 @@
 
 ## External gates still open
 
-- **Production recovery:** obtain a stable phone/PC backup with other writers paused and *verify a restore* in a distinct browser profile. Git commit history does not meet this gate.
-- **Staging:** create isolated Supabase project and nonpersonal fixtures for account-switch, interleaved writes, failure injection, migrations and two-device sync. Only production PF and unrelated Chantastic projects currently appear in connected Supabase scope.
+- **Production recovery:** phone/PC backup files have been downloaded by the owner; a checksum/restore verification in a separate browser profile is still required. Git commit history does not meet this gate.
+- **Database testing (no paid branch):** Supabase rejected a temporary branch because the connected organization is on Free (branching requires Pro). Instead, `.github/workflows/db-contract-ci.yml` creates a disposable PostgreSQL 17 container, loads `docs/sync/project-freak-supabase-v1.sql`, and runs synthetic smoke tests from `tests/sql/` for unauthenticated rejection, cross-user isolation, equal-revision conflict convergence and RPC role privileges. This database vanishes after each GitHub Actions run; it incurs no ongoing database subscription. It is **not** a full hosted Supabase staging project: real Supabase Auth, API-gateway behaviour, two-browser convergence, network failures and migration parity still need separate validation. Production and Chantastic are never used as staging.
 - **Hosting/auth entitlement:** decide HTTP `frame-ancestors` response-header hosting route and leaked-password protection plan availability; unsupported protections remain explicitly open.
 - **Device & private data:** test physical iPhone portrait/landscape and resume; separately test the private historical workbook when provided. Do not pass synthetic fixtures off as those demonstrations.
 - This design record does not authorise an IndexedDB or backend deployment. Implement and verify package 3 before rewiring workout and Coach consumers.
