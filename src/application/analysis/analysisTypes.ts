@@ -19,6 +19,8 @@ export interface WeeklyTrainingAnalysis {
   rpe: MetricAverage
   pump: MetricAverage
   form: MetricAverage
+  /** Available on PF19+ exercise reviews. */
+  enjoyment?: MetricAverage
 }
 
 export interface MuscleAnalysisRow {
