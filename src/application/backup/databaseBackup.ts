@@ -229,16 +229,35 @@ export async function build_full_backup(
   db: ProjectFreakDatabase,
   context: BackupBuildContext,
 ): Promise<ProjectFreakBackup> {
-  const metadata = await db.ensure_schema_metadata()
-  const tables: Record<string, Array<Record<string, unknown>>> = {}
-  const checksums: Record<string, string> = {}
+  // Finish any one-time metadata upgrade *before* taking the snapshot.
+  await db.ensure_schema_metadata()
 
+  // Keep every store under one IndexedDB read transaction. Independent reads
+  // can mix workout parents/children from different moments while another
+  // tab writes; a single transaction provides a coherent backup snapshot.
+  const { tables, metadata } = await db.transaction('r', db.tables, async () => {
+    const entries = await Promise.all(
+      PROJECT_FREAK_STORE_NAMES.map(async (table_name) => [
+        table_name,
+        (await db.table(table_name).toArray()) as Array<Record<string, unknown>>,
+      ] as const),
+    )
+    const metadata = await db.schema_meta.get('main')
+    if (!metadata) throw new Error('Backup schema metadata is missing.')
+    return {
+      tables: Object.fromEntries(entries) as Record<
+        string,
+        Array<Record<string, unknown>>
+      >,
+      metadata,
+    }
+  })
+
+  // WebCrypto and the SHA-256 fallback must run *after* the read
+  // transaction; awaiting arbitrary hashing can prematurely close it.
+  const checksums: Record<string, string> = {}
   for (const table_name of PROJECT_FREAK_STORE_NAMES) {
-    const records = (await db.table(table_name).toArray()) as Array<
-      Record<string, unknown>
-    >
-    tables[table_name] = records
-    checksums[table_name] = await table_checksum(records)
+    checksums[table_name] = await table_checksum(tables[table_name])
   }
 
   return {
