@@ -115,7 +115,6 @@ class MemorySyncRepository implements SyncRepository {
   async apply_remote_entity(
     entity_type: string,
     entity: MutableEntity,
-    _applied_at: string,
   ) {
     this.entities.set(this.key(entity_type, entity.id), entity)
     this.applied.push(this.key(entity_type, entity.id))
@@ -136,7 +135,7 @@ class MemorySyncRepository implements SyncRepository {
     if (await this.has_pending_entity_mutation(entity_type, entity.id)) {
       return 'retained_conflict' as const
     }
-    await this.apply_remote_entity(entity_type, entity, applied_at)
+    await this.apply_remote_entity(entity_type, entity)
     return 'applied' as const
   }
 
