@@ -418,7 +418,7 @@ function ReadinessPanel(props: {
     setDraftFailed(!write_workout_form_draft(draft_key, {
       version: 1, kind: 'readiness', session_id: completed_session_id,
       base_revision: saved_revision_ref.current,
-      edit_sequence: sequence, changed_at: Date.now(), form: next,
+      edit_sequence: sequence, changed_at: 0, form: next,
     }))
     setDirty(true)
     setSaved(false)
