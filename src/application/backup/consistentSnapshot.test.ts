@@ -45,16 +45,17 @@ describe('atomic full-backup read snapshot', () => {
   it('never mixes rows read before and after a cross-tab atomic write', async () => {
     await backup_connection.ensure_schema_metadata()
 
-    const original_to_array = backup_connection.settings.toArray.bind(
-      backup_connection.settings,
-    )
+    // Backup calls db.table(name); Dexie may create a different table wrapper
+    // than the db.settings property, so intercept the same lookup path.
+    const settings_table = backup_connection.table('settings')
+    const original_to_array = settings_table.toArray.bind(settings_table)
     let write_started = false
     let write_promise: Promise<unknown> | null = null
 
     // Trigger a real write transaction from another IndexedDB connection
     // after the backup has already read its early settings store but before
     // it reads sync_state (near the end of the complete store list).
-    vi.spyOn(backup_connection.settings, 'toArray').mockImplementation(() =>
+    vi.spyOn(settings_table, 'toArray').mockImplementation(() =>
       original_to_array().then((rows) => {
       if (!write_started) {
         write_started = true
