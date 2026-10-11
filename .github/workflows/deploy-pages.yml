@@ -45,6 +45,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_PF_BUILD_SHA: ${{ github.sha }}
 
       - name: Install required browser engines
         run: npx playwright install --with-deps chromium webkit
@@ -93,7 +95,7 @@ jobs:
         run: npm ci
 
       - name: Verify deployed app version and assets
-        run: node scripts/verify-deployment.mjs "${{ needs.deploy.outputs.page_url }}" V19.1
+        run: node scripts/verify-deployment.mjs "${{ needs.deploy.outputs.page_url }}"
 
 
       - name: Upload theme verification screenshots

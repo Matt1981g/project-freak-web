@@ -1,3 +1,4 @@
+import { PF_RELEASE_VERSION } from '../release'
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { request_auto_sync } from '../application/sync/autoSyncEvents'
 import {
@@ -561,7 +562,7 @@ export async function build_database_backup() {
   return build_full_backup(projectFreakDb, {
     now_iso: new Date().toISOString(),
     source_device_id: await current_device_id(),
-    app_version: null,
+    app_version: PF_RELEASE_VERSION,
   })
 }
 
@@ -574,7 +575,7 @@ export async function restore_database_backup(preview: BackupPreview) {
   return restore_validated_backup(projectFreakDb, preview, {
     now_iso: new Date().toISOString(),
     source_device_id: await current_device_id(),
-    app_version: null,
+    app_version: PF_RELEASE_VERSION,
   })
 }
 
@@ -721,7 +722,7 @@ export function build_coach_export(scope: TrainingExportScopeRequest) {
   return build_training_export(repositories, {
     now_iso: new Date().toISOString(),
     to_date_local: current_local_date(),
-    app_version: '18.1',
+    app_version: PF_RELEASE_VERSION,
     db_schema_version: Number(projectFreakDb.verno) || null,
   }, scope)
 }
@@ -730,7 +731,7 @@ export function build_last_7_days_coach_export() {
   return build_last_7_days_training_export(repositories, {
     now_iso: new Date().toISOString(),
     to_date_local: current_local_date(),
-    app_version: '18.1',
+    app_version: PF_RELEASE_VERSION,
     db_schema_version: Number(projectFreakDb.verno) || null,
   })
 }

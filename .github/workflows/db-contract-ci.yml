@@ -1,0 +1,54 @@
+name: PF isolated database contract
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/sync/**'
+      - 'tests/sql/**'
+      - '.github/workflows/db-contract-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync-rpc:
+    name: Isolated PostgreSQL 17 / sync RPC
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pf_contract_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pf_contract_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: pf_contract_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Ensure PostgreSQL client exists
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Bootstrap isolated Supabase-compatible auth test harness
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/bootstrap-test-auth.sql
+      - name: Install PF sync SQL contract on isolated database
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sync/project-freak-supabase-v1.sql
+      - name: Exercise RPC auth, isolation, conflict and validation contracts
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/sync-contract-smoke.sql

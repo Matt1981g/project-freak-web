@@ -399,6 +399,14 @@
           "items": {
             "$ref": "#/$defs/component"
           }
+        },
+        "rpe": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 10
         }
       }
     },
@@ -456,6 +464,14 @@
             "string",
             "null"
           ]
+        },
+        "enjoyment": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 10
         }
       }
     },
