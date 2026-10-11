@@ -42,6 +42,14 @@ import {
 } from '../../application/workout/pairedRotation'
 import { can_safely_correct_set } from '../../application/history/correctCompletedSet'
 import {
+  clear_workout_draft,
+  read_workout_draft,
+  should_recover_workout_draft,
+  track_workout_write,
+  workout_draft_key,
+  write_workout_draft,
+} from '../../application/workout/workoutDraftJournal'
+import {
   select_set_load_prefill,
   type SetLoadPrefillSource,
 } from '../../application/workout/setLoadPrefill'
@@ -898,20 +906,45 @@ function SetLoggerRow(props: {
     on_complete,
     on_corrected,
   } = props
+  const draft_key = workout_draft_key(
+    exercise.completed_session_id, exercise.id, set_number,
+  )
+  const initial_journal = useRef(read_workout_draft(draft_key)).current
+  const can_recover = should_recover_workout_draft(
+    initial_journal, exercise.completed_session_id, exercise.id,
+    set_number, actual_set?.revision ?? 0,
+    Boolean(actual_set && is_training_set_completed(actual_set)) || allow_correction,
+  )
+  const recovery = can_recover ? initial_journal : null
+  const [recoverable_draft, setRecoverableDraft] = useState(
+    initial_journal && !can_recover && !allow_correction &&
+      !(actual_set && is_training_set_completed(actual_set))
+      ? initial_journal : null,
+  )
+  const [journal_error, setJournalError] = useState(false)
   const [saved_set, setSavedSet] = useState<TrainingSet | null>(actual_set)
-  const [rpe, setRpe] = useState<number | null>(actual_set?.rpe ?? null)
-  const [load, setLoad] = useState<number | null>(initial_load_kg)
+  const [rpe, setRpe] = useState<number | null>(
+    recovery?.rpe ?? actual_set?.rpe ?? null,
+  )
+  const [load, setLoad] = useState<number | null>(
+    recovery ? recovery.load_kg : initial_load_kg,
+  )
   const [reps, setReps] = useState<number | null>(
-    actual_set?.completed_reps ?? null,
+    recovery ? recovery.completed_reps : actual_set?.completed_reps ?? null,
   )
   const [failed, setFailed] = useState(
-    actual_set?.failure_status === 'attempted_next_rep_failed',
+    recovery ? recovery.failed_next_rep
+      : actual_set?.failure_status === 'attempted_next_rep_failed',
   )
   const [components, setComponents] = useState<ComponentDraft[]>(() =>
-    build_component_drafts(planned_set, actual_components, initial_load_kg),
+    recovery
+      ? recovery.components as ComponentDraft[]
+      : build_component_drafts(planned_set, actual_components, initial_load_kg),
   )
   const [load_entry, setLoadEntry] = useState(() =>
-    load_input_value(load_for_display(initial_load_kg, load_unit)),
+    load_input_value(load_for_display(
+      recovery ? recovery.load_kg : initial_load_kg, load_unit,
+    )),
   )
   const [component_load_entries, setComponentLoadEntries] = useState<
     Record<string, string>
@@ -935,6 +968,53 @@ function SetLoggerRow(props: {
   const autosave_timer_ref = useRef<number | null>(null)
   const save_chain_ref = useRef<Promise<void>>(Promise.resolve())
   const pending_saves_ref = useRef(0)
+  const edit_sequence_ref = useRef(recovery?.edit_sequence ?? 0)
+  const recovered_on_mount = useRef(false)
+
+  function journal_current_edit(): void {
+    const sequence = ++edit_sequence_ref.current
+    const ok = write_workout_draft(draft_key, {
+      version: 1,
+      session_id: exercise.completed_session_id,
+      exercise_id: exercise.id,
+      set_number,
+      base_revision: saved_set_ref.current?.revision ?? 0,
+      edit_sequence: sequence,
+      changed_at: Date.now(),
+      load_kg: load_ref.current,
+      completed_reps: reps_ref.current,
+      rpe: rpe_ref.current,
+      failed_next_rep: failed_ref.current,
+      components: components_ref.current,
+    })
+    setJournalError(!ok)
+  }
+
+  function restore_older_draft() {
+    if (!recoverable_draft) return
+    load_ref.current = recoverable_draft.load_kg
+    reps_ref.current = recoverable_draft.completed_reps
+    rpe_ref.current = recoverable_draft.rpe
+    failed_ref.current = recoverable_draft.failed_next_rep
+    components_ref.current = recoverable_draft.components as ComponentDraft[]
+    setLoad(load_ref.current)
+    setLoadEntry(load_input_value(load_for_display(load_ref.current, load_unit)))
+    setReps(reps_ref.current)
+    setRpe(rpe_ref.current)
+    setFailed(failed_ref.current)
+    setComponents(components_ref.current)
+    setComponentLoadEntries(Object.fromEntries(
+      components_ref.current.map((component) => [
+        component_load_key(component),
+        load_input_value(load_for_display(component.load_kg, load_unit)),
+      ]),
+    ))
+    setRecoverableDraft(null)
+    journal_current_edit()
+    clear_autosave_timer()
+    void queue_save()
+  }
+
 
   const completed =
     saved_set !== null && is_training_set_completed(saved_set)
@@ -942,7 +1022,28 @@ function SetLoggerRow(props: {
   const challenge = progression_challenge_fields(target?.notes)
 
   useEffect(() => {
+    // A committed set is authoritative; never resurrect a previous draft.
+    if (completed || allow_correction) {
+      clear_workout_draft(draft_key)
+    } else if (recovery && !recovered_on_mount.current) {
+      recovered_on_mount.current = true
+      void queue_save()
+    }
+
+    const flush = () => {
+      if (document.visibilityState === 'hidden' ||
+          document.visibilityState === 'visible') {
+        if (autosave_timer_ref.current !== null) {
+          clear_autosave_timer()
+          void queue_save()
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', flush)
+    window.addEventListener('pagehide', flush)
     return () => {
+      document.removeEventListener('visibilitychange', flush)
+      window.removeEventListener('pagehide', flush)
       if (autosave_timer_ref.current !== null) {
         window.clearTimeout(autosave_timer_ref.current)
       }
@@ -1000,6 +1101,7 @@ function SetLoggerRow(props: {
         ? options.components ?? []
         : components_ref.current
 
+    const saved_sequence = edit_sequence_ref.current
     pending_saves_ref.current += 1
     setSaving(true)
     setError(null)
@@ -1020,6 +1122,7 @@ function SetLoggerRow(props: {
         })
         saved_set_ref.current = updated
         setSavedSet(updated)
+        clear_workout_draft(draft_key, saved_sequence)
 
         if (complete) {
           await on_complete()
@@ -1036,7 +1139,10 @@ function SetLoggerRow(props: {
       }
     }
 
-    save_chain_ref.current = save_chain_ref.current.then(run, run)
+    save_chain_ref.current = save_chain_ref.current.then(
+      () => track_workout_write(run()),
+      () => track_workout_write(run()),
+    )
     return save_chain_ref.current
   }
 
@@ -1051,6 +1157,7 @@ function SetLoggerRow(props: {
   function change_load(value: number | null) {
     load_ref.current = value
     setLoad(value)
+    journal_current_edit()
     schedule_autosave()
   }
 
@@ -1064,6 +1171,7 @@ function SetLoggerRow(props: {
   function change_rpe(value: number | null) {
     rpe_ref.current = value
     setRpe(value)
+    journal_current_edit()
     clear_autosave_timer()
     void queue_save({ rpe: value })
   }
@@ -1071,6 +1179,7 @@ function SetLoggerRow(props: {
   function change_reps(value: number | null) {
     reps_ref.current = value
     setReps(value)
+    journal_current_edit()
     schedule_autosave()
   }
 
@@ -1089,6 +1198,7 @@ function SetLoggerRow(props: {
     setLoadEntry(load_input_value(next_display))
     load_ref.current = next_kg
     setLoad(next_kg)
+    journal_current_edit()
     void queue_save({ load_kg: next_kg })
   }
 
@@ -1097,6 +1207,7 @@ function SetLoggerRow(props: {
     const next = Math.max(0, (reps_ref.current ?? 0) + delta)
     reps_ref.current = next
     setReps(next)
+    journal_current_edit()
     void queue_save({ completed_reps: next })
   }
 
@@ -1105,6 +1216,7 @@ function SetLoggerRow(props: {
     const next = !failed_ref.current
     failed_ref.current = next
     setFailed(next)
+    journal_current_edit()
     void queue_save({ failed_next_rep: next })
   }
 
@@ -1117,6 +1229,7 @@ function SetLoggerRow(props: {
     )
     components_ref.current = next
     setComponents(next)
+    journal_current_edit()
     schedule_autosave()
   }
 
@@ -1552,10 +1665,28 @@ function SetLoggerRow(props: {
         </button>
       </div>
 
+      {recoverable_draft && !completed && (
+        <div className={styles.setError} role="status">
+          An unfinished set draft survived the interruption, but a newer database
+          revision exists. Review it before replacing the saved values.
+          <div className={styles.draftRecoveryActions}>
+            <button type="button" onClick={restore_older_draft}>RESTORE DRAFT</button>
+            <button type="button" onClick={() => {
+              clear_workout_draft(draft_key)
+              setRecoverableDraft(null)
+            }}>KEEP SAVED SET</button>
+          </div>
+        </div>
+      )}
+      {journal_error && !completed && (
+        <div className={styles.setError} role="alert">
+          Device draft protection is unavailable. Confirm the set saves before leaving.
+        </div>
+      )}
       {saving && !completed && (
         <div className={styles.autosaveStatus}>AUTOSAVING…</div>
       )}
-      {error && <div className={styles.setError}>{error}</div>}
+      {error && <div className={styles.setError}>{error}</div>
 
       {completed && allow_correction && saved_set && (
         <CompletedSetCorrection
@@ -3021,7 +3152,7 @@ export function WorkoutScreen() {
 
                       return (
                         <SetLoggerRow
-                          key={`${set_number}:${load_prefill.source}:${load_prefill.load_kg ?? 'blank'}`}
+                          key={`${exercise.id}:${set_number}`}
                           exercise={exercise}
                           set_number={set_number}
                           planned_set={planned_set}
