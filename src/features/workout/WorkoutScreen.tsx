@@ -1970,6 +1970,16 @@ export function WorkoutScreen() {
     load_stored_rest_timer(completed_session_id),
   )
   const [rest_now_ms, setRestNowMs] = useState(() => Date.now())
+  const [set_focus, setSetFocus] = useState<null | {
+    exercise: string
+    set_number: number | null
+    target_reps: string | null
+    target_load: number | null
+    form_cue: string
+    motivation: string
+    ends_at_ms: number
+  }>(null)
+  const [focus_now_ms, setFocusNowMs] = useState(() => Date.now())
   const [session_now_ms, setSessionNowMs] = useState(() => Date.now())
   const [wake_lock_state, setWakeLockState] = useState<
     'idle' | 'active' | 'unavailable'
@@ -2119,12 +2129,12 @@ export function WorkoutScreen() {
       const oscillator = context.createOscillator()
       const gain = context.createGain()
       const start = context.currentTime
-      const end = start + 0.085
+      const end = start + 0.16
 
-      oscillator.type = 'sine'
-      oscillator.frequency.setValueAtTime(720, start)
+      oscillator.type = 'triangle'
+      oscillator.frequency.setValueAtTime(950, start)
       gain.gain.setValueAtTime(0.0001, start)
-      gain.gain.exponentialRampToValueAtTime(0.12, start + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.34, start + 0.012)
       gain.gain.exponentialRampToValueAtTime(0.0001, end)
 
       oscillator.connect(gain)
@@ -2145,12 +2155,12 @@ export function WorkoutScreen() {
       const oscillator = context.createOscillator()
       const gain = context.createGain()
       const start = context.currentTime + delay_seconds
-      const end = start + 0.12
+      const end = start + 0.18
 
-      oscillator.type = 'sine'
+      oscillator.type = 'triangle'
       oscillator.frequency.setValueAtTime(frequency, start)
       gain.gain.setValueAtTime(0.0001, start)
-      gain.gain.exponentialRampToValueAtTime(0.14, start + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.36, start + 0.015)
       gain.gain.exponentialRampToValueAtTime(0.0001, end)
 
       oscillator.connect(gain)
@@ -2160,9 +2170,9 @@ export function WorkoutScreen() {
     }
 
     try {
-      play_tone(0, 660)
-      play_tone(0.16, 880)
-      play_tone(0.32, 1175)
+      play_tone(0, 740)
+      play_tone(0.22, 990)
+      play_tone(0.44, 1320)
       if ('vibrate' in navigator) {
         navigator.vibrate?.([90, 55, 90, 55, 120])
       }
@@ -2353,6 +2363,18 @@ export function WorkoutScreen() {
       window.localStorage.removeItem(key)
     }
   }, [completed_session_id, rest_timer])
+
+  useEffect(() => {
+    if (!set_focus) return
+    const update = () => {
+      const now = Date.now()
+      setFocusNowMs(now)
+      if (now >= set_focus.ends_at_ms) setSetFocus(null)
+    }
+    update()
+    const id = window.setInterval(update, 250)
+    return () => window.clearInterval(id)
+  }, [set_focus])
 
   function begin_rest(
     exercise: LiveExercise['exercise'],
@@ -3132,10 +3154,23 @@ export function WorkoutScreen() {
             }}
             on_end={() => setRestTimer(null)}
             on_go={() => {
-              const next_id = rest_timer.next_exercise_id
+              const next_id = rest_timer.next_exercise_id ?? rest_timer.exercise_id
+              const next = workout.exercises.find((entry) => entry.exercise.id === next_id)
+              const active_exercise = next?.exercise
+              const set_number = rest_timer.next_set_number ?? null
+              const last_set = set_number !== null && set_number >= (active_exercise?.target_sets ?? Infinity)
+              setSetFocus({
+                exercise: active_exercise?.exercise_name_snapshot ?? rest_timer.next_exercise_name ?? rest_timer.exercise_name,
+                set_number,
+                target_reps: rest_timer.next_rep_target ?? (active_exercise ? rep_target(active_exercise.target_rep_min, active_exercise.target_rep_max) : null),
+                target_load: rest_timer.next_target_load_kg ?? null,
+                form_cue: active_exercise?.technique_cue || active_exercise?.tempo || 'Controlled eccentric · full range · strict reps',
+                motivation: last_set ? 'LAST WORKING SET. EARN EVERY CLEAN REP.' : 'CONTROL THE LOAD. OWN EVERY REP.',
+                ends_at_ms: Date.now() + 30000,
+              })
+              setFocusNowMs(Date.now())
               setRestTimer(null)
               setPairingPrompt(null)
-              if (!next_id) return
               setOpenExerciseId(next_id)
               window.requestAnimationFrame(() => {
                 document
@@ -3146,6 +3181,22 @@ export function WorkoutScreen() {
           />,
           document.body,
         )}
+
+      {set_focus && typeof document !== 'undefined' && createPortal(
+        <section className={styles.focusOverlay} role="dialog" aria-modal="true" aria-label="Next set focus">
+          <button type="button" className={styles.focusBack} onClick={() => setSetFocus(null)}>← BACK TO WORKOUT</button>
+          <div className={styles.focusContent}>
+            <span>SET {set_focus.set_number ?? '—'} · FOCUS</span>
+            <h2>{set_focus.exercise}</h2>
+            <strong>{set_focus.target_load === null ? 'TARGET LOAD: AS LOGGED' : `${set_focus.target_load} KG`}</strong>
+            <h3>{set_focus.target_reps ?? 'QUALITY REPS'}</h3>
+            <p>{set_focus.form_cue}</p>
+            <blockquote>{set_focus.motivation}</blockquote>
+            <small>RETURN TO WORKOUT IN {Math.max(0, Math.ceil((set_focus.ends_at_ms - focus_now_ms) / 1000))}s</small>
+          </div>
+        </section>,
+        document.body,
+      )}
 
       {workout.session.status === 'completed' && (
         <section className={styles.workoutSummary}>
