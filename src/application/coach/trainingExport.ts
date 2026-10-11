@@ -123,7 +123,7 @@ function build_coach_instructions(
       'Compare programmed targets with actual performance',
       'Review completed working sets, reps and load',
       'Review comparable tonnage and exercise progression',
-      'Review RPE, Pump and Form',
+      'Review individual working-set RPE, exercise Pump, Form and Enjoyment; never invent missing historical enjoyment scores',
       'Review failure exposure',
       'Review readiness and recovery',
       'Review actual rest where useful',
@@ -135,6 +135,7 @@ function build_coach_instructions(
       'Review the adaptive deload recommendation and confidence',
       'Review Progress Engine V2 states and exceptions before changing exercise loads',
       'Review the dated next-week availability constraint before constructing the schedule',
+      'Use Enjoyment as a tie-breaker only after exercise safety, target-muscle stimulus, form and progression suitability. Treat fewer than 3 scored exposures as insufficient evidence.',
       'Use historical performance supplied in this export',
       'Respect the current PROJECT FREAK training priority order',
     ],
@@ -312,6 +313,7 @@ export interface TrainingExportSet {
   actual_rest_seconds: number | null
   set_load_kg_reps: number | null
   set_load_method: string | null
+  rpe?: number | null
   notes: string | null
   completed_at: string | null
   components: Array<{
@@ -384,6 +386,7 @@ export interface TrainingExport {
         rpe: number | null
         pump: number | null
         form: number | null
+        enjoyment?: number | null
         where_felt_text: string | null
         where_felt_tags: string[]
         legacy_tension: number | null
@@ -505,6 +508,7 @@ async function exported_set(
     actual_rest_seconds: set.actual_rest_seconds,
     set_load_kg_reps: set.set_load_kg_reps,
     set_load_method: set.set_load_method,
+    rpe: set.rpe ?? null,
     notes: set.notes,
     completed_at: set.completed_at,
     components: components.map((component) => ({
@@ -746,6 +750,7 @@ export async function build_training_export(
                     rpe: metrics.rpe,
                     pump: metrics.pump,
                     form: metrics.form,
+                    enjoyment: metrics.enjoyment ?? null,
                     where_felt_text: metrics.where_felt_text,
                     where_felt_tags: metrics.where_felt_tags,
                     legacy_tension: metrics.legacy_tension,
