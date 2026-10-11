@@ -1,5 +1,7 @@
 import { PF_RELEASE_VERSION } from '../release'
 import { projectFreakDb } from '../data/db/projectFreakDb'
+import { PROJECT_FREAK_DB_NAME } from '../data/db/schema'
+import { with_dataset_operation_lock } from '../application/sync/datasetOperationLock'
 import { request_auto_sync } from '../application/sync/autoSyncEvents'
 import {
   SupabaseSyncProvider,
@@ -329,50 +331,55 @@ export async function load_cloud_sync_status(): Promise<CloudSyncStatus> {
   }
 }
 
-export async function configure_cloud_sync(
+export function configure_cloud_sync(
   project_url: string,
   anon_key: string,
 ): Promise<SupabaseSyncConfig> {
-  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
-  const existing_owner = await get_dataset_cloud_owner(projectFreakDb)
-  if (existing_owner &&
-      existing_owner.project_url !== normalize_dataset_project_url(project_url)) {
-    throw new Error(
-      'This dataset is linked to another Supabase project. ' +
-      'Open the original project or use a separate browser profile.',
-    )
-  }
-  return save_supabase_config({ project_url, anon_key })
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'configure cloud', async () => {
+    const existing_owner = await get_dataset_cloud_owner(projectFreakDb)
+    if (existing_owner &&
+        existing_owner.project_url !== normalize_dataset_project_url(project_url)) {
+      throw new Error(
+        'This dataset is linked to another Supabase project. ' +
+        'Open the original project or use a separate browser profile.',
+      )
+    }
+    return save_supabase_config({ project_url, anon_key })
+  })
 }
 
-export function clear_cloud_sync_configuration(): void {
-  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
-  clear_supabase_config()
+export function clear_cloud_sync_configuration(): Promise<void> {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'clear cloud', async () => {
+    clear_supabase_config()
+  })
 }
 
 export function sign_up_cloud_sync(email: string, password: string) {
-  const config = load_supabase_config()
-  if (!config) throw new Error('Configure Supabase before creating an account.')
-  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
-  return supabase_sign_up(config, email, password, (candidate) =>
-    assert_dataset_account_compatible(projectFreakDb, config.project_url, candidate.user_id),
-  )
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'sign up', async () => {
+    const config = load_supabase_config()
+    if (!config) throw new Error('Configure Supabase before creating an account.')
+    return supabase_sign_up(config, email, password, (candidate) =>
+      assert_dataset_account_compatible(projectFreakDb, config.project_url, candidate.user_id),
+    )
+  })
 }
 
 export function sign_in_cloud_sync(email: string, password: string) {
-  const config = load_supabase_config()
-  if (!config) throw new Error('Configure Supabase before signing in.')
-  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
-  return supabase_sign_in(config, email, password, (candidate) =>
-    assert_dataset_account_compatible(projectFreakDb, config.project_url, candidate.user_id),
-  )
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'sign in', async () => {
+    const config = load_supabase_config()
+    if (!config) throw new Error('Configure Supabase before signing in.')
+    return supabase_sign_in(config, email, password, (candidate) =>
+      assert_dataset_account_compatible(projectFreakDb, config.project_url, candidate.user_id),
+    )
+  })
 }
 
-export async function sign_out_cloud_sync() {
-  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
-  const config = load_supabase_config()
-  if (!config) return
-  await supabase_sign_out(config)
+export function sign_out_cloud_sync() {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'sign out', async () => {
+    const config = load_supabase_config()
+    if (!config) return
+    await supabase_sign_out(config)
+  })
 }
 
 export async function check_cloud_sync_backend(): Promise<SupabaseBackendHealth> {
@@ -391,23 +398,24 @@ export async function check_cloud_sync_backend(): Promise<SupabaseBackendHealth>
   return health
 }
 
-export async function link_cloud_sync_dataset(): Promise<void> {
-  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
-  const config = load_supabase_config()
-  const session = load_supabase_session()
-  if (!config || !session) throw new Error('Configure Supabase and sign in before linking.')
-  // Verify the account through Supabase RPC before accepting this deliberate
-  // user-initiated association of existing training records.
-  const health = await check_cloud_sync_backend()
-  if (health.authenticated_user_id !== session.user_id) {
-    throw new Error('Authenticated backend account changed. Dataset link refused.')
-  }
-  await link_dataset_cloud_owner(
-    projectFreakDb,
-    config.project_url,
-    session.user_id,
-    new Date().toISOString(),
-  )
+export function link_cloud_sync_dataset(): Promise<void> {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'link cloud account', async () => {
+    const config = load_supabase_config()
+    const session = load_supabase_session()
+    if (!config || !session) throw new Error('Configure Supabase and sign in before linking.')
+    // Verify the account through Supabase RPC before accepting this deliberate
+    // user-initiated association of existing training records.
+    const health = await check_cloud_sync_backend()
+    if (health.authenticated_user_id !== session.user_id) {
+      throw new Error('Authenticated backend account changed. Dataset link refused.')
+    }
+    await link_dataset_cloud_owner(
+      projectFreakDb,
+      config.project_url,
+      session.user_id,
+      new Date().toISOString(),
+    )
+  })
 }
 
 async function run_full_cloud_sync_once(): Promise<FullCloudSyncResult> {
@@ -504,7 +512,9 @@ let full_cloud_sync_in_flight: Promise<FullCloudSyncResult> | null = null
 export function run_full_cloud_sync(): Promise<FullCloudSyncResult> {
   if (full_cloud_sync_in_flight) return full_cloud_sync_in_flight
 
-  const operation = run_full_cloud_sync_once().finally(() => {
+  const operation = with_dataset_operation_lock(
+    PROJECT_FREAK_DB_NAME, 'cloud sync', run_full_cloud_sync_once,
+  ).finally(() => {
     full_cloud_sync_in_flight = null
   })
 
@@ -627,11 +637,13 @@ export async function preview_database_backup(file: File) {
 }
 
 
-export async function restore_database_backup(preview: BackupPreview) {
-  return restore_validated_backup(projectFreakDb, preview, {
-    now_iso: new Date().toISOString(),
-    source_device_id: await current_device_id(),
-    app_version: PF_RELEASE_VERSION,
+export function restore_database_backup(preview: BackupPreview) {
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'restore', async () => {
+    return restore_validated_backup(projectFreakDb, preview, {
+      now_iso: new Date().toISOString(),
+      source_device_id: await current_device_id(),
+      app_version: PF_RELEASE_VERSION,
+    })
   })
 }
 
