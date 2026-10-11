@@ -115,6 +115,7 @@ class MemorySyncRepository implements SyncRepository {
   async apply_remote_entity(
     entity_type: string,
     entity: MutableEntity,
+    _applied_at: string,
   ) {
     this.entities.set(this.key(entity_type, entity.id), entity)
     this.applied.push(this.key(entity_type, entity.id))
