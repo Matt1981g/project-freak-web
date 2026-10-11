@@ -308,8 +308,12 @@ async function rpc<T>(
   config: SupabaseSyncConfig,
   function_name: string,
   body: unknown,
+  expected_user_id?: string,
 ): Promise<T> {
   const session = await require_supabase_session(config)
+  if (expected_user_id && session.user_id !== expected_user_id) {
+    throw new Error('Supabase account changed during sync. Local changes were preserved.')
+  }
   const response = await fetch(
     `${config.project_url}/rest/v1/rpc/${function_name}`,
     {
@@ -356,29 +360,41 @@ export async function check_supabase_backend(
 export class SupabaseSyncProvider implements SyncProvider {
   readonly id = 'supabase'
   private readonly config: SupabaseSyncConfig
+  private readonly expected_user_id?: string
 
-  constructor(config: SupabaseSyncConfig) {
+  constructor(config: SupabaseSyncConfig, expected_user_id?: string) {
     this.config = validate_supabase_config(config)
+    this.expected_user_id = expected_user_id
   }
 
-  push_mutations(
+  async push_mutations(
     mutations: readonly SyncPushMutation[],
   ): Promise<SyncPushResult> {
-    return rpc<SyncPushResult>(
+    const result = await rpc<SyncPushResult>(
       this.config,
       'project_freak_push_mutations',
       { p_mutations: mutations },
+      this.expected_user_id,
     )
+    if (this.expected_user_id && result.remote_user_id !== this.expected_user_id) {
+      throw new Error('Supabase push acknowledged a different account. Outbox remains pending.')
+    }
+    return result
   }
 
-  pull_changes(
+  async pull_changes(
     cursor: string | null,
     limit: number,
   ): Promise<SyncPullResult> {
-    return rpc<SyncPullResult>(
+    const result = await rpc<SyncPullResult>(
       this.config,
       'project_freak_pull_changes',
       { p_cursor: cursor, p_limit: limit },
+      this.expected_user_id,
     )
+    if (this.expected_user_id && result.remote_user_id !== this.expected_user_id) {
+      throw new Error('Supabase pull returned another account. Pull cursor was not advanced.')
+    }
+    return result
   }
 }
