@@ -1,5 +1,26 @@
 import { expect, test } from '@playwright/test'
 
+async function waitForWorkoutStores(page: import('@playwright/test').Page) {
+  // Do not let a direct indexedDB.open() create an empty database before
+  // Dexie's asynchronous schema installation has completed.
+  await page.waitForFunction(async () => {
+    const databases = await indexedDB.databases()
+    if (!databases.some((entry) => entry.name === 'project-freak')) return false
+
+    return new Promise<boolean>((resolve) => {
+      const request = indexedDB.open('project-freak')
+      request.onerror = () => resolve(false)
+      request.onsuccess = () => {
+        const db = request.result
+        const ready = ['exercises', 'completed_sessions', 'session_exercises']
+          .every((store) => db.objectStoreNames.contains(store))
+        db.close()
+        resolve(ready)
+      }
+    })
+  }, undefined, { timeout: 15_000 })
+}
+
 test('boots PROJECT FREAK, registers the service worker and survives an offline reload', async ({ page, context, browserName }) => {
   test.skip(
     browserName === 'webkit',
@@ -40,6 +61,7 @@ test('core navigation remains usable in the browser shell', async ({ page }) => 
 test('final-set rest survives reload and preserves the next-exercise transition', async ({ page }) => {
   await page.goto('./#/plan')
   await expect(page.getByText('Current programme', { exact: true })).toBeVisible()
+  await waitForWorkoutStores(page)
 
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -177,7 +199,11 @@ test('final-set rest survives reload and preserves the next-exercise transition'
   await expect(page.getByText('E2E Next Curl', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'GO!' }).click()
-  await expect(page.getByRole('dialog')).not.toBeVisible()
+  const focus = page.getByRole('dialog', { name: 'Next set focus' })
+  await expect(focus).toBeVisible()
+  await expect(focus.getByText('E2E Next Curl', { exact: true })).toBeVisible()
+  await focus.getByRole('button', { name: /BACK TO WORKOUT/ }).click()
+  await expect(focus).not.toBeVisible()
 
   await page.getByRole('button', { name: /E2E First Curl/ }).click()
   await expect(page.getByText('SET COMPLETE', { exact: true })).toBeVisible()
@@ -186,6 +212,7 @@ test('final-set rest survives reload and preserves the next-exercise transition'
 test('live workout survives the critical set-to-finish lifecycle', async ({ page }) => {
   await page.goto('./#/plan')
   await expect(page.getByText('Current programme', { exact: true })).toBeVisible()
+  await waitForWorkoutStores(page)
 
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {

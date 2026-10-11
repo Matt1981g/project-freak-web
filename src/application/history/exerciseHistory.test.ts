@@ -5,7 +5,6 @@ import type {
   ExerciseAlias,
   ExerciseMetrics,
   SessionExercise,
-  SetComponent,
   TrainingSet,
 } from '../../domain/models'
 import type {
@@ -233,7 +232,7 @@ describe('load_exercise_history', () => {
       put_session: async (created) => created.id,
       put_session_exercise: async (created) => created.id,
       put_set: async (created) => created.id,
-      put_set_components: async (_components: SetComponent[]) => undefined,
+      put_set_components: async () => undefined,
       put_exercise_metrics: async (created) => created.id,
     }
 

@@ -83,7 +83,7 @@ export function PlanScreen() {
   }, [])
 
   useEffect(() => {
-    void refresh_programmes()
+    void Promise.resolve().then(refresh_programmes)
   }, [refresh_programmes])
 
   async function toggle_stored_session(session_id: string) {

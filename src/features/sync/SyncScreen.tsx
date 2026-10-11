@@ -41,22 +41,19 @@ export function SyncScreen() {
   )
 
   async function refresh() {
-    setStatus(await load_cloud_sync_status())
+    const next_status = await load_cloud_sync_status()
+    setStatus(next_status)
+    setProjectUrl((current) => current || next_status.project_url || '')
   }
 
   useEffect(() => {
-    void refresh().catch((cause) => {
+    void Promise.resolve().then(refresh).catch((cause) => {
       setError(
         cause instanceof Error ? cause.message : 'Unable to load sync status.',
       )
     })
   }, [])
 
-  useEffect(() => {
-    if (status?.project_url && !projectUrl) {
-      setProjectUrl(status.project_url)
-    }
-  }, [status, projectUrl])
 
   const state_label = useMemo(() => {
     if (!status?.configured) return 'NOT CONFIGURED'

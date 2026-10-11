@@ -3,7 +3,6 @@ import type {
   CompletedSession,
   ExerciseMetrics,
   SessionExercise,
-  SetComponent,
   TrainingSet,
 } from '../../domain/models'
 import type {
@@ -136,7 +135,7 @@ function repository_fixture(existing?: CompletedSession) {
     put_session: async (session) => session.id,
     put_session_exercise: async (exercise) => exercise.id,
     put_set: async (set: TrainingSet) => set.id,
-    put_set_components: async (_components: SetComponent[]) => undefined,
+    put_set_components: async () => undefined,
     put_exercise_metrics: async (metrics: ExerciseMetrics) => metrics.id,
   }
 

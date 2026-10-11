@@ -65,7 +65,8 @@ export function PlanHealthGuard() {
   }, [run_check])
 
   useEffect(() => {
-    void run_check()
+    // Schedule initial inspection through the same debounced path as sync updates.
+    schedule_check()
 
     function on_sync_request(event: Event) {
       const detail = (event as CustomEvent<AutoSyncRequestDetail>).detail

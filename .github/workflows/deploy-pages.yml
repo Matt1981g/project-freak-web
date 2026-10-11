@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -31,11 +31,26 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Test
+      - name: Audit dependencies (high severity)
+        run: npm audit --audit-level=high
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
         run: npm test
 
       - name: Build
         run: npm run build
+
+      - name: Install required browser engines
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Required Chromium and WebKit tests
+        run: npx playwright test
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -66,10 +81,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -80,15 +95,6 @@ jobs:
       - name: Verify deployed app version and assets
         run: node scripts/verify-deployment.mjs "${{ needs.deploy.outputs.page_url }}" V19.1
 
-      - name: Install Playwright test runner
-        continue-on-error: true
-        run: |
-          npm install --no-save --no-package-lock @playwright/test@1.62.1
-          npx playwright install chromium webkit
-
-      - name: Browser E2E
-        continue-on-error: true
-        run: npx playwright test
 
       - name: Upload theme verification screenshots
         if: always()

@@ -200,11 +200,11 @@ export function CoachScreen() {
 
 
   useEffect(() => {
-    void Promise.all([
+    void Promise.resolve().then(() => Promise.all([
       generate({ type: 'last_7_days' }),
       refresh_blocks(),
       refresh_availability(),
-    ])
+    ]))
   }, [generate, refresh_availability, refresh_blocks])
 
   const selected_request = useMemo<TrainingExportScopeRequest | null>(() => {

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import type {
   CompletedSession,
   ExerciseMetrics,
-  SetComponent,
   TrainingSet,
 } from '../../domain/models'
 import type { SessionRepository } from '../../data/repositories/contracts'
@@ -77,7 +76,7 @@ function repository_fixture() {
       reason = audit_reason
       return set.id
     }),
-    put_set_components: async (_components: SetComponent[]) => undefined,
+    put_set_components: async () => undefined,
     put_exercise_metrics: async (metrics) => metrics.id,
   }
 

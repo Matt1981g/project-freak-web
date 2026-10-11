@@ -116,15 +116,21 @@ export function PostWorkoutFeedbackPanel() {
   const initialised = useRef(false)
 
   useEffect(() => {
+    let active = true
     initialised.current = false
-    setForm(EMPTY_FORM)
-    setDirty(false)
-    setSaved(false)
-    setError(null)
+    // Schedule state reinitialisation after the effect; do not flush a dirty
+    // editor in the render/effect phase. The subscription delivers saved data.
+    queueMicrotask(() => {
+      if (!active) return
+      setForm(EMPTY_FORM)
+      setDirty(false)
+      setSaved(false)
+      setError(null)
+    })
 
     if (!completed_session_id) {
-      setStatus(null)
-      return
+      queueMicrotask(() => { if (active) setStatus(null) })
+      return () => { active = false }
     }
 
     const subscription = liveQuery(() =>
@@ -164,7 +170,10 @@ export function PostWorkoutFeedbackPanel() {
       },
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [completed_session_id])
 
   function update<K extends keyof FeedbackForm>(
