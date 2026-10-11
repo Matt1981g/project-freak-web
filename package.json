@@ -6,7 +6,7 @@
   "scripts": {
     "audit:intelligence": "node scripts/audit-exercise-intelligence.mjs",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/write-release-metadata.mjs && tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",

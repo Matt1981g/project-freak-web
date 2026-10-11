@@ -21,6 +21,25 @@ async function waitForWorkoutStores(page: import('@playwright/test').Page) {
   }, undefined, { timeout: 15_000 })
 }
 
+test('published release manifest matches the version rendered by the actual browser app', async ({ page, request }) => {
+  const response = await request.get('./pf-release.json')
+  expect(response.ok()).toBe(true)
+  const manifest = await response.json() as {
+    format: string
+    version: string
+    display_version: string
+    build_sha: string
+  }
+  expect(manifest.format).toBe('project-freak-release')
+  expect(manifest.display_version).toMatch(/^V[0-9]+[.][0-9]+$/)
+  await page.goto('./#/plan')
+  await expect(page.getByText('Current programme', { exact: true })).toBeVisible()
+  await expect(page.locator('[aria-label^="Project Freak version "]')).toHaveAttribute(
+    'aria-label',
+    new RegExp(`^Project Freak version ${manifest.display_version.replace('.', '[.]')}; build `),
+  )
+})
+
 test('boots PROJECT FREAK, registers the service worker and survives an offline reload', async ({ page, context, browserName }) => {
   test.skip(
     browserName === 'webkit',
