@@ -19,6 +19,13 @@
 4. A cross-tab, account-scoped coordination lock covers sync, refresh and exclusive restore; every writer respects maintenance exclusion. A JavaScript promise shared within one tab is insufficient.
 5. A pull cursor advances only after each incoming record was applied, verified redundant, or durably recorded for recovery. Dependent children stage until a parent can be resolved. Stale competing snapshots cannot be silently discarded.
 
+## Account/project ownership gate — Package 3 incremental implementation
+
+- `src/application/sync/datasetIdentity.ts` now stores a **device-only dataset binding** in the existing IndexedDB `settings` table, preserving backup compatibility and avoiding an unfinished database migration. The binding contains the canonical HTTPS project origin, authenticated Supabase user ID and linking timestamp; **never** tokens or service-role credentials.
+- A dataset with no binding **cannot push or pull**. After checking the authenticated backend, the user must deliberately confirm **LINK THIS DATASET** on the Cloud Sync screen. This is a potentially one-time upgrade step on each previously used browser profile, including the live PC and iPhone when eventually deployed. Existing offline workout records are not purged or relabelled.
+- The first link is serialized across tabs; an existing binding cannot be reassigned to another user or project. A conflicting legacy `sync_state.remote_user_id` also blocks automatic linking. Sign-in precommit validation rejects a different owner **before** replacing the stored login; refresh rejects a changed user ID. Sync RPC requests pin the expected user and validate provider response identities.
+- **Unfinished:** this is a cloud I/O guard for a **single-owner local database**, not full account-scoped storage or UI privacy. Signing out currently does not hide this owner's offline workout screens from an unauthenticated person using the same browser profile. Full account-scoped storage and visibility, cross-tab maintenance lock, and explicit migration/recovery UX remain hard release gates. Never describe the one-way link button alone as complete multi-account isolation.
+
 ## Graph, drafts and coaching — intended invariants
 
 - Set completion, workout finalisation and programme replacement commit related entities, revisions, audit and outbox as one graph operation. Idempotent retries never create duplicates.
