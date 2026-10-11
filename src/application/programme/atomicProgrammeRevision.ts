@@ -84,6 +84,11 @@ export async function commit_programme_revision_atomically(
     options.now_iso,
   )
 
+  // Replacement cancels only the selected dates. Explicit whole-block
+  // lineage would accidentally hide other days in a partially replaced block.
+  // Publication uses session cancellation plus selective archiving instead.
+  if (replace) entities.block.supersedes_programme_block_id = null
+
   if (!replace) {
     return {
       import_result: await programme_repository.commit_import(entities),
@@ -248,10 +253,14 @@ export async function commit_programme_revision_atomically(
       })
 
       const target_block = existing ?? entities.block
-      if (target_block.status !== 'active') {
+      if (
+        target_block.status !== 'active' ||
+        target_block.supersedes_programme_block_id !== null
+      ) {
         const active: ProgrammeBlock = {
           ...target_block,
           status: 'active',
+          supersedes_programme_block_id: null,
           revision: target_block.revision + 1,
           updated_at: now_iso,
           device_id,
