@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { CoalescingSyncQueue } from '../../application/sync/coalescingSyncQueue'
 import {
   load_cloud_sync_status,
   run_full_cloud_sync,
@@ -16,13 +17,11 @@ import {
 
 export function AutoSyncRuntime() {
   const lastAttemptAt = useRef<number | null>(null)
-  const inFlight = useRef<Promise<void> | null>(null)
 
   useEffect(() => {
+    const queue = new CoalescingSyncQueue()
     function attempt(reason: AutoSyncReason, force = false): Promise<void> {
-      if (inFlight.current) return inFlight.current
-
-      const operation = (async () => {
+      return queue.request(async () => {
         const status = await load_cloud_sync_status()
         const now = Date.now()
 
@@ -56,12 +55,7 @@ export function AutoSyncRuntime() {
           // Auto sync must never interrupt workout logging. The manual Sync
           // screen remains available for diagnostics and recovery.
         }
-      })().finally(() => {
-        inFlight.current = null
       })
-
-      inFlight.current = operation
-      return operation
     }
 
     function handle_visibility_change() {
@@ -90,6 +84,7 @@ export function AutoSyncRuntime() {
     void attempt('app_open', true)
 
     return () => {
+      queue.dispose()
       window.clearInterval(intervalId)
       document.removeEventListener(
         'visibilitychange',
