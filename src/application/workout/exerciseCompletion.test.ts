@@ -3,7 +3,6 @@ import type {
   CompletedSession,
   ExerciseMetrics,
   SessionExercise,
-  SetComponent,
   TrainingSet,
 } from '../../domain/models'
 import type { SessionRepository } from '../../data/repositories/contracts'
@@ -93,7 +92,7 @@ function repository_fixture(options?: {
   let saved_exercise: SessionExercise | undefined
 
   const repository: SessionRepository = {
-    get_session: async (_id: string): Promise<CompletedSession | undefined> =>
+    get_session: async (): Promise<CompletedSession | undefined> =>
       undefined,
     get_by_programmed_session_id: async () => undefined,
     list_sessions_descending: async () => [],
@@ -111,7 +110,7 @@ function repository_fixture(options?: {
       return exercise.id
     }),
     put_set: async (set) => set.id,
-    put_set_components: async (_components: SetComponent[]) => undefined,
+    put_set_components: async () => undefined,
     put_exercise_metrics: vi.fn(async (metrics) => {
       saved_metrics = metrics
       return metrics.id
