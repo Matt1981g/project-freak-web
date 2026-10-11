@@ -10,10 +10,27 @@ export function DatasetAppGate({ children }: PropsWithChildren) {
   const [ready, setReady] = useState(false)
   const [ever_ready, setEverReady] = useState(false)
 
-  useEffect(() => projectFreakAppAccess.subscribe((available) => {
-    setReady(available)
-    if (available) setEverReady(true)
-  }), [])
+  useEffect(() => {
+    const unsubscribe = projectFreakAppAccess.subscribe((available) => {
+      setReady(available)
+      if (available) setEverReady(true)
+    })
+
+    const reacquire_on_foreground = () => {
+      if (document.visibilityState === 'visible') {
+        projectFreakAppAccess.ensure_access()
+      }
+    }
+    document.addEventListener('visibilitychange', reacquire_on_foreground)
+    window.addEventListener('pageshow', reacquire_on_foreground)
+    window.addEventListener('focus', reacquire_on_foreground)
+    return () => {
+      document.removeEventListener('visibilitychange', reacquire_on_foreground)
+      window.removeEventListener('pageshow', reacquire_on_foreground)
+      window.removeEventListener('focus', reacquire_on_foreground)
+      unsubscribe()
+    }
+  }, [])
 
   return (
     <>
