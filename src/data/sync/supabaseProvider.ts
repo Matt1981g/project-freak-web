@@ -178,19 +178,32 @@ function session_from_auth_response(payload: SupabaseAuthResponse): SupabaseAuth
     )
   }
 
-  return save_supabase_session({
+  return {
     access_token,
     refresh_token,
     expires_at: Date.now() + Math.max(0, expires_in - 60) * 1000,
     user_id,
     email: typeof user?.email === 'string' ? user.email : null,
-  })
+  }
+}
+
+export type AuthSessionPrecommit = (candidate: SupabaseAuthSession) => Promise<void>
+
+/** Run owner verification before replacing the existing persisted login. */
+async function accept_authenticated_session(
+  response: SupabaseAuthResponse,
+  precommit?: AuthSessionPrecommit,
+): Promise<SupabaseAuthSession> {
+  const candidate = session_from_auth_response(response)
+  await precommit?.(candidate)
+  return save_supabase_session(candidate)
 }
 
 export async function supabase_sign_up(
   config_input: SupabaseSyncConfig,
   email: string,
   password: string,
+  precommit?: AuthSessionPrecommit,
 ): Promise<SupabaseAuthSession | null> {
   const config = validate_supabase_config(config_input)
   const response = await fetch(`${config.project_url}/auth/v1/signup`, {
@@ -204,13 +217,14 @@ export async function supabase_sign_up(
     return null
   }
 
-  return session_from_auth_response(payload)
+  return accept_authenticated_session(payload, precommit)
 }
 
 export async function supabase_sign_in(
   config_input: SupabaseSyncConfig,
   email: string,
   password: string,
+  precommit?: AuthSessionPrecommit,
 ): Promise<SupabaseAuthSession> {
   const config = validate_supabase_config(config_input)
   const response = await fetch(
@@ -222,8 +236,9 @@ export async function supabase_sign_in(
     },
   )
 
-  return session_from_auth_response(
+  return accept_authenticated_session(
     await parse_json_response<SupabaseAuthResponse>(response),
+    precommit,
   )
 }
 
@@ -258,9 +273,13 @@ async function refresh_supabase_session(
     },
   )
 
-  return session_from_auth_response(
+  const refreshed = session_from_auth_response(
     await parse_json_response<SupabaseAuthResponse>(response),
   )
+  if (refreshed.user_id !== session.user_id) {
+    throw new Error('Supabase refresh changed account identity. Sync stopped; login was not replaced.')
+  }
+  return save_supabase_session(refreshed)
 }
 
 export async function require_supabase_session(
