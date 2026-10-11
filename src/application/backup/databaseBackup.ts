@@ -339,7 +339,7 @@ export async function restore_validated_backup(
     } catch (rollback_cause) {
       throw new Error(
         'Restore failed and the automatic safety rollback could not be verified. Keep the downloaded safety backup and do not make further changes.',
-        { cause: new AggregateError([cause, rollback_cause], 'Restore and rollback both failed') },
+        { cause: rollback_cause },
       )
     }
 
