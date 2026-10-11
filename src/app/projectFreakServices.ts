@@ -2,6 +2,7 @@ import { PF_RELEASE_VERSION } from '../release'
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { PROJECT_FREAK_DB_NAME } from '../data/db/schema'
 import { with_dataset_operation_lock } from '../application/sync/datasetOperationLock'
+import { projectFreakAppAccess } from '../application/sync/datasetAppAccess'
 import { request_auto_sync } from '../application/sync/autoSyncEvents'
 import {
   SupabaseSyncProvider,
@@ -638,13 +639,15 @@ export async function preview_database_backup(file: File) {
 
 
 export function restore_database_backup(preview: BackupPreview) {
-  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'restore', async () => {
-    return restore_validated_backup(projectFreakDb, preview, {
-      now_iso: new Date().toISOString(),
-      source_device_id: await current_device_id(),
-      app_version: PF_RELEASE_VERSION,
-    })
-  })
+  return with_dataset_operation_lock(PROJECT_FREAK_DB_NAME, 'restore', () =>
+    projectFreakAppAccess.restore_exclusively(async () =>
+      restore_validated_backup(projectFreakDb, preview, {
+        now_iso: new Date().toISOString(),
+        source_device_id: await current_device_id(),
+        app_version: PF_RELEASE_VERSION,
+      }),
+    ),
+  )
 }
 
 export function load_exercise_library(query: ExerciseLibraryQuery = {}) {
