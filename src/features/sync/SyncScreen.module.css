@@ -203,6 +203,36 @@
   min-width: 140px;
 }
 
+.conflictList {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 14px 0 0;
+  list-style: none;
+}
+
+.conflictList li {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--pf-border);
+  background: var(--pf-bg);
+  overflow-wrap: anywhere;
+}
+
+.conflictList strong {
+  color: var(--pf-text-strong);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.conflictList span,
+.conflictList time {
+  color: var(--pf-text-muted);
+  font-size: 10px;
+}
+
 .message,
 .error {
   margin-top: 14px;
