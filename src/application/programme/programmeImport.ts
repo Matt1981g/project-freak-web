@@ -48,6 +48,7 @@ export interface ProgrammeImportGymGuard {
 export interface ProgrammeImportPreview {
   source_id: string
   document_hash: string
+  reviewed_gym_profile_id?: string | null
   document: ProgrammeImportDocument | null
   issues: ProgrammeImportIssue[]
   exercise_resolutions: ProgrammeExerciseResolution[]
@@ -316,6 +317,14 @@ function validate_document_semantics(
 
   for (const [session_index, session] of programme.sessions.entries()) {
     const session_path = `programme.sessions[${session_index}]`
+    if (
+      session.scheduled_date_local &&
+      ((programme.start_date_local && session.scheduled_date_local < programme.start_date_local) ||
+        (programme.end_date_local && session.scheduled_date_local > programme.end_date_local))
+    ) {
+      issues.push(issue('error', 'session_outside_programme_window', session_path,
+        'Scheduled session date is outside the programme start/end dates.'))
+    }
 
     if (session.external_id) {
       if (session_external_ids.has(session.external_id)) {
@@ -445,6 +454,19 @@ export async function preview_programme_import(
   exercises: ExerciseRepository,
   gym_guard?: ProgrammeImportGymGuard,
 ): Promise<ProgrammeImportPreview> {
+  if (new TextEncoder().encode(json_text).byteLength > 2 * 1024 * 1024) {
+    return {
+      source_id: '',
+      document_hash: '',
+      document: null,
+      issues: [issue('error', 'programme_too_large', '$',
+        'Programme JSON exceeds the 2 MiB import limit.')],
+      exercise_resolutions: [],
+      counts: { sessions: 0, exercises: 0, sets: 0, components: 0 },
+      can_commit: false,
+    }
+  }
+
   let raw: unknown
 
   try {
@@ -506,6 +528,7 @@ export async function preview_programme_import(
   return {
     source_id: `programme-json:${document_hash}`,
     document_hash,
+    reviewed_gym_profile_id: gym_guard?.gym_profile_id ?? null,
     document,
     issues: semantic.issues,
     exercise_resolutions: semantic.resolutions,
