@@ -2321,3 +2321,21 @@
   box-shadow: 0 0 0 1px var(--pf-danger-soft);
   font-weight: 1000;
 }
+
+/* Last-chance recovery controls fit the iPhone portrait logger width. */
+.draftRecoveryActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.draftRecoveryActions button {
+  flex: 1 1 120px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--pf-border);
+  color: var(--pf-text-strong);
+  background: var(--pf-panel-raised);
+  font-size: 10px;
+  font-weight: 900;
+}
