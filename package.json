@@ -1,7 +1,7 @@
 {
   "name": "projectfreakweb",
   "private": true,
-  "version": "20.5.0",
+  "version": "20.6.0",
   "type": "module",
   "scripts": {
     "audit:intelligence": "node scripts/audit-exercise-intelligence.mjs",
