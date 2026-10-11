@@ -1,3 +1,4 @@
+import { WORKOUT_FORM_DRAFT_PREFIX } from './workoutFormJournal'
 /**
  * Synchronous, origin-local emergency journal for edits not yet committed to
  * IndexedDB. This is NOT a cloud mutation or a replacement for set autosave.
@@ -98,10 +99,13 @@ export function track_workout_write<T>(operation: Promise<T>): Promise<T> {
 export function workout_update_is_unsafe(path = ''): boolean {
   if (!path.includes('/workout/')) return false
   if (active_writes > 0) return true
+  const session_id = path.split('/workout/')[1]?.split(/[/?#]/)[0] ?? ''
   try {
     for (let index = 0; index < localStorage.length; index++) {
       const key = localStorage.key(index)
-      if (key?.startsWith(WORKOUT_DRAFT_PREFIX)) return true
+      if (key?.startsWith(`${WORKOUT_DRAFT_PREFIX}${session_id}:`) ||
+          key?.startsWith(`${WORKOUT_FORM_DRAFT_PREFIX}readiness:${session_id}`) ||
+          key?.startsWith(`${WORKOUT_FORM_DRAFT_PREFIX}recovery:${session_id}`)) return true
     }
   } catch {
     // Storage access denied: defer reload while on an active workout.
