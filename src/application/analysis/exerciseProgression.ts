@@ -265,7 +265,9 @@ export function build_exercise_progression(
       failure_sets: working_sets.filter(has_failure).length,
       best_load_kg: best_set?.load_kg ?? null,
       best_reps_at_load: best_set?.completed_reps ?? null,
-      rpe: average(metrics, 'rpe'),
+      rpe: working_sets.some((set) => set.rpe != null)
+        ? working_sets.reduce((sum, set) => sum + (set.rpe ?? 0), 0) / working_sets.filter((set) => set.rpe != null).length
+        : average(metrics, 'rpe'),
       pump: average(metrics, 'pump'),
       form: average(metrics, 'form'),
       challenge_attempt: entry.appearances.some((appearance) =>
