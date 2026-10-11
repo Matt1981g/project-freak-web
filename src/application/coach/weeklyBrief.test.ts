@@ -316,8 +316,8 @@ describe('build_weekly_coaching_brief', () => {
     expect(brief).toContain('Recommendation: CONTINUE')
     expect(brief).toContain('Nautilus Bicep Curl [exercise-1]')
     expect(brief).toContain('2 sets | 8–12 reps | 90s rest')
-    expect(brief).toContain('S1 45 kg × 12 | S2 45 kg × 10F')
-    expect(brief).toContain('RPE 9 | Pump 8 | Form 10 | Where felt Biceps')
+    expect(brief).toContain('S1 45 kg × 12 · RPE — | S2 45 kg × 10F · RPE —')
+    expect(brief).toContain('Pump 8 | Form 10 | Enjoyment — | Legacy RPE 9 | Where felt Biceps')
     expect(brief).toContain('Sessions without readiness/recovery: 1')
     expect(brief).toContain(
       'The next programme JSON is the prescription. Historical performance is evidence',
