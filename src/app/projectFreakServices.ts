@@ -18,6 +18,15 @@ import {
 } from '../data/sync'
 import { inspect_data_integrity } from '../application/diagnostics/dataIntegrity'
 import {
+  assert_dataset_account_compatible,
+  evaluate_dataset_binding,
+  get_dataset_cloud_owner,
+  link_dataset_cloud_owner,
+  normalize_dataset_project_url,
+  require_dataset_cloud_owner,
+  type DatasetBindingState,
+} from '../application/sync/datasetIdentity'
+import {
   build_full_backup,
   preview_backup_json,
   restore_validated_backup,
@@ -280,6 +289,9 @@ export interface CloudSyncStatus {
   pending_mutations: number
   sync_state: Awaited<ReturnType<typeof repositories.sync.get_state>> | null
   project_url: string | null
+  dataset_binding: DatasetBindingState
+  dataset_owner_user_id: string | null
+  dataset_owner_project_url: string | null
 }
 
 export interface FullCloudSyncResult {
@@ -295,9 +307,10 @@ export interface FullCloudSyncResult {
 export async function load_cloud_sync_status(): Promise<CloudSyncStatus> {
   const config = load_supabase_config()
   const session = load_supabase_session()
-  const [pending_mutations, sync_state] = await Promise.all([
+  const [pending_mutations, sync_state, dataset_owner] = await Promise.all([
     repositories.sync.count_pending(),
     repositories.sync.get_state('supabase'),
+    get_dataset_cloud_owner(projectFreakDb),
   ])
 
   return {
@@ -308,33 +321,55 @@ export async function load_cloud_sync_status(): Promise<CloudSyncStatus> {
     pending_mutations,
     sync_state: sync_state ?? null,
     project_url: config?.project_url ?? null,
+    dataset_binding: evaluate_dataset_binding(
+      dataset_owner, config?.project_url ?? null, session?.user_id ?? null,
+    ),
+    dataset_owner_user_id: dataset_owner?.user_id ?? null,
+    dataset_owner_project_url: dataset_owner?.project_url ?? null,
   }
 }
 
-export function configure_cloud_sync(
+export async function configure_cloud_sync(
   project_url: string,
   anon_key: string,
-): SupabaseSyncConfig {
+): Promise<SupabaseSyncConfig> {
+  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
+  const existing_owner = await get_dataset_cloud_owner(projectFreakDb)
+  if (existing_owner &&
+      existing_owner.project_url !== normalize_dataset_project_url(project_url)) {
+    throw new Error(
+      'This dataset is linked to another Supabase project. ' +
+      'Open the original project or use a separate browser profile.',
+    )
+  }
   return save_supabase_config({ project_url, anon_key })
 }
 
 export function clear_cloud_sync_configuration(): void {
+  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
   clear_supabase_config()
 }
 
 export function sign_up_cloud_sync(email: string, password: string) {
   const config = load_supabase_config()
   if (!config) throw new Error('Configure Supabase before creating an account.')
-  return supabase_sign_up(config, email, password)
+  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
+  return supabase_sign_up(config, email, password, (candidate) =>
+    assert_dataset_account_compatible(projectFreakDb, config.project_url, candidate.user_id),
+  )
 }
 
 export function sign_in_cloud_sync(email: string, password: string) {
   const config = load_supabase_config()
   if (!config) throw new Error('Configure Supabase before signing in.')
-  return supabase_sign_in(config, email, password)
+  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
+  return supabase_sign_in(config, email, password, (candidate) =>
+    assert_dataset_account_compatible(projectFreakDb, config.project_url, candidate.user_id),
+  )
 }
 
 export async function sign_out_cloud_sync() {
+  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
   const config = load_supabase_config()
   if (!config) return
   await supabase_sign_out(config)
@@ -352,16 +387,37 @@ export async function check_cloud_sync_backend(): Promise<SupabaseBackendHealth>
   if (health.authenticated_user_id !== session.user_id) {
     throw new Error('Supabase backend user does not match the local auth session.')
   }
-
+  await assert_dataset_account_compatible(projectFreakDb, config.project_url, session.user_id)
   return health
+}
+
+export async function link_cloud_sync_dataset(): Promise<void> {
+  if (full_cloud_sync_in_flight) throw new Error('Wait for the current sync to finish.')
+  const config = load_supabase_config()
+  const session = load_supabase_session()
+  if (!config || !session) throw new Error('Configure Supabase and sign in before linking.')
+  // Verify the account through Supabase RPC before accepting this deliberate
+  // user-initiated association of existing training records.
+  const health = await check_cloud_sync_backend()
+  if (health.authenticated_user_id !== session.user_id) {
+    throw new Error('Authenticated backend account changed. Dataset link refused.')
+  }
+  await link_dataset_cloud_owner(
+    projectFreakDb,
+    config.project_url,
+    session.user_id,
+    new Date().toISOString(),
+  )
 }
 
 async function run_full_cloud_sync_once(): Promise<FullCloudSyncResult> {
   const config = load_supabase_config()
   if (!config) throw new Error('Configure Supabase before syncing.')
-  if (!load_supabase_session()) throw new Error('Sign in before syncing.')
+  const session = load_supabase_session()
+  if (!session) throw new Error('Sign in before syncing.')
+  await require_dataset_cloud_owner(projectFreakDb, config.project_url, session.user_id)
 
-  const provider = new SupabaseSyncProvider(config)
+  const provider = new SupabaseSyncProvider(config, session.user_id)
   let pushed = 0
   let acknowledged = 0
   let pulled = 0
