@@ -54,8 +54,8 @@ describe('atomic full-backup read snapshot', () => {
     // Trigger a real write transaction from another IndexedDB connection
     // after the backup has already read its early settings store but before
     // it reads sync_state (near the end of the complete store list).
-    vi.spyOn(backup_connection.settings, 'toArray').mockImplementation(async () => {
-      const rows = await original_to_array()
+    vi.spyOn(backup_connection.settings, 'toArray').mockImplementation(() =>
+      original_to_array().then((rows) => {
       if (!write_started) {
         write_started = true
         write_promise = writer_connection.transaction(
@@ -84,12 +84,13 @@ describe('atomic full-backup read snapshot', () => {
         // Keep the read transaction alive while the other connection tries
         // to commit; without a single encompassing read transaction, the
         // later store would reflect the writer and form a torn backup.
-        await Dexie.waitFor(
+        return Dexie.waitFor(
           new Promise<void>((resolve) => setTimeout(resolve, 25)),
-        )
+        ).then(() => rows)
       }
       return rows
-    })
+    }),
+  )
 
     const backup = await build_full_backup(backup_connection, {
       now_iso: NOW,
