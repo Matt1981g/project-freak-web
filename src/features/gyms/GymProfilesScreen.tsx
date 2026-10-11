@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { GymProfile } from '../../domain/models'
-import { load_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment, verify_gym_equipment } from '../../app/projectFreakServices'
+import { load_gym_profile_state, read_gym_profile_state, select_active_gym_profile, load_gym_equipment, change_gym_equipment, add_new_gym_equipment, verify_gym_equipment } from '../../app/projectFreakServices'
+import { AUTO_SYNC_COMPLETE_EVENT } from '../../application/sync/autoSyncEvents'
 import { save_gym_machine_identity } from '../../app/gymMachineDetailsService'
 import styles from './GymProfilesScreen.module.css'
 import { save_equipment_profile_link } from '../../app/equipmentProfileService'
@@ -125,9 +126,38 @@ export function GymProfilesScreen() {
   }
 
   useEffect(() => {
-    load_gym_profile_state().then(setState).catch((cause) => {
-      setError(cause instanceof Error ? cause.message : 'Unable to load gym profiles.')
-    })
+    let active = true
+    let latest_request = 0
+
+    const on_loaded = (request: number, result: State) => {
+      if (active && request === latest_request) setState(result)
+    }
+
+    const initial_request = ++latest_request
+    void load_gym_profile_state()
+      .then((result) => on_loaded(initial_request, result))
+      .catch((cause) => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Unable to load gym profiles.')
+      })
+
+    // React to remote changes without remounting Gym Profiles. This deliberately
+    // preserves unsaved search text, selected machine, and editing forms.
+    const on_sync_complete = (event: Event) => {
+      const detail = (event as CustomEvent<{ result?: { applied?: number } }>).detail
+      if ((detail?.result?.applied ?? 0) <= 0) return
+      const request = ++latest_request
+      void read_gym_profile_state()
+        .then((result) => on_loaded(request, result))
+        .catch((cause) => {
+          if (active) setError(cause instanceof Error ? cause.message : 'Unable to refresh gym profiles.')
+        })
+    }
+
+    window.addEventListener(AUTO_SYNC_COMPLETE_EVENT, on_sync_complete)
+    return () => {
+      active = false
+      window.removeEventListener(AUTO_SYNC_COMPLETE_EVENT, on_sync_complete)
+    }
   }, [])
 
   async function select(profile: GymProfile) {
