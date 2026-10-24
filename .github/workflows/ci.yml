@@ -22,7 +22,7 @@ jobs:
       - name: Install reproducibly
         run: npm ci
       - name: Repair advisory-affected dependencies within existing version ranges
-        run: npm audit fix
+        run: npm audit fix --audit-level=high
       - name: Capture reviewed lockfile change
         run: |
           echo PF_UPDATED_LOCK_BEGIN
