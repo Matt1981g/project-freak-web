@@ -8,6 +8,7 @@ import {
   ensure_default_gym_profiles,
   load_gym_profiles,
   save_active_gym,
+  resolve_active_gym_id,
   copy_jacksons_to_trident,
   set_gym_exercise_available,
   edit_gym_machine_details_with_name,
@@ -216,18 +217,39 @@ describe('gym profiles', () => {
     expect((await f.gymRepo.list_availability(JACKSONS_GYM_ID)).find(row => row.exercise_id === 'pendulum')?.machine_brand).toBe('Jackson Brand')
   })
 
-  it('seeds Trident, preserves all current exercises at Jacksons, and keeps Generic conservative', async () => {
+  it('offers Jacksons and Generic only while keeping the retired Trident record', async () => {
     const f = fixtures()
     await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
     const state = await load_gym_profiles(f.gymRepo, f.settingsRepo)
 
     expect(state.profiles.map((profile) => profile.id).sort()).toEqual(
-      [TRIDENT_GYM_ID, JACKSONS_GYM_ID, GENERIC_GYM_ID].sort(),
+      [JACKSONS_GYM_ID, GENERIC_GYM_ID].sort(),
     )
-    expect(state.active_gym_id).toBe(TRIDENT_GYM_ID)
+    expect(state.active_gym_id).toBe(JACKSONS_GYM_ID)
     expect(state.availability_counts[JACKSONS_GYM_ID]).toBe(2)
     expect(state.availability_counts[GENERIC_GYM_ID]).toBe(1)
-    expect(state.availability_counts[TRIDENT_GYM_ID]).toBe(0)
+    expect(state.availability_counts[TRIDENT_GYM_ID]).toBeUndefined()
+    expect(f.profiles.find(profile => profile.id === TRIDENT_GYM_ID)).toBeDefined()
+  })
+
+  it('moves a legacy Trident selection to Jacksons without discarding history', async () => {
+    const f = fixtures()
+    await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
+    const history = JSON.stringify(await f.gymRepo.list_availability(TRIDENT_GYM_ID))
+    const jackson = f.profiles.find(profile => profile.id === JACKSONS_GYM_ID)!
+    await f.gymRepo.put_profile({ ...jackson, kind: 'previous', revision: jackson.revision + 1 })
+    await f.settingsRepo.put({
+      key: 'active_gym_profile_id', scope: 'global', value_json: TRIDENT_GYM_ID,
+      updated_at: NOW, device_id: DEVICE,
+    })
+    expect(resolve_active_gym_id(TRIDENT_GYM_ID)).toBe(JACKSONS_GYM_ID)
+    expect((await load_gym_profiles(f.gymRepo, f.settingsRepo)).active_gym_id).toBe(JACKSONS_GYM_ID)
+    await ensure_default_gym_profiles(f.gymRepo, f.exerciseRepo, f.settingsRepo, DEVICE, NOW)
+    expect((await f.settingsRepo.get('active_gym_profile_id'))?.value_json).toBe(JACKSONS_GYM_ID)
+    expect(f.profiles.find(profile => profile.id === JACKSONS_GYM_ID)?.kind).toBe('home')
+    expect(JSON.stringify(await f.gymRepo.list_availability(TRIDENT_GYM_ID))).toBe(history)
+    await expect(save_active_gym(TRIDENT_GYM_ID, f.gymRepo, f.settingsRepo, DEVICE, NOW))
+      .rejects.toThrow('Trident is retired')
   })
 
   it('switches active gym without deleting profiles or mappings', async () => {
