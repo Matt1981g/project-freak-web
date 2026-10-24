@@ -1,5 +1,5 @@
 import type { ProgrammeBlock, ProgrammedSession } from '../../domain/models'
-import { ACTIVE_GYM_SETTING_KEY, TRIDENT_GYM_ID } from '../gyms/gymProfiles'
+import { ACTIVE_GYM_SETTING_KEY, resolve_active_gym_id } from '../gyms/gymProfiles'
 import type { ProjectFreakDatabase } from '../../data/db/projectFreakDb'
 import type { ProgrammeRepository } from '../../data/repositories/contracts'
 import {
@@ -37,9 +37,7 @@ async function assert_commit_time_exercise_eligibility(
   if (ids.length === 0) return
 
   const setting = await db.settings.get(ACTIVE_GYM_SETTING_KEY)
-  const selected = typeof setting?.value_json === 'string'
-    ? setting.value_json
-    : TRIDENT_GYM_ID
+  const selected = resolve_active_gym_id(setting?.value_json)
   if (!preview.reviewed_gym_profile_id ||
       preview.reviewed_gym_profile_id !== selected) {
     throw new Error('Selected gym changed since programme preview. Validate and preview the file again.')
