@@ -6,6 +6,11 @@ test('equipment attribution, repeat loading and manual confirmation complete wit
   await jacksons.getByRole('button', { name: 'Edit equipment', exact: true }).click()
   const editor = page.getByRole('region', { name: 'Jacksons equipment', exact: true })
   await expect(editor.getByText(/equipment profiles linked/)).toBeVisible()
+  // Fresh databases have no Jacksons machines yet; create one to exercise persistence.
+  await editor.getByRole('button', { name: 'Add new machine / exercise' }).click()
+  await editor.getByRole('textbox', { name: 'Machine / exercise name (required)' }).fill('Test Cable Curl')
+  await editor.getByRole('button', { name: 'Save to Jacksons' }).click()
+  await expect(editor.getByRole('button', { name: 'Link equipment', exact: true }).first()).toBeVisible()
   await page.reload()
   await jacksons.getByRole('button', { name: 'Edit equipment', exact: true }).click()
   await expect(editor.getByText(/equipment profiles linked/)).toBeVisible()
