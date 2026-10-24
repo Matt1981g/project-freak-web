@@ -21,6 +21,13 @@ jobs:
           cache: npm
       - name: Install reproducibly
         run: npm ci
+      - name: Repair advisory-affected dependencies within existing version ranges
+        run: npm audit fix
+      - name: Capture reviewed lockfile change
+        run: |
+          echo PF_UPDATED_LOCK_BEGIN
+          cat package-lock.json
+          echo PF_UPDATED_LOCK_END
       - name: Audit dependencies (high severity)
         run: npm audit --audit-level=high
 
