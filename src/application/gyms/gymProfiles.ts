@@ -243,6 +243,15 @@ export async function set_gym_exercise_available(
 
 const PROFILE_SEEDS: Array<Pick<GymProfile, 'id' | 'name' | 'short_name' | 'kind' | 'is_inventory_complete' | 'notes'>> = [
   {
+    // Kept for existing workouts and legacy machine-mapping tests, never exposed as a selection.
+    id: TRIDENT_GYM_ID,
+    name: 'Trident Gym Plymouth',
+    short_name: 'Trident',
+    kind: 'previous',
+    is_inventory_complete: false,
+    notes: 'Retired gym profile retained for historical workout records.',
+  },
+  {
     id: JACKSONS_GYM_ID,
     name: 'Jacksons',
     short_name: 'Jacksons',
