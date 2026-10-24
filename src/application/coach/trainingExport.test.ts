@@ -243,7 +243,7 @@ function repositories(): RepositoryBundle {
     gyms: {
       list_profiles: async () => [],
       get_profile: async (id) =>
-        id === 'gym-trident-plymouth'
+        id === 'gym-jacksons-plymouth'
           ? {
               id,
               created_at: NOW,
@@ -253,8 +253,8 @@ function repositories(): RepositoryBundle {
               device_id: 'device-1',
               source_kind: 'user',
               source_id: null,
-              name: 'Trident',
-              short_name: 'Trident',
+              name: 'Jacksons',
+              short_name: 'Jacksons',
               kind: 'home',
               is_inventory_complete: true,
               notes: null,
@@ -262,10 +262,10 @@ function repositories(): RepositoryBundle {
           : undefined,
       put_profile: async (profile) => profile.id,
       list_availability: async (gym_profile_id) =>
-        gym_profile_id === 'gym-trident-plymouth'
+        gym_profile_id === 'gym-jacksons-plymouth'
           ? [
               {
-                id: 'gym-trident-plymouth:exercise-1',
+                id: 'gym-jacksons-plymouth:exercise-1',
                 created_at: NOW,
                 updated_at: NOW,
                 deleted_at: null,
@@ -482,7 +482,7 @@ describe('build_training_export scopes', () => {
 
   it('excludes explicitly unconfirmed equipment from the Coach catalogue', async () => {
     const repo = repositories()
-    const current = await repo.gyms.list_availability('gym-trident-plymouth')
+    const current = await repo.gyms.list_availability('gym-jacksons-plymouth')
     repo.gyms.list_availability = async () =>
       current.map((entry) => ({ ...entry, notes: '[UNCONFIRMED]' }))
 

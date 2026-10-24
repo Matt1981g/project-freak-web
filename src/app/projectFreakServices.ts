@@ -132,12 +132,10 @@ import {
   load_active_gym,
   load_gym_profiles,
   save_active_gym,
-  copy_jacksons_to_trident,
   set_gym_exercise_available,
   create_gym_exercise,
   gym_machine_details,
   edit_gym_machine_details,
-  install_trident_catalogue_baseline,
   set_gym_equipment_verified,
   type NewGymExercise,
 } from '../application/gyms/gymProfiles'
@@ -164,14 +162,6 @@ export async function load_gym_profile_state() {
     repositories.settings,
     device_id,
   )
-  await copy_jacksons_to_trident(repositories.gyms, repositories.settings, device_id)
-  await projectFreakDb.transaction('rw', [
-    projectFreakDb.devices, projectFreakDb.settings, projectFreakDb.synced_settings,
-    projectFreakDb.gym_profiles, projectFreakDb.exercises,
-    projectFreakDb.gym_exercise_availability, projectFreakDb.audit_events, projectFreakDb.sync_outbox,
-  ], () => install_trident_catalogue_baseline(
-    repositories.gyms, repositories.exercises, repositories.settings, device_id,
-  ))
   // Seeded inventory creates genuine new outbox work; opening the page must not
   // request another push/pull if no records were created.
   if ((await repositories.sync.count_pending()) > pending_before) {

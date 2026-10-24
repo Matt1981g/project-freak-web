@@ -5,7 +5,7 @@ import { create_repositories } from '../../data/repositories'
 import type { ProgrammeBlock, ProgrammedSession, CompletedSession } from '../../domain/models'
 import type { ProgrammeImportPreview } from './programmeImport'
 import { commit_programme_revision_atomically } from './atomicProgrammeRevision'
-import { ACTIVE_GYM_SETTING_KEY, TRIDENT_GYM_ID } from '../gyms/gymProfiles'
+import { ACTIVE_GYM_SETTING_KEY, JACKSONS_GYM_ID } from '../gyms/gymProfiles'
 import { select_active_plan_programmes } from './activePlan'
 
 const DB_NAME = 'pf-atomic-programme-revision-tests'
@@ -283,7 +283,7 @@ describe('atomic programme revision publication', () => {
 
   async function eligible_preview() {
     const input = preview()
-    input.reviewed_gym_profile_id = TRIDENT_GYM_ID
+    input.reviewed_gym_profile_id = JACKSONS_GYM_ID
     input.document!.programme.sessions[0].exercises.push({
       exercise_id: 'cable-curl',
       exercise_name: 'Cable Curl',
@@ -315,16 +315,16 @@ describe('atomic programme revision publication', () => {
       notes: null,
     })
     await db.gym_profiles.add({
-      ...meta(TRIDENT_GYM_ID),
-      name: 'Trident Gym Plymouth',
-      short_name: 'Trident',
+      ...meta(JACKSONS_GYM_ID),
+      name: 'Jacksons',
+      short_name: 'Jacksons',
       kind: 'home',
       is_inventory_complete: true,
       notes: null,
     })
     await db.gym_exercise_availability.add({
-      ...meta('trident-cable-curl'),
-      gym_profile_id: TRIDENT_GYM_ID,
+      ...meta('jacksons-cable-curl'),
+      gym_profile_id: JACKSONS_GYM_ID,
       exercise_id: 'cable-curl',
       available: true,
       equipment_label: null,
@@ -343,7 +343,7 @@ describe('atomic programme revision publication', () => {
 
   it('blocks an exercise removed from the gym after preview without writing a programme', async () => {
     const input = await eligible_preview()
-    const row = (await db.gym_exercise_availability.get('trident-cable-curl'))!
+    const row = (await db.gym_exercise_availability.get('jacksons-cable-curl'))!
     await db.gym_exercise_availability.put({ ...row, available: false, revision: 2 })
     await expect(publish(input, false)).rejects.toThrow('availability or definition changed')
     expect(await db.programme_blocks.count()).toBe(0)
@@ -375,7 +375,7 @@ describe('atomic programme revision publication', () => {
 
   it('rejects unconfirmed inventory mappings even when their available flag is true', async () => {
     const input = await eligible_preview()
-    const row = (await db.gym_exercise_availability.get('trident-cable-curl'))!
+    const row = (await db.gym_exercise_availability.get('jacksons-cable-curl'))!
     await db.gym_exercise_availability.put({
       ...row, available: true, notes: '[UNCONFIRMED] machine', revision: 2,
     })

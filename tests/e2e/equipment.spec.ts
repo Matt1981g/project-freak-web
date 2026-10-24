@@ -2,12 +2,17 @@ import { expect, test } from '@playwright/test'
 
 test('equipment attribution, repeat loading and manual confirmation complete without transaction errors', async ({ page }) => {
   await page.goto('./#/gyms')
-  const trident = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Trident Gym Plymouth', exact: true }) })
-  await trident.getByRole('button', { name: 'Edit equipment', exact: true }).click()
-  const editor = page.getByRole('region', { name: 'Trident Gym Plymouth equipment', exact: true })
+  const jacksons = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Jacksons', exact: true }) })
+  await jacksons.getByRole('button', { name: 'Edit equipment', exact: true }).click()
+  const editor = page.getByRole('region', { name: 'Jacksons equipment', exact: true })
   await expect(editor.getByText(/equipment profiles linked/)).toBeVisible()
+  // Fresh databases have no Jacksons machines yet; create one to exercise persistence.
+  await editor.getByRole('button', { name: 'Add new machine / exercise' }).click()
+  await editor.getByRole('textbox', { name: 'Machine / exercise name (required)' }).fill('Test Cable Curl')
+  await editor.getByRole('button', { name: 'Save to Jacksons' }).click()
+  await expect(editor.getByRole('button', { name: 'Link equipment', exact: true }).first()).toBeVisible()
   await page.reload()
-  await trident.getByRole('button', { name: 'Edit equipment', exact: true }).click()
+  await jacksons.getByRole('button', { name: 'Edit equipment', exact: true }).click()
   await expect(editor.getByText(/equipment profiles linked/)).toBeVisible()
   await editor.getByRole('button', { name: 'Link equipment', exact: true }).first().click()
   await editor.getByRole('button', { name: 'Confirm equipment', exact: true }).click()
@@ -19,11 +24,11 @@ test('equipment attribution, repeat loading and manual confirmation complete wit
 test('PF19.1 keeps the gym editor mounted during repeated incoming sync notifications', async ({ page }) => {
   await page.goto('./#/gyms')
   const gym = page.locator('article').filter({
-    has: page.getByRole('heading', { name: 'Trident Gym Plymouth', exact: true }),
+    has: page.getByRole('heading', { name: 'Jacksons', exact: true }),
   })
   await gym.getByRole('button', { name: 'Edit equipment', exact: true }).click()
 
-  const editor = page.getByRole('region', { name: 'Trident Gym Plymouth equipment', exact: true })
+  const editor = page.getByRole('region', { name: 'Jacksons equipment', exact: true })
   const search = editor.getByRole('textbox', { name: 'Search equipment or exercise' })
   await search.fill('cable row')
   await expect(editor).toBeVisible()

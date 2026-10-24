@@ -7,6 +7,11 @@ export const TRIDENT_GYM_ID = 'gym-trident-plymouth'
 export const JACKSONS_GYM_ID = 'gym-jacksons-plymouth'
 export const GENERIC_GYM_ID = 'gym-generic-travel'
 export const ACTIVE_GYM_SETTING_KEY = 'active_gym_profile_id'
+
+// Historical Trident records remain addressable, but Trident is no longer a selectable gym.
+export function resolve_active_gym_id(value: unknown): string {
+  return typeof value === 'string' && value !== TRIDENT_GYM_ID ? value : JACKSONS_GYM_ID
+}
 export const TRIDENT_COPY_KEY = 'trident_jacksons_copy_v1'
 export const TRIDENT_MACHINE_IDENTITY_SPLIT_KEY = 'trident_machine_identity_split_v1'
 export const TRIDENT_CATALOGUE_BASELINE_KEY = 'trident_catalogue_baseline_v1'
@@ -238,20 +243,21 @@ export async function set_gym_exercise_available(
 
 const PROFILE_SEEDS: Array<Pick<GymProfile, 'id' | 'name' | 'short_name' | 'kind' | 'is_inventory_complete' | 'notes'>> = [
   {
+    // Kept for existing workouts and legacy machine-mapping tests, never exposed as a selection.
     id: TRIDENT_GYM_ID,
     name: 'Trident Gym Plymouth',
     short_name: 'Trident',
-    kind: 'home',
+    kind: 'previous',
     is_inventory_complete: false,
-    notes: 'Current gym. Equipment inventory awaiting the approved Trident audit.',
+    notes: 'Retired gym profile retained for historical workout records.',
   },
   {
     id: JACKSONS_GYM_ID,
     name: 'Jacksons',
     short_name: 'Jacksons',
-    kind: 'previous',
+    kind: 'home',
     is_inventory_complete: true,
-    notes: 'Preserved previous-gym profile. Existing active PF exercises were captured here.',
+    notes: 'Current primary gym. Jacksons equipment catalogue is used for future sessions.',
   },
   {
     id: GENERIC_GYM_ID,
@@ -462,6 +468,19 @@ export async function ensure_default_gym_profiles(
     })
   }
 
+  // Update the existing Jacksons profile without deleting or rewriting any history.
+  const jacksons = existing.get(JACKSONS_GYM_ID)
+  if (jacksons && jacksons.deleted_at === null && jacksons.kind !== 'home') {
+    await gyms.put_profile({
+      ...jacksons,
+      kind: 'home',
+      notes: 'Current primary gym. Jacksons equipment catalogue is used for future sessions.',
+      updated_at: timestamp,
+      revision: jacksons.revision + 1,
+      device_id,
+    })
+  }
+
   const active_exercises = await exercises.list_active()
   for (const gym_profile_id of [JACKSONS_GYM_ID, GENERIC_GYM_ID]) {
     const mapped = new Set((await gyms.list_availability(gym_profile_id)).map((entry) => entry.exercise_id))
@@ -476,11 +495,12 @@ export async function ensure_default_gym_profiles(
 
   await isolate_legacy_trident_machine_identity(gyms, exercises, settings, device_id, timestamp)
 
-  if (!(await settings.get(ACTIVE_GYM_SETTING_KEY))) {
+  const active = await settings.get(ACTIVE_GYM_SETTING_KEY)
+  if (!active || active.value_json === TRIDENT_GYM_ID) {
     await settings.put({
       key: ACTIVE_GYM_SETTING_KEY,
       scope: 'global',
-      value_json: TRIDENT_GYM_ID,
+      value_json: JACKSONS_GYM_ID,
       updated_at: timestamp,
       device_id,
     })
@@ -488,13 +508,15 @@ export async function ensure_default_gym_profiles(
 }
 
 export async function load_gym_profiles(gyms: GymRepository, settings: SettingsRepository) {
-  const [profiles, active_setting] = await Promise.all([
+  const [stored_profiles, active_setting] = await Promise.all([
     gyms.list_profiles(),
     settings.get(ACTIVE_GYM_SETTING_KEY),
   ])
-  const active_gym_id = typeof active_setting?.value_json === 'string'
-    ? active_setting.value_json
-    : TRIDENT_GYM_ID
+  // Hide retired Trident from all selectable gym profiles; keep its stored data for history.
+  const profiles = stored_profiles.filter(profile =>
+    profile.id !== TRIDENT_GYM_ID && profile.deleted_at === null,
+  )
+  const active_gym_id = resolve_active_gym_id(active_setting?.value_json)
   const availability_counts = Object.fromEntries(
     await Promise.all(profiles.map(async (profile) => [
       profile.id,
@@ -511,6 +533,7 @@ export async function save_active_gym(
   device_id: string,
   timestamp = new Date().toISOString(),
 ) {
+  if (gym_profile_id === TRIDENT_GYM_ID) throw new Error('Trident is retired. Select Jacksons or Generic Gym.')
   const profile = await gyms.get_profile(gym_profile_id)
   if (!profile || profile.deleted_at !== null) throw new Error('Gym profile was not found.')
   await settings.put({
@@ -525,6 +548,5 @@ export async function save_active_gym(
 
 export async function load_active_gym(gyms: GymRepository, settings: SettingsRepository) {
   const setting = await settings.get(ACTIVE_GYM_SETTING_KEY)
-  const id = typeof setting?.value_json === 'string' ? setting.value_json : TRIDENT_GYM_ID
-  return gyms.get_profile(id)
+  return gyms.get_profile(resolve_active_gym_id(setting?.value_json))
 }
