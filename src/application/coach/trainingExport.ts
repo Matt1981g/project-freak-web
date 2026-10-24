@@ -12,7 +12,7 @@ import type {
 import { load_training_priorities } from '../priorities/trainingPriorities'
 import { load_analysis_dashboard_data } from '../analysis/dashboard'
 import { load_coach_excluded_sessions } from './coachExclusions'
-import { ACTIVE_GYM_SETTING_KEY, TRIDENT_GYM_ID } from '../gyms/gymProfiles'
+import { ACTIVE_GYM_SETTING_KEY, resolve_active_gym_id } from '../gyms/gymProfiles'
 import { PROGRESS_ENGINE_V2_RULES } from '../workout/progressEngineV2'
 import {
   build_next_week_availability_instruction,
@@ -653,10 +653,7 @@ export async function build_training_export(
   const selected_gym_setting = await repositories.settings.get(
     ACTIVE_GYM_SETTING_KEY,
   )
-  const selected_gym_id =
-    typeof selected_gym_setting?.value_json === 'string'
-      ? selected_gym_setting.value_json
-      : TRIDENT_GYM_ID
+  const selected_gym_id = resolve_active_gym_id(selected_gym_setting?.value_json)
   const selected_gym = await repositories.gyms.get_profile(selected_gym_id)
   const selected_gym_availability =
     selected_gym && selected_gym.deleted_at === null
