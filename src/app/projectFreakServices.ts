@@ -1,3 +1,5 @@
+import { intensity_prescription, selected_intensity, resolve_intensity } from '../application/workout/trainingIntensity'
+import { suggest_historical_load } from '../application/workout/historicalLoad'
 import { PF_RELEASE_VERSION } from '../release'
 import { projectFreakDb } from '../data/db/projectFreakDb'
 import { PROJECT_FREAK_DB_NAME } from '../data/db/schema'
@@ -1054,7 +1056,9 @@ export async function start_programmed_session_workout(
   )
   const active_gym = await load_active_gym(repositories.gyms, repositories.settings)
   const gym_equipment = active_gym ? await load_gym_equipment(active_gym.id) : []
-  const result = await start_programmed_workout(detail, repositories.sessions, {
+  const intensity = selected_intensity(`${detail.session.name_snapshot} ${detail.session.notes ?? ''}`)
+  const result = await start_programmed_workout(intensity_prescription(detail, intensity), repositories.sessions, {
+    training_intensity: intensity,
     device_id,
     now_iso,
     local_date: current_local_date(),
@@ -1162,8 +1166,10 @@ export async function load_live_workout(completed_session_id: string) {
     gym_mappings.map(mapping => [mapping.exercise_id, mapping.setup_notes ?? null]),
   )
 
+  const intensity = resolve_intensity(session.notes ?? '')
+  const effective_detail = programmed_detail && session.notes?.includes('PF_INTENSITY:') ? intensity_prescription(programmed_detail, intensity) : programmed_detail
   const planned_by_id = new Map(
-    programmed_detail?.exercises.map((detail) => [
+    effective_detail?.exercises.map((detail) => [
       detail.exercise.id,
       detail,
     ]) ?? [],
@@ -1174,6 +1180,7 @@ export async function load_live_workout(completed_session_id: string) {
 
   return {
     session,
+    intensity,
     recovery_prompt:
       session.status === 'in_progress'
         ? await load_previous_muscle_recovery_prompt(completed_session_id)
@@ -1239,6 +1246,7 @@ export async function load_live_workout(completed_session_id: string) {
             : setup_notes_by_exercise_id.get(exercise.exercise_id) ?? null,
           sets,
           metrics,
+          historical_load: suggest_historical_load(history, session.id, session.session_date_local, session.gym_profile_id ?? null, exercise.equipment_snapshot ?? null),
           previous_comparable,
           progression_suggestion: build_progression_suggestion(
             previous_comparable,

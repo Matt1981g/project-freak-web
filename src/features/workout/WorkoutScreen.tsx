@@ -941,7 +941,7 @@ function CompletedSetCorrection(props: {
   )
 }
 
-function SetLoggerRow(props: {
+export function SetLoggerRow(props: {
   exercise: LiveExercise['exercise']
   set_number: number
   planned_set: PlannedSet | null
@@ -952,6 +952,8 @@ function SetLoggerRow(props: {
   load_unit: WeightEntryUnit
   locked: boolean
   allow_correction?: boolean
+  uncertainty?: string
+  require_rpe?: boolean
   on_complete: () => Promise<void>
   on_corrected?: () => Promise<void>
 }) {
@@ -1356,6 +1358,7 @@ function SetLoggerRow(props: {
             : styles.setRow
       }
     >
+      {props.uncertainty && <p style={{color: '#ffcc73'}}>{props.uncertainty}</p>}
       <div className={styles.setHeading}>
         <div>
           <strong>SET {set_number}</strong>
@@ -1749,6 +1752,7 @@ function SetLoggerRow(props: {
             completed ||
             locked ||
             reps === null ||
+            (props.require_rpe === true && rpe === null) ||
             !components.every((component) =>
               component.component_type === 'partials'
                 ? component.reps_partial !== null
@@ -3242,6 +3246,8 @@ export function WorkoutScreen() {
                         previous_programmed_load_kg:
                           previous_planned_set?.set.target_load_kg ?? null,
                         previous: entry.previous_comparable,
+                        historical: entry.historical_load,
+                        intensity: workout.intensity,
                         progression: entry.progression_suggestion,
                         set_number,
                       })
@@ -3259,6 +3265,7 @@ export function WorkoutScreen() {
                               : []
                           }
                           initial_load_kg={load_prefill.load_kg}
+                          uncertainty={load_prefill.source === 'historical_suggestion' ? entry.historical_load?.reason : undefined}
                           load_prefill_source={load_prefill.source}
                           load_unit={
                             load_unit_by_exercise[exercise.exercise_id] ?? 'kg'

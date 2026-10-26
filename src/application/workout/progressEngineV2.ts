@@ -309,8 +309,9 @@ function rpe_quality_score(
 
 export function is_quality_qualified(exposure: ProgressionExposure): boolean {
   return (
-    exposure.metrics.form !== null &&
-    exposure.metrics.form >= PROGRESS_ENGINE_V2_RULES.minimum_acceptable_form &&
+    (exposure.metrics.form !== null
+      ? exposure.metrics.form >= PROGRESS_ENGINE_V2_RULES.minimum_acceptable_form
+      : exposure.metrics.pump !== null && exposure.metrics.pump >= 7 && exposure.metrics.rpe !== null && exposure.metrics.rpe <= 9) &&
     exposure.metrics.pump !== null &&
     exposure.metrics.pump >= PROGRESS_ENGINE_V2_RULES.poor_pump &&
     valid_rpe(exposure.metrics.rpe) &&
@@ -954,6 +955,14 @@ export function run_progress_engine_v2(
       adjustment('none', null, null, 'Rep progression comes before load progression.'),
       ['quality_gate_passed'],
     )
+  }
+
+  // Old School deliberately omits Form. Never invent a form score: require
+  // repeatable rep/RPE/stimulus evidence and explicitly describe the limited evidence.
+  if (latest.metrics.form === null && previous?.metrics.form === null &&
+      [latest, previous].every(exposure => is_quality_qualified(exposure) && upper_threshold_reached(exposure, input.targets) && !has_set_dropoff(exposure))) {
+    return decision('LOAD_UP', 'Two comparable exposures reached the rep ceiling with appropriate RPE and pump. Form was not scored; try a small load increase only while maintaining technique.', latest, input.targets,
+      adjustment('increase', 2.5, 2.5, 'Small suggested increase from repeated performance; form not scored.'), ['form_unscored'])
   }
 
   if (is_quality_qualified(latest)) {

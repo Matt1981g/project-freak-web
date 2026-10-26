@@ -1,0 +1,61 @@
+.screen {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+.screen h1 {
+  font-size: clamp(1.5rem, 6vw, 2.2rem);
+  margin: 8px 0;
+}
+.screen p {
+  margin: 6px 0;
+}
+.screen button,
+.screen select,
+.screen input {
+  min-height: 48px;
+  font-size: 16px;
+}
+.screen > button,
+.scores > button {
+  padding: 16px;
+  background: #d6fa48;
+  color: #142000;
+  border: 0;
+  border-radius: 10px;
+  font-weight: 800;
+}
+.screen a {
+  color: inherit;
+}
+.uncertain {
+  color: #ffcc73;
+  border-left: 4px solid #ffb547;
+  padding: 10px;
+  background: #432f18;
+}
+.hint {
+  color: #b7c6c1;
+  font-size: 14px;
+}
+.scores {
+  display: grid;
+  gap: 16px;
+}
+.scores label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.scores select {
+  min-width: 150px;
+}
+.screen header small {
+  color: #b7c6c1;
+}
+.screen button:disabled {
+  opacity: 0.5;
+}

@@ -137,12 +137,6 @@ function readiness_description(
 }
 
 export function build_weekly_coaching_brief(payload: TrainingExport): string {
-  const priorities = payload.coach_context.training_priorities.current
-    .map(
-      (area, index) =>
-        `${index + 1}. ${area} [${payload.coach_context.training_priorities.intent_by_area[area].toUpperCase()}]`,
-    )
-    .join(' | ')
 
   const analysis = payload.coach_context.adaptive_analysis
   const next_week_availability =
@@ -157,7 +151,7 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     )
     .map(
       (muscle) =>
-        `#${muscle.priority} ${muscle.muscle} [${muscle.intent.toUpperCase()}] | Direct ${muscle.direct_sets} | Secondary ${muscle.secondary_sets} | Freq ${muscle.frequency} | Failure ${muscle.failure_exposure_sets} | RPE ${format_score(muscle.rpe.value)} | Pump ${format_score(muscle.pump.value)} | Form ${format_score(muscle.form.value)} | Recovery ${muscle.recovery_status?.replaceAll('_', ' ') ?? '—'} | Regressions ${muscle.underperformance_exercises}`,
+        `${muscle.muscle} | Direct ${muscle.direct_sets} | Secondary ${muscle.secondary_sets} | Freq ${muscle.frequency} | Failure ${muscle.failure_exposure_sets} | RPE ${format_score(muscle.rpe.value)} | Pump ${format_score(muscle.pump.value)} | Form ${format_score(muscle.form.value)} | Recovery ${muscle.recovery_status?.replaceAll('_', ' ') ?? '—'} | Regressions ${muscle.underperformance_exercises}`,
     )
 
   const total_sets = payload.sessions.reduce(
@@ -195,8 +189,8 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     `Recorded sets: ${total_sets}`,
     `Comparable volume: ${format_number(total_volume)} kg`,
     '',
-    'TRAINING PRIORITIES + INTENT',
-    priorities || 'Not configured',
+    'BALANCED HYPERTROPHY',
+    'All major muscle groups; legacy priority rankings are not programme instructions.',
     '',
     'MUSCLE ANALYSIS',
     ...(muscle_lines.length > 0
@@ -291,7 +285,7 @@ export function build_weekly_coaching_brief(payload: TrainingExport): string {
     '',
     'COACH HANDOFF',
     'Use this brief for rapid review and the accompanying PROJECT FREAK JSON for exact set structures, IDs, aliases, provenance, muscle analysis and programme-import-safe exercise references.',
-    'Use Grow/Maintain intent, muscle recovery, underperformance evidence and the adaptive deload recommendation as decision support; do not turn one weak signal into an automatic programme rewrite.',
+    'Use balanced muscle coverage, performance, enjoyment and the adaptive deload recommendation as decision support; do not turn one weak signal into an automatic programme rewrite.',
     'Coach Instructions V3 authority rule: Progress Engine owns exercise-level progression states; Coach owns weekly structure, exercise selection, order, frequency and recoverable volume. Coach must not override RESET, LOAD_DOWN, CALIBRATE, DELOAD_HOLD or REVIEW simply to chase progressive overload.',
     'The next programme JSON is the prescription. Historical performance is evidence, not an instruction to blindly repeat the previous load.',
     'Challenge rule: PF_ADAPTIVE_CHALLENGE and PF_COACH_CHALLENGE are deliberate stretch prescriptions. A one-off miss against the harder target is not regression by itself; judge the athlete against the pre-challenge baseline, execution, stimulus, recovery and repeated evidence.',

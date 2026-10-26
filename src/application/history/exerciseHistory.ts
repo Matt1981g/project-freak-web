@@ -10,6 +10,7 @@ import type {
   ExerciseRepository,
   SessionRepository,
 } from '../../data/repositories/contracts'
+import { normalise_movement } from '../workout/historicalLoad'
 import { is_training_set_completed } from '../../domain/rules/completion'
 
 export interface ExerciseHistoryAppearance {
@@ -102,7 +103,8 @@ export async function load_exercise_history(
     const session_exercises =
       await session_repository.list_session_exercises(session.id)
     const matching = session_exercises.filter((session_exercise) =>
-      relevant_ids.has(session_exercise.exercise_id),
+      relevant_ids.has(session_exercise.exercise_id) ||
+      normalise_movement(session_exercise.exercise_name_snapshot) === normalise_movement(exercise.canonical_name),
     )
 
     if (matching.length === 0) continue

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('project-freak:interface-mode', 'analytics')) })
+
 async function expectApprovedBackground(page: import('@playwright/test').Page) {
   await page.goto('./#/plan')
   const shell = page.locator('.app-shell')
