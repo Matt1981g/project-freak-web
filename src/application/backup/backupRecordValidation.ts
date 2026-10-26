@@ -432,6 +432,7 @@ const schemas: Record<string, z.ZodTypeAny> = {
       'import',
       'restore_backup',
       'sync_apply',
+      'sync_conflict',
     ]),
     before_json: z.unknown().nullable(),
     after_json: z.unknown().nullable(),

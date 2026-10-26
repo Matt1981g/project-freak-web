@@ -1,3 +1,6 @@
+import { TrainingIntensityControl } from './features/plan/TrainingIntensityControl'
+import { useInterfaceMode, setInterfaceMode } from './application/workout/interfaceMode'
+import { OldSchoolWorkout } from './features/workout/OldSchoolWorkout'
 import { PF_RELEASE_VERSION, PF_BUILD_SHA } from './release'
 import { useEffect, useState, type CSSProperties } from 'react'
 import {
@@ -36,6 +39,7 @@ interface AutoSyncCompleteDetail {
 }
 
 function App() {
+  const mode = useInterfaceMode()
   const location = useLocation()
   const [mobile_more_open, setMobileMoreOpen] = useState(false)
   const [remote_data_revision, setRemoteDataRevision] = useState(0)
@@ -117,9 +121,9 @@ function App() {
           <NavLink to="/analysis" className={nav_class}>
             Analysis
           </NavLink>
-          <NavLink to="/priorities" className={nav_class}>
+          {mode === 'analytics' && <NavLink to="/priorities" className={nav_class}>
             Priorities
-          </NavLink>
+          </NavLink>}
           <NavLink to="/coach" className={nav_class}>
             Coach
           </NavLink>
@@ -172,13 +176,13 @@ function App() {
             className="app-mobile-more"
             aria-label="More"
           >
-            <NavLink
+            {mode === 'analytics' && <NavLink
               to="/priorities"
               className={nav_class}
               onClick={() => setMobileMoreOpen(false)}
             >
               Priorities
-            </NavLink>
+            </NavLink>}
             <NavLink
               to="/coach"
               className={nav_class}
@@ -211,6 +215,7 @@ function App() {
         )}
 
         <div className="app-header-actions">
+          <label>Interface <select aria-label="Interface mode" value={mode} onChange={e => setInterfaceMode(e.target.value as 'old-school' | 'analytics')}><option value="old-school">Old School</option><option value="analytics">Analytics</option></select></label>
           <PlanHealthGuard key={`plan-health-${remote_data_revision}`} />
           <PwaInstallControl />
         </div>
@@ -218,12 +223,12 @@ function App() {
       </header>
 
       <AutoSyncRuntime />
-      <DailySessionPrompt />
+      {mode === 'analytics' && <DailySessionPrompt />}
 
       <main>
         <Routes key={`routes-${remote_data_revision}`}>
           <Route path="/" element={<Navigate to="/plan" replace />} />
-          <Route path="/plan" element={<PlanScreen />} />
+          <Route path="/plan" element={<>{mode === 'old-school' && <TrainingIntensityControl />}<PlanScreen /></>} />
           <Route path="/priorities" element={<PrioritiesScreen />} />
           <Route path="/history" element={<HistoryScreen />} />
           <Route path="/analysis" element={<AnalysisScreen />} />
@@ -239,8 +244,8 @@ function App() {
             path="/workout/:completed_session_id"
             element={
               <>
-                <WorkoutScreen />
-                <PostWorkoutFeedbackPanel />
+                {mode === 'old-school' ? <OldSchoolWorkout /> : <WorkoutScreen />}
+                {mode === 'analytics' && <PostWorkoutFeedbackPanel />}
               </>
             }
           />

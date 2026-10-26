@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('project-freak:interface-mode', 'analytics')) })
+
 test('equipment attribution, repeat loading and manual confirmation complete without transaction errors', async ({ page }) => {
   await page.goto('./#/gyms')
   const jacksons = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Jacksons', exact: true }) })

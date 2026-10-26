@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('project-freak:interface-mode', 'analytics')) })
+
 const LOCK_NAME = 'project-freak:dataset-operation:project-freak'
 
 test('two live PF tabs cannot hold a data-operation lock simultaneously', async ({ page, context }) => {

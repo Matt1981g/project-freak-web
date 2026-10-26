@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem('project-freak:interface-mode', 'analytics')) })
+
 async function waitForWorkoutStores(page: import('@playwright/test').Page) {
   // Do not let a direct indexedDB.open() create an empty database before
   // Dexie's asynchronous schema installation has completed.

@@ -12,6 +12,7 @@ import { progression_challenge_lines } from '../programme/progressionChallenge'
 import { equipment_scoped_prescription } from '../gyms/equipmentProfiles'
 
 export interface StartWorkoutContext {
+  training_intensity?: string
   device_id: string
   now_iso: string
   local_date: string
@@ -67,7 +68,7 @@ export async function start_programmed_workout(
     source_start_text: null,
     source_finish_text: null,
     duration_seconds: null,
-    notes: null,
+    notes: context.training_intensity ? `PF_INTENSITY:${context.training_intensity}` : null,
   }
 
   const exercises: SessionExercise[] = detail.exercises.map(({ exercise, sets }) => {

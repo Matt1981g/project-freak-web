@@ -1,8 +1,11 @@
+import type { HistoricalLoad } from './historicalLoad'
+import type { TrainingIntensity } from './trainingIntensity'
 import type { TrainingSet } from '../../domain/models'
 import type { PreviousComparablePerformance } from './previousComparable'
 import type { ProgressionSuggestion } from './progressionSuggestion'
 
 export type SetLoadPrefillSource =
+  | 'historical_suggestion'
   | 'saved'
   | 'previous_set_actual'
   | 'programme'
@@ -15,6 +18,8 @@ export interface SetLoadPrefill {
 }
 
 export interface SetLoadPrefillInput {
+  historical?: HistoricalLoad | null
+  intensity?: TrainingIntensity
   existing_set: TrainingSet | null
   programmed_load_kg: number | null
   previous_completed_load_kg?: number | null
@@ -58,6 +63,19 @@ export function select_set_load_prefill(
     return {
       load_kg: input.programmed_load_kg,
       source: 'programme',
+    }
+  }
+
+  if (input.historical) {
+    const evidence = input.historical.sets.find(s => s.set_number === input.set_number) ?? input.historical.sets.at(-1)
+    if (evidence) {
+      const adjustment = input.progression.adjustment
+      let factor = 1
+      if (adjustment.kind === 'decrease' || adjustment.kind === 'reset' || adjustment.kind === 'deload') factor = 1 - (adjustment.percent_min ?? 5) / 100
+      if (adjustment.kind === 'increase' && !input.historical.uncertain) factor = 1 + (adjustment.percent_min ?? 2.5) / 100
+      if (input.intensity === 'recovery') factor = Math.min(factor, .85)
+      if (evidence.rpe !== null && evidence.rpe >= 9.5) factor = Math.min(factor, .95)
+      return {load_kg: factor === 1 ? evidence.load_kg : Math.max(0, Math.floor(evidence.load_kg * factor / 1.25) * 1.25), source: 'historical_suggestion'}
     }
   }
 

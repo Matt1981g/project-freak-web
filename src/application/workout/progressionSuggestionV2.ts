@@ -1,3 +1,4 @@
+import { portable_load } from './historicalLoad'
 import type { EquipmentSnapshot } from '../../domain/models'
 import type { ExerciseHistoryResult } from '../history/exerciseHistory'
 import { is_training_set_completed } from '../../domain/rules/completion'
@@ -244,6 +245,7 @@ function history_exposures(
     }
 
     for (const appearance of entry.appearances) {
+      if (!history.resolved_exercise_ids.includes(appearance.session_exercise.exercise_id)) continue
       const sets = appearance.sets
         .filter(
           (set) =>
@@ -345,6 +347,8 @@ export function build_progression_suggestion(
   context: ProgressionSuggestionContext = {},
 ): ProgressionSuggestion {
   const current = build_current_context(previous, targets, context)
+  const portable = portable_load(current.exercise_name, context.exercise_equipment ?? '')
+  if (portable) { current.gym_profile_id = 'portable'; current.equipment_profile_id = 'free-weight'; current.equipment_label = 'Free weight'; current.setup_notes = null; current.equipment_comparable = true }
   const resolved_targets = normalised_targets(targets, current, previous)
   const exposures =
     context.history !== undefined && context.history !== null
@@ -353,6 +357,7 @@ export function build_progression_suggestion(
         ? [legacy_exposure(previous, current)]
         : []
 
+  if (portable) for (const exposure of exposures) { exposure.gym_profile_id = 'portable'; exposure.equipment_profile_id = 'free-weight'; exposure.equipment_label = 'Free weight'; exposure.setup_notes = null; exposure.equipment_comparable = true }
   const result = run_progress_engine_v2({
     current,
     targets: resolved_targets,
