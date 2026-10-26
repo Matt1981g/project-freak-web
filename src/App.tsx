@@ -228,7 +228,7 @@ function App() {
       <main>
         <Routes key={`routes-${remote_data_revision}`}>
           <Route path="/" element={<Navigate to="/plan" replace />} />
-          <Route path="/plan" element={<><TrainingIntensityControl /><PlanScreen /></>} />
+          <Route path="/plan" element={<>{mode === 'old-school' && <TrainingIntensityControl />}<PlanScreen /></>} />
           <Route path="/priorities" element={<PrioritiesScreen />} />
           <Route path="/history" element={<HistoryScreen />} />
           <Route path="/analysis" element={<AnalysisScreen />} />
