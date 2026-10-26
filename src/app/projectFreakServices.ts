@@ -1,4 +1,5 @@
 import { intensity_prescription, selected_intensity, resolve_intensity } from '../application/workout/trainingIntensity'
+import { currentInterfaceMode } from '../application/workout/interfaceMode'
 import { suggest_historical_load } from '../application/workout/historicalLoad'
 import { PF_RELEASE_VERSION } from '../release'
 import { projectFreakDb } from '../data/db/projectFreakDb'
@@ -1056,8 +1057,14 @@ export async function start_programmed_session_workout(
   )
   const active_gym = await load_active_gym(repositories.gyms, repositories.settings)
   const gym_equipment = active_gym ? await load_gym_equipment(active_gym.id) : []
-  const intensity = selected_intensity(`${detail.session.name_snapshot} ${detail.session.notes ?? ''}`)
-  const result = await start_programmed_workout(intensity_prescription(detail, intensity), repositories.sessions, {
+  // Analytics must retain the original programme and legacy session creation.
+  // Only Old School explicitly opts in to modified intensity prescriptions.
+  const old_school = currentInterfaceMode() === 'old-school'
+  const intensity = old_school
+    ? selected_intensity(`${detail.session.name_snapshot} ${detail.session.notes ?? ''}`)
+    : undefined
+  const prescribed_detail = intensity ? intensity_prescription(detail, intensity) : detail
+  const result = await start_programmed_workout(prescribed_detail, repositories.sessions, {
     training_intensity: intensity,
     device_id,
     now_iso,
