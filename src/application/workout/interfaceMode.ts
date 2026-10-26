@@ -18,6 +18,9 @@ function subscribe(callback: () => void) {
     window.removeEventListener("storage", callback);
   };
 }
+export function currentInterfaceMode(): InterfaceMode {
+  return read();
+}
 export function useInterfaceMode() {
   return useSyncExternalStore(subscribe, read, () => "old-school" as const);
 }
