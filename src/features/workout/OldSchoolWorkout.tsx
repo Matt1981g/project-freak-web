@@ -97,7 +97,7 @@ export function OldSchoolWorkout() {
   const [busy, setBusy] = useState(false);
   const [units, setUnits] = useState<Record<string, "kg" | "lb">>({});
   const [restStarted, setRestStarted] = useState<number | null>(null);
-  const [restNow, setRestNow] = useState(Date.now());
+  const [restNow, setRestNow] = useState(0);
   const [postponed, setPostponed] = useState<string[]>([]);
   useEffect(() => {
     void load_exercise_weight_unit_preferences().then(setUnits).catch(() => {});
