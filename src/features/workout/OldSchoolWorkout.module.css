@@ -59,3 +59,11 @@
 .screen button:disabled {
   opacity: 0.5;
 }
+
+.scoreSliderRow { display: grid !important; gap: 6px !important; }
+.scoreSliderRow input[type="range"] { width: 100%; accent-color: #d6fa48; }
+.scoreSliderRow small { color: #b7c6c1; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.unitToggle { display: flex; gap: 5px; }
+.unitToggle button, .postpone { border: 1px solid #738078; border-radius: 8px; padding: 8px 12px; background: transparent; color: inherit; }
+.unitToggle button[aria-pressed="true"] { background: #d6fa48; color: #142000; }

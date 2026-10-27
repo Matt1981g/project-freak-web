@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import {
   load_live_workout,
+  load_exercise_weight_unit_preferences,
+  save_exercise_weight_unit_preference,
   complete_live_session_exercise,
   complete_live_workout,
   save_live_exercise_scores,
@@ -69,22 +71,12 @@ function ExerciseScores({
     <section className={styles.scores}>
       <h2>How did it feel?</h2>
       {(["pump", "enjoyment"] as const).map((key) => (
-        <label key={key}>
-          {key === "pump" ? "Pump" : "Enjoyment"}
-          <select
-            aria-label={key}
-            value={scores[key] ?? ""}
-            onChange={(e) => change(key, Number(e.target.value))}
-          >
-            <option value="" disabled>
-              Score 1–10
-            </option>
-            {Array.from({ length: 10 }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {i + 1}
-              </option>
-            ))}
-          </select>
+        <label className={styles.scoreSliderRow} key={key}>
+          <span>{key === "pump" ? "Pump" : "Enjoyment"}: {scores[key] ?? "—"}</span>
+          <input type="range" min="1" max="10" step="1"
+            aria-label={key} value={scores[key] ?? 5}
+            onChange={(event) => change(key, Number(event.target.value))} />
+          <small>1 — 10</small>
         </label>
       ))}
       <button
@@ -103,6 +95,24 @@ export function OldSchoolWorkout() {
   const [workout, setWorkout] = useState<Workout>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [units, setUnits] = useState<Record<string, "kg" | "lb">>({});
+  const [restStarted, setRestStarted] = useState<number | null>(null);
+  const [restNow, setRestNow] = useState(0);
+  const [postponed, setPostponed] = useState<string[]>([]);
+  useEffect(() => {
+    void load_exercise_weight_unit_preferences().then(setUnits).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (restStarted === null) return;
+    const interval = window.setInterval(() => setRestNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [restStarted]);
+  function changeUnit(id: string, unit: "kg" | "lb") {
+    setUnits((current) => ({ ...current, [id]: unit }));
+    void save_exercise_weight_unit_preference(id, unit).catch((cause) =>
+      setError(String(cause)),
+    );
+  }
   const refresh = useCallback(async () => {
     if (!completed_session_id) return;
     const value = await load_live_workout(completed_session_id);
@@ -138,19 +148,36 @@ export function OldSchoolWorkout() {
     }
   }
   if (!workout) return <p role="status">{error || "Loading workout…"}</p>;
-  let entry = workout.exercises.find((e) => !e.exercise.completed_at);
-  if (entry?.exercise.rotation_group_key) {
+  const remaining = workout.exercises.filter((e) => !e.exercise.completed_at);
+  const queuedIds = [
+    ...postponed.filter((id) =>
+      remaining.some((e) => e.exercise.id === id),
+    ),
+    ...remaining.map((e) => e.exercise.id).filter((id) => !postponed.includes(id)),
+  ];
+  const ordered = queuedIds
+    .map((id) => remaining.find((e) => e.exercise.id === id))
+    .filter((e): e is Entry => Boolean(e));
+  let entry = ordered[0];
+  if (entry?.exercise.rotation_group_key && !postponed.length) {
     const group = entry.exercise.rotation_group_key;
-    const pair = workout.exercises.filter(
-      (e) =>
-        !e.exercise.completed_at && e.exercise.rotation_group_key === group,
-    );
-    entry =
-      [...pair].sort(
-        (a, b) =>
-          a.sets.filter(is_training_set_completed).length -
-          b.sets.filter(is_training_set_completed).length,
-      )[0] ?? entry;
+    const pair = remaining.filter((e) => e.exercise.rotation_group_key === group);
+    entry = [...pair].sort(
+      (a, b) => a.sets.filter(is_training_set_completed).length -
+        b.sets.filter(is_training_set_completed).length,
+    )[0] ?? entry;
+  }
+  function postpone() {
+    if (!entry || ordered.length < 2) return;
+    const ids = ordered.map((e) => e.exercise.id);
+    const index = ids.indexOf(entry.exercise.id);
+    if (index < 0 || index === ids.length - 1) return;
+    ids.splice(index, 1);
+    ids.splice(index + 1, 0, entry.exercise.id);
+    setPostponed(ids);
+  }
+  function nextExercise() {
+    return refresh();
   }
   if (workout.session.status === "completed")
     return (
@@ -216,6 +243,18 @@ export function OldSchoolWorkout() {
         </p>
         {entry.exercise.tempo && <small>Tempo {entry.exercise.tempo}</small>}
       </header>
+      <div className={styles.toolbar}>
+        <div className={styles.unitToggle}>
+          <button type="button" aria-pressed={(units[entry.exercise.exercise_id] ?? "kg") === "kg"} onClick={() => changeUnit(entry.exercise.exercise_id, "kg")}>KG</button>
+          <button type="button" aria-pressed={units[entry.exercise.exercise_id] === "lb"} onClick={() => changeUnit(entry.exercise.exercise_id, "lb")}>LBS</button>
+        </div>
+        {restStarted !== null && (
+          <small aria-label="Elapsed rest">Rest {String(Math.floor(Math.max(0, restNow - restStarted) / 60000)).padStart(2, "0")}:{String(Math.floor(Math.max(0, restNow - restStarted) / 1000) % 60).padStart(2, "0")}</small>
+        )}
+        {ordered.length > 1 && (
+          <button type="button" className={styles.postpone} onClick={postpone}>Postpone exercise</button>
+        )}
+      </div>
       {next && (
         <>
           <p className={uncertain ? styles.uncertain : styles.hint}>
@@ -236,10 +275,12 @@ export function OldSchoolWorkout() {
             }
             initial_load_kg={prefill.load_kg}
             load_prefill_source={prefill.source}
-            load_unit="kg"
+            load_unit={units[entry.exercise.exercise_id] ?? "kg"}
             locked={false}
             require_rpe
             on_complete={async () => {
+              setRestStarted(Date.now());
+              setRestNow(Date.now());
               request_auto_sync("workout_completed");
               await refresh();
             }}
@@ -250,7 +291,7 @@ export function OldSchoolWorkout() {
         <ExerciseScores
           key={entry.exercise.id}
           entry={entry}
-          onDone={refresh}
+          onDone={nextExercise}
         />
       )}
       {error && <p role="alert">{error}</p>}
