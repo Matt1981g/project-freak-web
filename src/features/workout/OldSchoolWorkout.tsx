@@ -149,12 +149,15 @@ export function OldSchoolWorkout() {
   }
   if (!workout) return <p role="status">{error || "Loading workout…"}</p>;
   const remaining = workout.exercises.filter((e) => !e.exercise.completed_at);
-  const ordered = [
-    ...remaining.filter((e) => !postponed.includes(e.exercise.id)),
-    ...postponed.map((id) => remaining.find((e) => e.exercise.id === id)).filter(
-      (e): e is Entry => Boolean(e),
+  const queuedIds = [
+    ...postponed.filter((id) =>
+      remaining.some((e) => e.exercise.id === id),
     ),
+    ...remaining.map((e) => e.exercise.id).filter((id) => !postponed.includes(id)),
   ];
+  const ordered = queuedIds
+    .map((id) => remaining.find((e) => e.exercise.id === id))
+    .filter((e): e is Entry => Boolean(e));
   let entry = ordered[0];
   if (entry?.exercise.rotation_group_key && !postponed.length) {
     const group = entry.exercise.rotation_group_key;
@@ -166,15 +169,14 @@ export function OldSchoolWorkout() {
   }
   function postpone() {
     if (!entry || ordered.length < 2) return;
-    setPostponed((current) => [
-      ...current.filter((id) => id !== entry.exercise.id),
-      entry.exercise.id,
-    ]);
+    const ids = ordered.map((e) => e.exercise.id);
+    const index = ids.indexOf(entry.exercise.id);
+    if (index < 0 || index === ids.length - 1) return;
+    ids.splice(index, 1);
+    ids.splice(index + 1, 0, entry.exercise.id);
+    setPostponed(ids);
   }
   function nextExercise() {
-    if (entry) setPostponed((current) =>
-      current.filter((id) => id !== entry.exercise.id),
-    );
     return refresh();
   }
   if (workout.session.status === "completed")
