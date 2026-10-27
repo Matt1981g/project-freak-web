@@ -29,7 +29,7 @@ async function waitForWorkoutStores(page: import("@playwright/test").Page) {
   );
 }
 
-test("Old School saves RPE and exercise scores, recovers after reload, and has no timers", async ({
+test("Old School logs scores, changes units, postpones exercises and shows elapsed rest", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -149,6 +149,13 @@ test("Old School saves RPE and exercise scores, recovers after reload, and has n
   await expect(
     page.getByRole("combobox", { name: "Interface mode" }),
   ).toHaveValue("old-school");
+  await page.getByRole("button", { name: "Postpone exercise" }).click();
+  await expect(page.getByRole("heading", { name: "E2E Next Curl" })).toBeVisible();
+  await page.getByRole("button", { name: "Postpone exercise" }).click();
+  await expect(page.getByRole("heading", { name: "E2E First Curl" })).toBeVisible();
+  await page.getByRole("button", { name: "LBS", exact: true }).click();
+  await expect(page.getByRole("button", { name: "LBS", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "KG", exact: true }).click();
   await page.locator("#load-e2e-rest-sx-a-1").fill("35");
   await page.locator("#reps-e2e-rest-sx-a-1").fill("10");
   await page.locator("#rpe-e2e-rest-sx-a-1").selectOption("8");
@@ -157,13 +164,17 @@ test("Old School saves RPE and exercise scores, recovers after reload, and has n
   await expect(page.locator("#reps-e2e-rest-sx-a-1")).toHaveValue("10");
   await expect(page.locator("#rpe-e2e-rest-sx-a-1")).toHaveValue("8");
   await page.getByRole("button", { name: "COMPLETE SET", exact: true }).click();
-  await page.getByLabel("pump", { exact: true }).selectOption("9");
-  await page.getByLabel("enjoyment", { exact: true }).selectOption("10");
+  await expect(page.getByLabel("pump", { exact: true })).toHaveAttribute("type", "range");
+  await page.getByLabel("pump", { exact: true }).focus();
+  await page.getByLabel("pump", { exact: true }).press("End");
+  await page.getByLabel("pump", { exact: true }).press("ArrowLeft");
+  await page.getByLabel("enjoyment", { exact: true }).focus();
+  await page.getByLabel("enjoyment", { exact: true }).press("End");
   await page.getByRole("button", { name: "Next exercise" }).click();
   await expect(
     page.getByRole("heading", { name: "E2E Next Curl" }),
   ).toBeVisible();
-  await expect(page.getByText("REST TIMER", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Elapsed rest")).toContainText(/^Rest 00:\\d{2}$/);
   await expect(page.getByText("READINESS", { exact: true })).toHaveCount(0);
   expect(
     await page.evaluate(
