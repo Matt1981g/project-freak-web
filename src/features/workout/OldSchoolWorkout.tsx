@@ -17,6 +17,7 @@ import styles from "./OldSchoolWorkout.module.css";
 
 type Workout = NonNullable<Awaited<ReturnType<typeof load_live_workout>>>;
 type Entry = Workout["exercises"][number];
+type WakeLockSentinel = { released?: boolean; release: () => Promise<void> };
 
 function ExerciseScores({
   entry,
@@ -98,6 +99,57 @@ export function OldSchoolWorkout() {
   const [units, setUnits] = useState<Record<string, "kg" | "lb">>({});
   const [restStarted, setRestStarted] = useState<number | null>(null);
   const [restNow, setRestNow] = useState(0);
+  const [wakeLockStatus, setWakeLockStatus] = useState<"active" | "unavailable" | "pending">("pending");
+  // Keep the workout visible while the screen is in the foreground; iOS
+  // releases screen wake locks when the page is backgrounded.
+  useEffect(() => {
+    if (workout?.session.status !== "in_progress") return;
+    let cancelled = false;
+    let sentinel: WakeLockSentinel | null = null;
+    let acquiring = false;
+    const wakeLock = (navigator as Navigator & {
+      wakeLock?: { request: (type: "screen") => Promise<WakeLockSentinel> };
+    }).wakeLock;
+    if (!wakeLock) {
+      queueMicrotask(() => { if (!cancelled) setWakeLockStatus("unavailable"); });
+      return;
+    }
+    async function acquire() {
+      if (cancelled || acquiring || document.visibilityState !== "visible" ||
+          (sentinel && !sentinel.released)) return;
+      acquiring = true;
+      try {
+        const lock = await wakeLock!.request("screen");
+        if (cancelled) {
+          void lock.release().catch(() => undefined);
+        } else {
+          sentinel = lock;
+          setWakeLockStatus("active");
+        }
+      } catch {
+        if (!cancelled) setWakeLockStatus("unavailable");
+      } finally {
+        acquiring = false;
+      }
+    }
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void acquire();
+      else sentinel = null;
+    };
+    const onInteraction = () => {
+      if (wakeLockStatus !== "active") void acquire();
+    };
+    void acquire();
+    document.addEventListener("visibilitychange", onVisible);
+    document.addEventListener("pointerdown", onInteraction);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      document.removeEventListener("pointerdown", onInteraction);
+      void sentinel?.release().catch(() => undefined);
+    };
+  }, [workout?.session.id, workout?.session.status]);
+
   const [postponed, setPostponed] = useState<string[]>([]);
   useEffect(() => {
     void load_exercise_weight_unit_preferences().then(setUnits).catch(() => {});
@@ -243,6 +295,9 @@ export function OldSchoolWorkout() {
         </p>
         {entry.exercise.tempo && <small>Tempo {entry.exercise.tempo}</small>}
       </header>
+      {wakeLockStatus === "unavailable" && (
+        <small className={styles.wakeWarning} role="status">Keep screen awake unavailable — check iPhone Auto-Lock settings.</small>
+      )}
       <div className={styles.toolbar}>
         <div className={styles.unitToggle}>
           <button type="button" aria-pressed={(units[entry.exercise.exercise_id] ?? "kg") === "kg"} onClick={() => changeUnit(entry.exercise.exercise_id, "kg")}>KG</button>
