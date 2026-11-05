@@ -702,7 +702,7 @@ describe('build_last_7_days_training_export', () => {
 
     expect(payload.format).toBe(TRAINING_EXPORT_FORMAT)
     expect(payload.coach_instructions).toMatchObject({
-      instruction_version: '3.0.0',
+      instruction_version: '3.1.0',
       user_command: 'Build next week.',
       next_block: {
         length_days: 7,
@@ -756,6 +756,22 @@ describe('build_last_7_days_training_export', () => {
     )
     expect(payload.coach_instructions.rules.join(' ')).toContain(
       'High terminal RPE alone is not sufficient for RESET',
+    )
+    expect(payload.coach_instructions.volume_management).toMatchObject({
+      visibility: 'internal_only',
+      new_app_features: false,
+      new_user_logging: false,
+      visible_volume_dashboard: false,
+      accounting: { direct_set_weight: 1, secondary_set_weight_heuristic: 0.5 },
+    })
+    expect(payload.coach_instructions.rules.join(' ')).toContain(
+      'ten challenging weekly sets',
+    )
+    expect(payload.coach_instructions.volume_failure_rules.join(' ')).toContain(
+      'adding 1–2 direct working sets',
+    )
+    expect(payload.coach_instructions.required_output.join(' ')).toContain(
+      'avoid routine volume dashboards',
     )
     expect(payload.coach_instructions.next_block).not.toHaveProperty('schedule')
 
