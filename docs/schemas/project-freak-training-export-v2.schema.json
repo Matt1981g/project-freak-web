@@ -192,11 +192,12 @@
         "next_block",
         "required_output",
         "output_validation",
-        "programme_output"
+        "programme_output",
+        "volume_management"
       ],
       "properties": {
         "instruction_version": {
-          "const": "3.0.0"
+          "const": "3.1.0"
         },
         "purpose": {
           "type": "string"
@@ -343,6 +344,69 @@
             },
             "delivery": {
               "const": "downloadable_json_file"
+            }
+          }
+        },
+        "volume_management": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "version",
+            "owner",
+            "visibility",
+            "new_app_features",
+            "new_user_logging",
+            "visible_volume_dashboard",
+            "multiphase_reporting",
+            "evidence_basis",
+            "input_evidence_priority",
+            "accounting",
+            "weekly_decision_policy",
+            "schedule_policy",
+            "reporting_policy"
+          ],
+          "properties": {
+            "version": {
+              "const": "1.0.0"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "visibility": {
+              "const": "internal_only"
+            },
+            "new_app_features": {
+              "const": false
+            },
+            "new_user_logging": {
+              "const": false
+            },
+            "visible_volume_dashboard": {
+              "const": false
+            },
+            "multiphase_reporting": {
+              "const": false
+            },
+            "evidence_basis": {
+              "type": "object"
+            },
+            "input_evidence_priority": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "accounting": {
+              "type": "object"
+            },
+            "weekly_decision_policy": {
+              "type": "object"
+            },
+            "schedule_policy": {
+              "type": "object"
+            },
+            "reporting_policy": {
+              "type": "object"
             }
           }
         }
