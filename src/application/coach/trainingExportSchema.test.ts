@@ -17,6 +17,8 @@ describe('published Coach Bridge schema contract', () => {
     expect(current_schema.properties.coach_instructions.properties.instruction_version.const)
       .toBe(COACH_INSTRUCTIONS_VERSION)
     expect(current_schema.required).toContain('coach_instructions')
+    expect(current_schema.properties.coach_instructions.required).toContain('volume_management')
+    expect(current_schema.properties.coach_instructions.properties.volume_management.properties.visible_volume_dashboard.const).toBe(false)
     expect(current_schema.properties.coach_context.required).toContain(
       'adaptive_analysis',
     )

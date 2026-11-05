@@ -22,7 +22,7 @@ import {
 
 export const TRAINING_EXPORT_FORMAT = 'project-freak-training-export' as const
 export const TRAINING_EXPORT_SCHEMA_VERSION = '2.0.0' as const
-export const COACH_INSTRUCTIONS_VERSION = '3.0.0' as const
+export const COACH_INSTRUCTIONS_VERSION = '3.1.0' as const
 
 export type TrainingExportScopeType =
   | 'today'
@@ -53,6 +53,7 @@ export interface TrainingExportCoachInstructions {
   weekly_programming_doctrine: string[]
   exercise_selection_rules: string[]
   volume_failure_rules: string[]
+  volume_management: Record<string, unknown>
   progress_engine: {
     version: typeof PROGRESS_ENGINE_V2_RULES.version
     decision_states: readonly [
@@ -138,6 +139,10 @@ function build_coach_instructions(
       'Use repeated low Enjoyment to consider equally effective alternatives without automatically replacing a productive movement; interpret fewer than 3 scored exposures cautiously.',
       'Use historical performance supplied in this export',
       'Ignore legacy muscle priority rankings when generating programmes',
+      'Calculate internal per-muscle weekly working-set exposure using direct sets and credible secondary involvement; distinguish verified exposure from estimates, and avoid double-counting.',
+      'Compare recent actual completed weekly sets, not only planned sets; use 2–4 comparable weeks when available and identify gaps caused by missed sessions or incomplete exports.',
+      'Evaluate stimulus-to-fatigue response from comparable rep/load/RPE trends, exercise performance, recovery and weekly enjoyment feedback before changing volume; pump and soreness are not standalone proof of hypertrophy.',
+      'Check per-session set placement and quality, particularly Saturday-only leg training, so nominal volume does not exceed productive work or session limits.',
     ],
     rules: [
       'Do not call increased load progress if execution or target-muscle stimulus deteriorated',
@@ -172,6 +177,13 @@ function build_coach_instructions(
       'If at least three fatigue indicators occur across two consecutive sessions, enter FATIGUE WATCH; if the pattern persists across three or more consecutive sessions, recommend DELOAD.',
       'Machine response profiles require at least three exposures before a LOW RESPONSE judgement. Hypertrophy response scoring is Form 40%, Pump/stimulus 35%, rep performance 15% and RPE suitability 10%.',
       'Every progression decision must state its state and the evidence/reason that produced it; never silently change load.',
+      'Apply evidence-informed volume management silently inside the weekly ChatGPT coaching review: no visible volume tracker, dashboard, extra user logging, app changes or multiweek reporting requirement.',
+      'Use approximately ten challenging weekly sets per muscle group as a broad hypertrophy reference, not a mandatory floor or individually proven optimum; trainability, overlap, schedule and recovery determine actual prescriptions.',
+      'Do not treat approximately 18–20 weekly sets as a universal ceiling or objective; recognise likely diminishing returns, and require strong individual response evidence before deliberately prescribing very high volumes.',
+      'Do not add sets simply because the user selected Hard demand, requests a pump, or reports one undercooked session. Make difficult sessions through high-quality effort, sensible exercise choice and enjoyable supersets within recoverability.',
+      'Consider direct muscle work first and indirect involvement second. For planning only, a strongly involved secondary muscle can be estimated as approximately 0.5 set per qualifying compound set; adjust or omit when mechanics, ROM or stimulus are uncertain. Never present fractional sets as precisely measured hypertrophy stimulus.',
+      'Do not automatically increase every muscle group together. Prefer small, local adjustments based on two or more credible performance/recovery observations; hold productive volumes steady while progress continues.',
+      'Do not misinterpret bodyweight, session tonnage, one-off RPE changes, transient pump, soreness or exercise novelty as direct measurements of hypertrophy.',
     ],
     authority: {
       progress_engine_owns: [
@@ -200,6 +212,9 @@ function build_coach_instructions(
       'Preserve adequate rest for high-output compounds and shorten rest only where doing so does not meaningfully reduce target-muscle performance.',
       'Fit each session to the supplied availability and any max_minutes constraint. Never create a session longer than a supplied daily limit.',
       'An available day is an opportunity rather than a mandatory training day; recovery evidence may justify fewer sessions. An unavailable day is a hard no-training constraint.',
+      'Perform internal weekly volume optimisation from Coach Bridge evidence and the five-question check-in; programming decisions belong to ChatGPT, not a new PF app feature.',
+      'Preserve proven high-response anchor exercises for meaningful comparisons; use weekly Enjoyment feedback to vary secondary work while maintaining pattern coverage and avoiding unnecessary novelty.',
+      'Prefer balanced hypertrophy and the user\'s confirmed availability. Do not resurrect outdated Grow/Maintain priorities or create weekday leg work when Saturday-only legs remain the current user preference.',
     ],
     exercise_selection_rules: [
       'Prefer proven high-response anchor exercises over novelty for novelty’s sake.',
@@ -218,7 +233,75 @@ function build_coach_instructions(
       'Stable machine compounds may approach 0–1 RIR selectively when execution remains strong.',
       'Isolation work may use technical failure on the final working set when Form and target-muscle loading remain acceptable.',
       'Do not turn every exercise into failure work. Failure exposure must earn its fatigue cost.',
+      'For volume accounting, count qualifying hard working sets, not warm-ups; count a direct set once for its primary muscle and use conservative, explicitly estimated secondary exposure where supported. Do not automatically count a drop-set, rest-pause component or superset as multiple full independent sets.',
+      'Volume progression: when a muscle is under-served and recovery/performance are favourable, normally test adding 1–2 direct working sets for that muscle over the following week; avoid broad simultaneous increases.',
+      'Volume maintenance: if comparable performance or execution is improving and fatigue is manageable, retain the effective set allocation even if it is below a generic benchmark.',
+      'Volume reduction: if repeated performance decay, persistent local fatigue, poor session-to-session recovery or worsening form indicates low return on extra sets, remove the lowest-value sets before compromising anchor work. Follow established deload gates for broader fatigue.',
+      'Evaluate set quality across each session. If later sets reliably deteriorate despite appropriate rest and loading, redistribute or remove them rather than chasing a numerical weekly quota.',
+      'Use challenging effort for hypertrophy, but do not default to failure across all working sets; use RPE, execution quality and fatigue cost to select occasional technical-failure isolation sets.',
+      'Treat high pump as an enjoyment/stimulus preference, not a proven quantitative indicator of muscle growth; do not replace productive exercises solely because a pump score is lower.',
     ],
+    volume_management: {
+      "version": "1.0.0",
+      "owner": "ChatGPT weekly Coach Bridge programme generation",
+      "visibility": "internal_only",
+      "new_app_features": false,
+      "new_user_logging": false,
+      "visible_volume_dashboard": false,
+      "multiphase_reporting": false,
+      "evidence_basis": {
+        "primary": "ACSM 2026 resistance training position stand, PubMed PMID 41843416",
+        "interpretation": "Weekly volume is a meaningful hypertrophy programming variable with likely diminishing returns; individual optimum is uncertain and many underlying studies are not advanced-lifter-specific.",
+        "working_reference_sets_per_major_muscle_per_week": "approximately 10, flexible and not mandatory",
+        "high_volume_caution": "approximately 18–20 or more estimated weekly sets may have diminishing returns; not an absolute cap",
+        "indirect_set_estimate": "approximately 0.5 of one set for a substantially loaded secondary muscle when mechanics support it; rough heuristic, never precise",
+        "failure_policy": "proximity to failure matters, but habitual absolute failure is not required",
+        "frequency_policy": "choose distribution for sustainable set quality, availability and enjoyment; frequency itself is not a guaranteed hypertrophy advantage when volume is matched"
+      },
+      "input_evidence_priority": [
+        "Actual completed qualifying sets by exercise and muscle, last week",
+        "Comparable exercise performance over roughly 2–4 weeks where available",
+        "Set RPE, technical quality when recorded, and sustained performance drop-off",
+        "Weekly recovery, fatigue, niggle/pain and training-demand feedback",
+        "Pump and Enjoyment as subjective coaching signals, not growth measurements",
+        "Time/availability and current equipment constraints"
+      ],
+      "accounting": {
+        "direct_set_weight": 1,
+        "secondary_set_weight_heuristic": 0.5,
+        "exclude": [
+          "warm-up sets",
+          "unperformed sets",
+          "unquantified extra set components"
+        ],
+        "uncertainty": "If primary and secondary muscle exposure are not reliably indicated, do not invent precision. Describe internal counts as estimated.",
+        "avoid_double_counting": true
+      },
+      "weekly_decision_policy": {
+        "add": "If sustained execution/performance, fatigue and recovery support more stimulus and current volume appears insufficient, trial +1 to +2 direct sets for the relevant muscle across the week.",
+        "maintain": "If performance and recovery are acceptable, keep productive current volume; do not chase numeric targets automatically.",
+        "reduce": "If repeatable late-set deterioration or poor recovery suggests diminishing returns, remove low-value sets and assess before more aggressive changes; use existing deload policy where indicated.",
+        "hard_demand": "Hard means challenging productive training and enjoyable effort, not automatic extra volume or habitual failure.",
+        "single_exposure_rule": "Do not change volume materially on one bad workout or one pump score.",
+        "independence": "Respect Progress Engine V2 restrictions on load decisions; ChatGPT controls weekly set and exercise allocation."
+      },
+      "schedule_policy": {
+        "priority": "Respect current week-specific availability and user feedback.",
+        "leg_day": "Saturday-only unless user expressly changes this preference; evaluate feasible productive lower-body work in the 120-minute long session.",
+        "typical_working_sets_per_exercise": "Usually 3–4; use 2 where distribution or fatigue warrants it, and 4–5 selectively when supported.",
+        "session_quality": "Do not sacrifice performance on anchors or exceed daily time limits to hit weekly set quotas."
+      },
+      "reporting_policy": {
+        "user_facing": "Brief weekly coaching summary and essential changes only, followed by validated import JSON.",
+        "suppress": [
+          "per-muscle volume dashboards",
+          "routine volume-comparison tables",
+          "eight-week reports",
+          "new app analytics requirements"
+        ],
+        "exception": "Mention a significant volume change briefly when it affects the user's expectations or safety."
+      }
+    },
     progress_engine: {
       version: PROGRESS_ENGINE_V2_RULES.version,
       decision_states: [
@@ -262,15 +345,12 @@ function build_coach_instructions(
       availability,
     },
     required_output: [
-      'Concise review of the completed week',
-      'Key programming changes and reasons',
-      'Muscle allocation decisions for Grow versus Maintain areas',
-      'Recovery or performance concerns',
-      'Explicit deload / continue / fatigue-reduction decision with reasons',
-      'Progression exceptions: list RESET, LOAD_DOWN, CALIBRATE, LOW RESPONSE, DELOAD_HOLD and REVIEW items that materially affect the next week',
-      'Volume comparison: planned direct sets by muscle versus the reviewed week, with reasons for meaningful increases or reductions',
-      'Equipment compliance confirmation: confirm every prescribed exercise ID exists in coach_context.exercise_catalogue',
-      'A valid PROJECT FREAK programme-import JSON for the next Monday-Sunday block',
+      'Concise review of the completed week, focusing on changes that matter for next week',
+      'Brief statement of any significant exercise-selection, weekly-volume or fatigue adjustment and why',
+      'Explicit continue / fatigue-reduction / deload decision with a short reason',
+      'Progression exceptions only where they materially change the prescription, respecting Progress Engine V2',
+      'Confirm all programmed exercise IDs exist in coach_context.exercise_catalogue and all dates meet availability constraints',
+      'A valid PROJECT FREAK programme-import JSON for the next Monday-Sunday block; avoid routine volume dashboards, detailed muscle-set tables and multiday reports',
     ],
     output_validation: [
       'The programme dates must fall within next_block.availability.week_start_date_local through week_end_date_local.',
@@ -279,7 +359,7 @@ function build_coach_instructions(
       'If availability.complete is false, do not finalise the programme until missing availability is confirmed in the end-of-week check-in.',
       'Every exercise ID in the returned programme must exist in coach_context.exercise_catalogue.',
       'Do not prescribe a load increase that conflicts with a Progress Engine RESET, LOAD_DOWN, CALIBRATE, DELOAD_HOLD or REVIEW state.',
-      'Meaningful weekly set-volume changes must be explained.',
+      'Meaningful weekly set-volume changes must be evidence-based and internally justified; only summarise consequential changes briefly to the user.',
       'Advanced set methods and failure prescriptions must be justified by exercise type, evidence and fatigue cost.',
     ],
     programme_output: {
